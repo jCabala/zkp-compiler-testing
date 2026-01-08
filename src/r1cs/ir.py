@@ -19,6 +19,8 @@ class Variable:
       - others are inputs/intermediates
     """
     index: int
+    def is_constant_one(self) -> bool:
+        return self.index == 0
 
 
 @dataclass
@@ -85,7 +87,7 @@ def get_r1cs_json(circuit_path: Path) -> str:
     circuit_name = circuit_path.stem
 
     # Compile the circuit to get the .r1cs file
-    compile_command = f"circom {circuit_path} --r1cs -o {temp_dir}"
+    compile_command = f"circom {circuit_path} --r1cs --O0 -o {temp_dir}"
     compile_result = os.system(compile_command)
 
     if compile_result != 0:

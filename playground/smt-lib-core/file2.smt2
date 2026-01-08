@@ -1,0 +1,10 @@
+; Core theory example 2: Boolean relationships only
+(declare-fun x () Bool)
+(declare-fun y () Bool)
+(declare-fun gxy () Bool)
+(assert (= x gxy))
+(assert (or (not x) y))
+(assert (and x (not y)))
+(assert (or gxy y))
+(check-sat)
+(get-model)

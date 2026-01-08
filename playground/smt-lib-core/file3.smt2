@@ -1,0 +1,10 @@
+; Core theory example 3: predicates represented as booleans
+(declare-fun c () Bool)
+(declare-fun d () Bool)
+(declare-fun p_c () Bool)
+(declare-fun p_d () Bool)
+(assert p_c)
+(assert (not p_d))
+(assert (not (= c d)))
+(check-sat)
+(get-model)
