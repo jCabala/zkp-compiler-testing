@@ -1,0 +1,47 @@
+[2026/01/12 03:20:14 PM] Strategy: yinyang, 1 testing targets, 1000000 seeds
+[2026/01/12 03:20:14 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-0334.smt2 ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-025.smt2
+[2026/01/12 03:20:14 PM] Attempting to generate 30 mutants
+[2026/01/12 03:20:14 PM] Performed 1 solver calls (1.0 calls/s, eff: 0.0%, 1.0 mutants/s)
+[2026/01/12 03:20:16 PM] Performed 13 solver calls (4.2 calls/s, eff: 0.0%, 4.2 mutants/s)
+[2026/01/12 03:20:18 PM] Performed 25 solver calls (4.8 calls/s, eff: 0.0%, 4.8 mutants/s)
+[2026/01/12 03:20:20 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/12 03:20:20 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-0606.smt2 ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-0881.smt2
+[2026/01/12 03:20:20 PM] Attempting to generate 30 mutants
+[2026/01/12 03:20:21 PM] Performed 33 solver calls (4.5 calls/s, eff: 0.0%, 4.5 mutants/s)
+[2026/01/12 03:20:23 PM] Performed 45 solver calls (4.7 calls/s, eff: 0.0%, 4.7 mutants/s)
+[2026/01/12 03:20:26 PM] Performed 55 solver calls (4.4 calls/s, eff: 0.0%, 4.4 mutants/s)
+[2026/01/12 03:20:27 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/12 03:20:27 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-0220.smt2 ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-0896.smt2
+[2026/01/12 03:20:27 PM] Attempting to generate 30 mutants
+[2026/01/12 03:20:28 PM] Performed 64 solver calls (4.4 calls/s, eff: 0.0%, 4.4 mutants/s)
+[2026/01/12 03:20:30 PM] Performed 75 solver calls (4.5 calls/s, eff: 0.0%, 4.5 mutants/s)
+[2026/01/12 03:20:32 PM] Performed 84 solver calls (4.4 calls/s, eff: 0.0%, 4.4 mutants/s)
+[2026/01/12 03:20:33 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/12 03:20:33 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-0347.smt2 ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-0178.smt2
+[2026/01/12 03:20:34 PM] Attempting to generate 30 mutants
+[2026/01/12 03:20:34 PM] Performed 92 solver calls (4.4 calls/s, eff: 0.0%, 4.4 mutants/s)
+[2026/01/12 03:20:36 PM] Performed 102 solver calls (4.4 calls/s, eff: 0.0%, 4.4 mutants/s)
+[2026/01/12 03:20:39 PM] Performed 113 solver calls (4.5 calls/s, eff: 0.0%, 4.5 mutants/s)
+[2026/01/12 03:20:40 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/12 03:20:40 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-0915.smt2 ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-0888.smt2
+[2026/01/12 03:20:40 PM] Attempting to generate 30 mutants
+[2026/01/12 03:20:41 PM] Performed 121 solver calls (4.4 calls/s, eff: 0.0%, 4.4 mutants/s)
+[2026/01/12 03:20:43 PM] Performed 132 solver calls (4.5 calls/s, eff: 0.0%, 4.5 mutants/s)
+[2026/01/12 03:20:45 PM] Performed 141 solver calls (4.5 calls/s, eff: 0.0%, 4.5 mutants/s)
+[2026/01/12 03:20:47 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/12 03:20:47 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-0805.smt2 ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-0314.smt2
+[2026/01/12 03:20:47 PM] Attempting to generate 30 mutants
+[2026/01/12 03:20:47 PM] Performed 150 solver calls (4.4 calls/s, eff: 0.0%, 4.4 mutants/s)
+[2026/01/12 03:20:49 PM] Performed 160 solver calls (4.4 calls/s, eff: 0.0%, 4.4 mutants/s)
+[2026/01/12 03:20:51 PM] Performed 172 solver calls (4.5 calls/s, eff: 0.0%, 4.5 mutants/s)
+[2026/01/12 03:20:53 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/12 03:20:53 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-0142.smt2 ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-0977.smt2
+[2026/01/12 03:20:53 PM] Attempting to generate 30 mutants
+[2026/01/12 03:20:53 PM] Performed 181 solver calls (4.5 calls/s, eff: 0.0%, 4.5 mutants/s)
+[2026/01/12 03:20:56 PM] Performed 192 solver calls (4.5 calls/s, eff: 0.0%, 4.5 mutants/s)
+[2026/01/12 03:20:58 PM] Performed 203 solver calls (4.6 calls/s, eff: 0.0%, 4.6 mutants/s)
+[2026/01/12 03:21:00 PM] Performed 209 solver calls (4.5 calls/s, eff: 0.0%, 4.5 mutants/s)
+[2026/01/12 03:21:00 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/12 03:21:00 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-099.smt2 ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-0898.smt2
+[2026/01/12 03:21:01 PM] Attempting to generate 30 mutants
+[2026/01/12 03:21:02 PM] Performed 217 solver calls (4.5 calls/s, eff: 0.0%, 4.5 mutants/s)

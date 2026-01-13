@@ -1,0 +1,127 @@
+[2026/01/13 02:28:06 PM] Strategy: yinyang, 1 testing targets, 25 seeds
+[2026/01/13 02:28:06 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat3.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat5.smt2
+[2026/01/13 02:28:06 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:06 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:06 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat5-tC3Ei.smt2[0m
+[2026/01/13 02:28:06 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:06 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat5.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat4.smt2
+[2026/01/13 02:28:06 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:06 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:06 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat4-ovbaf.smt2[0m
+[2026/01/13 02:28:06 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:06 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat5.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat3.smt2
+[2026/01/13 02:28:06 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:06 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:06 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat3-KhJzL.smt2[0m
+[2026/01/13 02:28:06 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:06 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat3.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat2.smt2
+[2026/01/13 02:28:06 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:06 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:06 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat2-d1qRr.smt2[0m
+[2026/01/13 02:28:06 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:06 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat1.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat1.smt2
+[2026/01/13 02:28:06 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:06 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:06 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat1-SnwuE.smt2[0m
+[2026/01/13 02:28:06 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:06 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat4.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat4.smt2
+[2026/01/13 02:28:06 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:06 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:06 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat4-RbECa.smt2[0m
+[2026/01/13 02:28:06 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:06 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat5.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat2.smt2
+[2026/01/13 02:28:06 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:06 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:06 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat2-8iXI0.smt2[0m
+[2026/01/13 02:28:06 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:06 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat1.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat5.smt2
+[2026/01/13 02:28:07 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:07 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:07 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat5-iMt3E.smt2[0m
+[2026/01/13 02:28:07 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:07 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat4.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat1.smt2
+[2026/01/13 02:28:07 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:07 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:07 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat1-EFf6M.smt2[0m
+[2026/01/13 02:28:07 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:07 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat2.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat2.smt2
+[2026/01/13 02:28:07 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:07 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:07 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat2-XfnAS.smt2[0m
+[2026/01/13 02:28:07 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:07 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat1.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat2.smt2
+[2026/01/13 02:28:07 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:07 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:07 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat2-vfHaC.smt2[0m
+[2026/01/13 02:28:07 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:07 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat5.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat5.smt2
+[2026/01/13 02:28:07 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:07 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:07 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat5-MgBjR.smt2[0m
+[2026/01/13 02:28:07 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:07 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat2.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat5.smt2
+[2026/01/13 02:28:07 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:07 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:07 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat5-gJPNW.smt2[0m
+[2026/01/13 02:28:07 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:07 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat3.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat1.smt2
+[2026/01/13 02:28:07 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:07 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:07 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat1-Jj2RQ.smt2[0m
+[2026/01/13 02:28:07 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:07 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat4.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat2.smt2
+[2026/01/13 02:28:07 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:07 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:07 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat2-lfKXQ.smt2[0m
+[2026/01/13 02:28:07 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:07 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat3.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat4.smt2
+[2026/01/13 02:28:07 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:07 PM] Performed 15 solver calls (14.5 calls/s, eff: 100.0%, 0.0 mutants/s)
+[2026/01/13 02:28:07 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:07 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat4-DZWAV.smt2[0m
+[2026/01/13 02:28:07 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:07 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat4.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat5.smt2
+[2026/01/13 02:28:07 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:07 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:07 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat5-k4uv3.smt2[0m
+[2026/01/13 02:28:07 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:07 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat1.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat3.smt2
+[2026/01/13 02:28:07 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:07 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:07 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat3-SGLPM.smt2[0m
+[2026/01/13 02:28:07 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:07 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat5.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat1.smt2
+[2026/01/13 02:28:07 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:07 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:07 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat1-hLVW2.smt2[0m
+[2026/01/13 02:28:07 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:07 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat2.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat4.smt2
+[2026/01/13 02:28:07 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:07 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:07 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat4-vyY0g.smt2[0m
+[2026/01/13 02:28:07 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:07 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat2.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat3.smt2
+[2026/01/13 02:28:07 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:07 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:07 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat3-gizGc.smt2[0m
+[2026/01/13 02:28:07 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:07 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat3.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat3.smt2
+[2026/01/13 02:28:07 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:07 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:07 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat3-5XRiK.smt2[0m
+[2026/01/13 02:28:07 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:07 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat2.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat1.smt2
+[2026/01/13 02:28:07 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:07 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:07 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat1-FIh3E.smt2[0m
+[2026/01/13 02:28:07 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:07 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat1.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat4.smt2
+[2026/01/13 02:28:08 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:08 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:08 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat4-9laTg.smt2[0m
+[2026/01/13 02:28:08 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 02:28:08 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat4.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat3.smt2
+[2026/01/13 02:28:08 PM] Attempting to generate 30 mutants
+[2026/01/13 02:28:08 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 02:28:08 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-z3-unsat3-DuC93.smt2[0m
+[2026/01/13 02:28:08 PM] Finished generations: 30 successful, 0 unsuccessful

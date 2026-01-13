@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+import subprocess
 from pathlib import Path
 import tempfile
 from dataclasses import dataclass
@@ -74,44 +74,42 @@ class R1CS:
 
 # --------- Translation ---------
 
-def get_r1cs_json(circuit_path: Path) -> str:
-    """
-    Use circom compiler to get .r1cs file and then use snarkjs to convert it to .json format.
-    """
+def _run(cmd: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    # text=True => strings, not bytes
+    # capture_output=True => no console spam
+    return subprocess.run(
+        cmd,
+        cwd=str(cwd) if cwd else None,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
 
-    # Create a temporary directory for output
-    temp_dir = tempfile.mkdtemp()
-    temp_dir_path = Path(temp_dir)
+class OptFlag(str):
+    O0 = "--O0"
+    O1 = "--O1"
+    O2 = "--O2"
 
-    # Get the circuit name without extension
+def get_r1cs_json(circuit_path: Path, opt_flag: OptFlag = OptFlag.O0) -> str:
+    temp_dir_path = Path(tempfile.mkdtemp())
     circuit_name = circuit_path.stem
 
-    # Compile the circuit to get the .r1cs file
-    compile_command = f"circom {circuit_path} --r1cs --O0 -o {temp_dir}"
-    compile_result = os.system(compile_command)
+    # Compile
+    p = _run(["circom", str(circuit_path), "--r1cs", opt_flag, "-o", str(temp_dir_path)])
+    if p.returncode != 0:
+        raise RuntimeError(f"Circom compilation failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
 
-    if compile_result != 0:
-        raise RuntimeError("Circom compilation failed.")
-
-    # The .r1cs file will be in temp_dir with the circuit name
     r1cs_path = temp_dir_path / f"{circuit_name}.r1cs"
-
     if not r1cs_path.exists():
         raise RuntimeError(f"Expected R1CS file not found at {r1cs_path}")
 
-    # Convert the .r1cs file to .json format using snarkjs
+    # Convert
     r1cs_json_path = temp_dir_path / f"{circuit_name}.json"
-    convert_command = f"snarkjs r1cs export json {r1cs_path} {r1cs_json_path}"
-    convert_result = os.system(convert_command)
+    p = _run(["snarkjs", "r1cs", "export", "json", str(r1cs_path), str(r1cs_json_path)])
+    if p.returncode != 0:
+        raise RuntimeError(f"snarkjs conversion failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
 
-    if convert_result != 0:
-        raise RuntimeError("snarkjs conversion failed.")
-
-    # Read the .json file content
-    with open(r1cs_json_path, "r") as json_file:
-        r1cs_json_content = json_file.read()
-
-    return r1cs_json_content
+    return r1cs_json_path.read_text()
 
 
 def parse_r1cs_json(json_str: str) -> R1CS:
@@ -123,8 +121,7 @@ def parse_r1cs_json(json_str: str) -> R1CS:
     # Build Variable objects from the `map` array
     # e.g. "map": [0, 1, 2, 3]  ->  Variable(0), Variable(1), ...
     map_indices = [int(x) for x in data["map"]]
-    variables = [Variable(index=i) for i in map_indices]
-    variables_by_index: Dict[int, Variable] = {v.index: v for v in variables}
+    variables_list = [Variable(index=i) for i in map_indices]
 
     # Parse constraints: [[[A], [B], [C]], ...]
     constraints: List[Constraint] = []
@@ -135,9 +132,9 @@ def parse_r1cs_json(json_str: str) -> R1CS:
             )
 
         A_obj, B_obj, C_obj = raw_constraint
-        A = _parse_linear_comb(A_obj, variables_by_index)
-        B = _parse_linear_comb(B_obj, variables_by_index)
-        C = _parse_linear_comb(C_obj, variables_by_index)
+        A = _parse_linear_comb(A_obj, variables_list)
+        B = _parse_linear_comb(B_obj, variables_list)
+        C = _parse_linear_comb(C_obj, variables_list)
 
         constraints.append(Constraint(A=A, B=B, C=C))
 
@@ -151,7 +148,7 @@ def parse_r1cs_json(json_str: str) -> R1CS:
         nLabels=int(data["nLabels"]),
         nConstraints=int(data["nConstraints"]),
         useCustomGates=bool(data["useCustomGates"]),
-        variables=variables,
+        variables=variables_list,
         constraints=constraints,
     )
 
@@ -160,7 +157,7 @@ def parse_r1cs_json(json_str: str) -> R1CS:
 
 def _parse_linear_comb(
     obj: Dict[str, Any],
-    variables_by_index: Dict[int, Variable],
+    variables_list: List[Variable],
 ) -> LinearCombination:
     """
     Convert a JSON object like { "2": "123", "3": "1" } into
@@ -171,13 +168,14 @@ def _parse_linear_comb(
         ]
     )
     """
+
     terms: List[Term] = []
     for k, v in obj.items():
         var_idx = int(k)
         coeff = int(v) if isinstance(v, str) else int(v)
-        if var_idx not in variables_by_index:
+        if var_idx >= len(variables_list):
             raise ValueError(f"Variable index {var_idx} not found in map/variables")
-        variable = variables_by_index[var_idx]
+        variable = variables_list[var_idx]
         terms.append(Term(variable=variable, coeff=coeff))
 
     return LinearCombination(terms=terms)

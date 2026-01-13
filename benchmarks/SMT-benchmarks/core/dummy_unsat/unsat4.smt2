@@ -1,0 +1,5 @@
+(set-logic QF_UF)
+(declare-fun d () Bool)
+(assert d)
+(assert (not d))
+(check-sat)

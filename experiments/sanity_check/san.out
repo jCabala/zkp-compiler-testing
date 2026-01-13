@@ -1,0 +1,11 @@
+[2026/01/13 04:27:54 PM] Strategy: yinyang, 1 testing targets, 25 seeds
+[2026/01/13 04:27:55 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-python3clipysolve--tmp-dir-unsat4-mJVh5.smt2[0m
+[2026/01/13 04:27:56 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-python3clipysolve--tmp-dir-unsat4-C7Zuz.smt2[0m
+[2026/01/13 04:27:56 PM] Performed 2 solver calls (1.2 calls/s, eff: 100.0%, 0.0 mutants/s)
+[2026/01/13 04:27:57 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-python3clipysolve--tmp-dir-unsat1-lo1s2.smt2[0m
+[2026/01/13 04:27:58 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-python3clipysolve--tmp-dir-unsat4-DzApL.smt2[0m
+[2026/01/13 04:27:59 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-python3clipysolve--tmp-dir-unsat3-KlhQS.smt2[0m
+[2026/01/13 04:27:59 PM] Performed 5 solver calls (1.1 calls/s, eff: 100.0%, 0.0 mutants/s)
+User interrupt
+12 seeds processed, 12 valid, 0 invalid 
+5 bug triggers found

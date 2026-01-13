@@ -1,9 +1,15 @@
 import json
+from random import Random
 import shutil
 import subprocess
 from pathlib import Path
 import click
 from src.r1cs import get_r1cs_json
+from src.smt_lib import cnf_string_to_smt2
+from src.smt_lib.zk_ir import Circuit
+from src.smt_lib.backends.circom.emitter import EmitVisitor as CircomEmitter
+from src.smt_lib.backends.circom.ir2circom import IR2CircomVisitor, IR2CircomVisitorConstrainAssertions, IR2ConstraintCircomVisitor
+from src.smt_lib.smt_lib_parser import parse_smtlib2_core
 
 def check_cmd_exists(cmd: str):
 	"""Exit with a clear error if a required command is missing."""
@@ -274,3 +280,72 @@ def generate_proof_command(circom_path: Path, input_json: Path, ptau: Path, outd
 	except Exception as e:
 		click.echo(f"✗ Unexpected error: {e}", err=True)
 		raise click.Abort()
+
+# --------------------------- CNF to SMT-LIB2 Batch Command ----------------------------------
+@click.command(name="cnf-to-smtlib2")
+@click.argument('in_folder', type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.argument('out_folder', type=click.Path(path_type=Path))
+def cnf_to_smtlib2_command(in_folder: Path, out_folder: Path):
+	"""
+	Translate all .cnf files in IN_FOLDER to SMT-LIB v2 format and store them in OUT_FOLDER.
+
+	IN_FOLDER: Path to folder containing .cnf files
+	OUT_FOLDER: Path to folder to store .smt2 files
+	"""
+	try:
+		check_cmd_exists("z3")
+		out_folder.mkdir(parents=True, exist_ok=True)
+		cnf_files = list(in_folder.glob("*.cnf"))
+		if not cnf_files:
+			click.echo(f"No .cnf files found in {in_folder}")
+			return
+		for cnf_file in cnf_files:
+			out_file = out_folder / (cnf_file.stem + ".smt2")
+			click.echo(f"Translating {cnf_file} -> {out_file}")
+			# Z3 translation: z3 -dimacs input.cnf -smt2 > output.smt2
+			out_file.write_text(cnf_string_to_smt2(cnf_file.read_text()))
+		click.echo(f"✓ Converted {len(cnf_files)} files to SMT-LIB v2 in {out_folder}")
+	except Exception as e:
+		click.echo(f"✗ Error: {e}", err=True)
+		raise click.Abort()
+
+
+@click.command(name="smtlib2-to-circom")
+@click.argument('in_folder', type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.argument('out_folder', type=click.Path(path_type=Path))
+def translate_to_circom_command(in_folder: Path, out_folder: Path):
+	"""
+	Translate an SMT-LIB v2 core theory string into .circom files.
+
+	IN_FOLDER: Path to folder containing .smt2 files
+	OUT_FOLDER: Path to folder to store .circom files
+	"""
+
+	def smtlib2_to_circom(smtlib2: str) -> str:
+		# Parse SMT-LIB v2 to Circuit IR
+		circuit_ir: Circuit = parse_smtlib2_core(smtlib2)
+
+		# Convert Circuit IR to Circom IR
+		rng = Random(0)
+		ir2circom_visitor = IR2CircomVisitorConstrainAssertions(constraint_assignment_probability=1, rng=rng)
+		circom_ir = ir2circom_visitor.visit_circuit(circuit_ir)
+
+		# Emit Circom code from Circom IR
+		emitter = CircomEmitter()
+		circom_code = emitter.emit(circom_ir)
+
+		return circom_code
+
+	check_cmd_exists("z3")
+	out_folder.mkdir(parents=True, exist_ok=True)
+	smt2_files = list(in_folder.glob("*.smt2"))
+	if not smt2_files:
+		click.echo(f"No .smt2 files found in {in_folder}")
+		return
+	for smt2_file in smt2_files:
+		out_file = out_folder / (smt2_file.stem + ".circom")
+		click.echo(f"Translating {smt2_file} -> {out_file}")
+		smtlib2 = smt2_file.read_text()
+		circom_code = smtlib2_to_circom(smtlib2)
+		out_file.write_text(circom_code)
+	click.echo(f"✓ Converted {len(smt2_files)} files to Circom in {out_folder}")

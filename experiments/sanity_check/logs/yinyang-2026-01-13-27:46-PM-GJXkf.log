@@ -1,0 +1,24 @@
+[2026/01/13 04:27:46 PM] Strategy: yinyang, 1 testing targets, 25 seeds
+[2026/01/13 04:27:46 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat2.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat5.smt2
+[2026/01/13 04:27:46 PM] Attempting to generate 30 mutants
+[2026/01/13 04:27:47 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 04:27:47 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-python3clipysolve--tmp-dir-unsat5-zRimx.smt2[0m
+[2026/01/13 04:27:47 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 04:27:47 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat5.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat2.smt2
+[2026/01/13 04:27:47 PM] Attempting to generate 30 mutants
+[2026/01/13 04:27:48 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 04:27:48 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-python3clipysolve--tmp-dir-unsat2-Pydxp.smt2[0m
+[2026/01/13 04:27:48 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 04:27:48 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat1.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat1.smt2
+[2026/01/13 04:27:48 PM] Attempting to generate 30 mutants
+[2026/01/13 04:27:48 PM] Performed 2 solver calls (1.3 calls/s, eff: 100.0%, 0.0 mutants/s)
+[2026/01/13 04:27:48 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 04:27:48 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-python3clipysolve--tmp-dir-unsat1-nuGk8.smt2[0m
+[2026/01/13 04:27:48 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 04:27:48 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat5.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat5.smt2
+[2026/01/13 04:27:48 PM] Attempting to generate 30 mutants
+[2026/01/13 04:27:49 PM] 1/30 Soundness bug! Stop testing on this seed.
+[2026/01/13 04:27:49 PM] [1m[91mDetected soundness bug! /home/jcabala/fyp/new_repos/smt-solver/experiments/sanity_check/bugs/incorrect-python3clipysolve--tmp-dir-unsat5-t4P6r.smt2[0m
+[2026/01/13 04:27:49 PM] Finished generations: 30 successful, 0 unsuccessful
+[2026/01/13 04:27:49 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat2.smt2 ../../benchmarks/SMT-benchmarks/core/dummy_unsat/unsat4.smt2
+[2026/01/13 04:27:49 PM] Attempting to generate 30 mutants

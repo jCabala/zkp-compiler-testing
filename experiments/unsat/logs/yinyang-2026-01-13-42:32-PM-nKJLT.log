@@ -1,0 +1,9 @@
+[2026/01/13 02:42:32 PM] Strategy: yinyang, 1 testing targets, 1000000 seeds
+[2026/01/13 02:42:32 PM] Processing seeds ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-046.smt2 ../../benchmarks/SMT-benchmarks/core/unsat/uuf50-0165.smt2
+[2026/01/13 02:42:32 PM] Attempting to generate 30 mutants
+[2026/01/13 02:42:41 PM] 1/30 Solver timeout occurred. sol=python3 ../../cli.py solve --tmp-dir ./tmp_circom/
+[2026/01/13 02:42:41 PM] Performed 1 solver calls (0.1 calls/s, eff: 0.0%, 0.1 mutants/s)
+[2026/01/13 02:42:49 PM] 2/30 Solver timeout occurred. sol=python3 ../../cli.py solve --tmp-dir ./tmp_circom/
+[2026/01/13 02:42:49 PM] Performed 2 solver calls (0.1 calls/s, eff: 0.0%, 0.1 mutants/s)
+[2026/01/13 02:42:59 PM] 3/30 Solver timeout occurred. sol=python3 ../../cli.py solve --tmp-dir ./tmp_circom/
+[2026/01/13 02:42:59 PM] Performed 3 solver calls (0.1 calls/s, eff: 0.0%, 0.1 mutants/s)

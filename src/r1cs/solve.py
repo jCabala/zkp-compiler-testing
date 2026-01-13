@@ -1,19 +1,23 @@
 from dataclasses import dataclass
 from .ir import R1CS
 from typing import Dict
-from z3 import Solver, Int, sat
+from z3 import Solver, Int, Bool, sat
 
 @dataclass
 class SMTResult:
     satisfiable: bool
     model: Dict[str, int]  # variable assignments if satisfiable
 
-def solve_r1cs(r1cs: R1CS) -> SMTResult:
+def solve_r1cs(r1cs: R1CS, bool_vars: bool = False) -> SMTResult:
     """
     Use z3 SMT solver to solve the given R1CS instance.
     """
     solver = Solver()
-    var_map = {var.index: Int(f'v{var.index}') for var in r1cs.variables if not var.is_constant_one()}
+    if bool_vars:
+        var_map = {var.index: Bool(f'v{var.index}') for var in r1cs.variables if not var.is_constant_one()}
+    else:
+        var_map = {var.index: Int(f'v{var.index}') for var in r1cs.variables if not var.is_constant_one()}
+        
     var_map[0] = 1  # constant one wire
 
     # Add constraints to the solver
@@ -25,7 +29,7 @@ def solve_r1cs(r1cs: R1CS) -> SMTResult:
 
     if solver.check() == sat:
         model = solver.model()
-        solution = {d.name(): model[d].as_long() for d in model.decls()}
+        solution = {d.name(): model[d] for d in model.decls()}
         return SMTResult(satisfiable=True, model=solution)
     else:
         return SMTResult(satisfiable=False, model={})

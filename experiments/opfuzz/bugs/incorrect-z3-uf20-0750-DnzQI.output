@@ -1,0 +1,12 @@
+*** REFERENCE 
+command: python3 ../../cli.py solve --tmp-dir ./tmp_circom/
+stderr:
+sat
+stdout:
+/home/jcabala/fyp/new_repos/smt-solver/experiments/opfuzz/scratch/uf20-0750-aulSQ-mC0Xp.smt2
+
+*** INCORRECT 
+command: z3
+stderr:
+stdout:
+unsat
