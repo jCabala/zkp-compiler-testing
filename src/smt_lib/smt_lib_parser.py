@@ -27,7 +27,7 @@ def parse_smtlib2_core(
     for cmd in script.commands:
         if cmd.name == "declare-fun":
             var_name = cmd.args[0]
-            inputs.append(str(var_name))
+            inputs.append(Variable(str(var_name), VariableType.BOOLEAN))
         elif cmd.name == "define-fun":
             raise NotImplementedError("define-fun is not supported in SMT-LIB core parser")
 

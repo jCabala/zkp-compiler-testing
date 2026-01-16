@@ -1,12 +1,0 @@
-[2026/01/13 04:48:30 PM] Strategy: yinyang, 1 testing targets, 998001 seeds
-[2026/01/13 04:48:32 PM] Performed 1 solver calls (0.4 calls/s, eff: 100.0%, 0.4 mutants/s)
-[2026/01/13 04:48:34 PM] Performed 2 solver calls (0.4 calls/s, eff: 100.0%, 0.4 mutants/s)
-[2026/01/13 04:48:37 PM] Performed 3 solver calls (0.4 calls/s, eff: 100.0%, 0.4 mutants/s)
-[2026/01/13 04:48:40 PM] Performed 5 solver calls (0.5 calls/s, eff: 100.0%, 0.5 mutants/s)
-[2026/01/13 04:48:43 PM] Performed 7 solver calls (0.5 calls/s, eff: 100.0%, 0.5 mutants/s)
-[2026/01/13 04:48:47 PM] Performed 9 solver calls (0.5 calls/s, eff: 100.0%, 0.5 mutants/s)
-[2026/01/13 04:48:50 PM] Performed 11 solver calls (0.5 calls/s, eff: 100.0%, 0.5 mutants/s)
-[2026/01/13 04:48:55 PM] Performed 13 solver calls (0.5 calls/s, eff: 100.0%, 0.5 mutants/s)
-User interrupt
-2 seeds processed, 2 valid, 0 invalid 
-0 bug triggers found

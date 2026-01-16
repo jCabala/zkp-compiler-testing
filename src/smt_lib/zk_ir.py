@@ -126,7 +126,7 @@ class Variable(Expression):
         return True
 
     def is_boolean_expression(self) -> bool:
-        return self.is_boolean
+        return self.variable_type == VariableType.BOOLEAN
 
     def is_arithmetic_expression(self) -> bool:
         return True
@@ -316,15 +316,15 @@ class Assume(Statement):
 @dataclass
 class Circuit(IRNode):
     name: str
-    inputs: list[str]
-    outputs: list[str]
+    inputs: list[Variable]
+    outputs: list[Variable]
     statements: list[Statement]
 
     def copy(self) -> 'Circuit':
         return Circuit( \
             self.name,
-            [x for x in self.inputs],
-            [x for x in self.outputs],
+            [x.copy() for x in self.inputs],
+            [x.copy() for x in self.outputs],
             [x.copy() for x in self.statements])
 
     def __str__(self):

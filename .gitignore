@@ -1,0 +1,8 @@
+./playground/*
+./experiments/*
+*.log
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
