@@ -1,16 +1,21 @@
 import io
 from pathlib import Path
 
+from sympy import prime
+
+from src.backends.gnark.r1cs import GNARKFieldPrimes
+
 from .nodes import *
 
 
 class EmitVisitor():
 
-    def __init__(self, main_template_path: str = "./main_template.go"):
+    def __init__(self, main_template_path: str = "./main_template.go", prime: GNARKFieldPrimes = GNARKFieldPrimes.U32_47):
         self.tabs = 0
         self.buffer = io.StringIO()
         here = Path(__file__).resolve().parent
         self.main_template_path = here / main_template_path
+        self.field_prime = prime
 
     def emit(self, node: ASTNode) -> str:
         self.tabs = 0
@@ -23,11 +28,17 @@ class EmitVisitor():
         self.buffer.write("\t\"strings\"\n")
         self.buffer.write("\t\"fmt\"\n")
         self.buffer.write("\t\"encoding/json\"\n")
+        self.buffer.write("\t\"math/big\"\n")
+        
+        self.buffer.write("\t\"github.com/consensys/gnark/std/math/cmp\"\n")
         self.buffer.write("\t\"github.com/consensys/gnark-crypto/ecc\"\n")
         self.buffer.write("\t\"github.com/consensys/gnark/frontend\"\n")
         self.buffer.write("\t\"github.com/consensys/gnark/frontend/cs/r1cs\"\n")
         self.buffer.write("\t\"github.com/consensys/gnark/constraint\"\n")
+
         self.buffer.write(")\n\n")
+
+        self.buffer.write(f"var FIELD_PRIME = {self._field_prime_code()}\n\n")
 
         # --- emit the circuit (type + Define) ---
         self.visit(node)
@@ -37,6 +48,15 @@ class EmitVisitor():
             self._append_main_template(node.name)
 
         return self.buffer.getvalue()
+
+    def _field_prime_code(self) -> str:
+        if not self.field_prime in GNARKFieldPrimes.__dict__.values():
+            raise ValueError(f"Unsupported field prime: {self.field_prime}")
+        
+        if self.field_prime == GNARKFieldPrimes.BN254:
+            return "ecc.BN254.ScalarField()"
+        else:
+            return f"big.NewInt({self.field_prime})"
 
     def _append_main_template(self, circuit_name: str):
         template_path = Path(self.main_template_path)

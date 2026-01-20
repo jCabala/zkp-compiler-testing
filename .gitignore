@@ -1,8 +1,10 @@
-./playground/*
-./experiments/*
+playground/*
+experiments/*
 *.log
 
 # Python bytecode
 __pycache__/
+**/__pycache__/
+**/**/__pycache__/
 *.py[cod]
 *$py.class

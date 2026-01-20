@@ -14,31 +14,22 @@
 //
 
 func main() {
-	// Dummy use of strings to avoid import errors if not used elsewhere
 	_ = strings.Builder{}
+	_ = big.Int{}
+	_ = cmp.IsLess
+	_ = ecc.BN254
 
 	if len(os.Args) != 2 {
 		panic("usage: <binary> <outPath>  (writes <outPath>)")
 	}
 	outPath := os.Args[1]
 
-	var circuit __CIRCUIT_NAME__
-	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
-	if err != nil {
-		panic(err)
-	}
-
-	// Extract R1CS constraints
-	r1csCS, ok := ccs.(constraint.R1CS[constraint.U64])
-	if !ok {
-		panic("compiled constraint system is not R1CS[constraint.U64]")
-	}
-	r1csList := r1csCS.GetR1Cs()
+	var circuit smtlib2_lia
 
 	// JSON schema
 	type Term struct {
 		Var   int    `json:"var"`
-		Coeff string `json:"coeff"` // coefficient id: "c<CID>"
+		Coeff string `json:"coeff"`
 	}
 	type Constraint struct {
 		ID int    `json:"id"`
@@ -52,58 +43,127 @@ func main() {
 		Constraints []Constraint `json:"constraints"`
 	}
 
-	termsFromSlice := func(ts []constraint.Term) []Term {
-		out := make([]Term, 0, len(ts))
-		for _, t := range ts {
-			out = append(out, Term{
-				Var:   int(t.VID),
-				// dump actual field element (often "0", "1", "-1", or big ints)
-				Coeff: r1csCS.CoeffToString(int(t.CID)),
+	// shared file write
+	writeDump := func(dump Dump) {
+		f, err := os.Create(outPath)
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+
+		enc := json.NewEncoder(f)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(dump); err != nil {
+			panic(err)
+		}
+	}
+
+	if FIELD_PRIME.String() == ecc.BN254.ScalarField().String() {
+		// ---- U64 path ----
+		ccs, err := frontend.Compile(FIELD_PRIME, r1cs.NewBuilder, &circuit)
+		if err != nil {
+			panic(err)
+		}
+
+		r1csCS, ok := ccs.(constraint.R1CS[constraint.U64])
+		if !ok {
+			panic("compiled constraint system is not R1CS[constraint.U64]")
+		}
+		r1csList := r1csCS.GetR1Cs()
+
+		termsFromSlice := func(ts []constraint.Term) []Term {
+			out := make([]Term, 0, len(ts))
+			for _, t := range ts {
+				out = append(out, Term{
+					Var:   int(t.VID),
+					Coeff: r1csCS.CoeffToString(int(t.CID)),
+				})
+			}
+			return out
+		}
+
+		linToTerms := func(lin any) []Term {
+			switch v := lin.(type) {
+			case constraint.LinearExpression:
+				return termsFromSlice([]constraint.Term(v))
+			case []constraint.Term:
+				return termsFromSlice(v)
+			default:
+				panic(fmt.Sprintf("unknown linear expression type: %T", lin))
+			}
+		}
+
+		dump := Dump{
+			Field:       "BN254",
+			System:      "R1CS",
+			Constraints: make([]Constraint, 0, len(r1csList)),
+		}
+		for i := range r1csList {
+			c := r1csList[i]
+			dump.Constraints = append(dump.Constraints, Constraint{
+				ID: i,
+				L:  linToTerms(c.L),
+				R:  linToTerms(c.R),
+				O:  linToTerms(c.O),
 			})
 		}
-		return out
+
+		writeDump(dump)
+		return
 	}
 
-	// Helper: linear expression -> []Term
-	linToTerms := func(lin any) []Term {
-		switch v := lin.(type) {
-		case constraint.LinearExpression:
-			// LinearExpression is (in this gnark) a named slice type, typically []constraint.Term
-			return termsFromSlice([]constraint.Term(v))
-		case []constraint.Term:
-			return termsFromSlice(v)
-		default:
-			panic(fmt.Sprintf("unknown linear expression type: %T", lin))
+	{
+		// ---- U32 path ----
+		ccs, err := frontend.CompileU32(FIELD_PRIME, r1cs.NewBuilder, &circuit)
+		if err != nil {
+			panic(err)
 		}
-	}
 
-	dump := Dump{
-		Field:       "BN254",
-		System:      "R1CS",
-		Constraints: make([]Constraint, 0, len(r1csList)),
-	}
+		r1csCS, ok := ccs.(constraint.R1CS[constraint.U32])
+		if !ok {
+			panic("compiled constraint system is not R1CS[constraint.U32]")
+		}
+		r1csList := r1csCS.GetR1Cs()
 
-	for i := range r1csList {
-		c := r1csList[i]
-		dump.Constraints = append(dump.Constraints, Constraint{
-			ID: i,
-			L:  linToTerms(c.L),
-			R:  linToTerms(c.R),
-			O:  linToTerms(c.O),
-		})
-	}
+		// NOTE: depending on your gnark version, Term/LinearExpression may be U32-typed here.
+		// If this block fails to compile, paste the new error and I’ll adjust the types.
+		termsFromSlice := func(ts []constraint.Term) []Term {
+			out := make([]Term, 0, len(ts))
+			for _, t := range ts {
+				out = append(out, Term{
+					Var:   int(t.VID),
+					Coeff: r1csCS.CoeffToString(int(t.CID)),
+				})
+			}
+			return out
+		}
 
-	f, err := os.Create(outPath)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
+		linToTerms := func(lin any) []Term {
+			switch v := lin.(type) {
+			case constraint.LinearExpression:
+				return termsFromSlice([]constraint.Term(v))
+			case []constraint.Term:
+				return termsFromSlice(v)
+			default:
+				panic(fmt.Sprintf("unknown linear expression type: %T", lin))
+			}
+		}
 
-	enc := json.NewEncoder(f)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(dump); err != nil {
-		panic(err)
+		dump := Dump{
+			Field:       FIELD_PRIME.String(),
+			System:      "R1CS",
+			Constraints: make([]Constraint, 0, len(r1csList)),
+		}
+		for i := range r1csList {
+			c := r1csList[i]
+			dump.Constraints = append(dump.Constraints, Constraint{
+				ID: i,
+				L:  linToTerms(c.L),
+				R:  linToTerms(c.R),
+				O:  linToTerms(c.O),
+			})
+		}
+
+		writeDump(dump)
 	}
 }
-
-// --- END GENERATED MAIN TEMPLATE ---

@@ -8,6 +8,12 @@ from typing import Dict, List, Any
 import json
 
 
+# --------- SMT Result ---------
+@dataclass
+class SMTResult:
+    satisfiable: bool
+    model: Dict[str, int]
+
 # --------- IR ---------
 
 @dataclass(frozen=True)

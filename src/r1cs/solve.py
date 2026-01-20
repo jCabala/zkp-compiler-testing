@@ -1,36 +1,27 @@
+from __future__ import annotations
 from dataclasses import dataclass
-from .ir import R1CS
-from typing import Dict
-from z3 import Solver, Int, Bool, sat
+from typing import Dict, Literal
+from src.r1cs.solve_cvc5 import solve_r1cs_cvc5
+from src.r1cs.solve_z3 import solve_r1cs_z3
+from src.r1cs.ir import R1CS, SMTResult
 
-@dataclass
-class SMTResult:
-    satisfiable: bool
-    model: Dict[str, int]  # variable assignments if satisfiable
+BackendName = Literal["z3", "cvc5"]
 
-def solve_r1cs(r1cs: R1CS, bool_vars: bool = False) -> SMTResult:
-    """
-    Use z3 SMT solver to solve the given R1CS instance.
-    """
-    solver = Solver()
-    if bool_vars:
-        var_map = {var.index: Bool(f'v{var.index}') for var in r1cs.variables if not var.is_constant_one()}
-    else:
-        var_map = {var.index: Int(f'v{var.index}') for var in r1cs.variables if not var.is_constant_one()}
-        
-    var_map[0] = 1  # constant one wire
+# -----------------------
+# Unified entry point
+# -----------------------
 
-    # Add constraints to the solver
-    for constraint in r1cs.constraints:
-        A_expr = sum(term.coeff * var_map[term.variable.index] for term in constraint.A.terms)
-        B_expr = sum(term.coeff * var_map[term.variable.index] for term in constraint.B.terms)
-        C_expr = sum(term.coeff * var_map[term.variable.index] for term in constraint.C.terms)
-        solver.add((A_expr * B_expr) % r1cs.prime == C_expr % r1cs.prime)
-
-    if solver.check() == sat:
-        model = solver.model()
-        solution = {d.name(): model[d] for d in model.decls()}
-        return SMTResult(satisfiable=True, model=solution)
-    else:
-        return SMTResult(satisfiable=False, model={})
-
+def solve_r1cs(
+    r1cs: R1CS,
+    bool_vars: bool = False,
+    backend: BackendName = "cvc5",
+    with_logs: bool = True,
+) -> SMTResult:
+    if with_logs:
+        print(f"Solving R1CS using {backend}...")
+    if backend == "z3":
+        return solve_r1cs_z3(r1cs, bool_vars=bool_vars, with_logs=with_logs)
+    if backend == "cvc5":
+        # Cvc should be run in a separate process to avoid issues with click and cvc5's internal state.
+        return solve_r1cs_cvc5(r1cs, bool_vars=bool_vars, with_logs=with_logs)
+    raise ValueError(f"Unknown backend: {backend!r}")

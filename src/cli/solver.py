@@ -42,7 +42,7 @@ def solve_circom_command(circom_path: Path, bool_vars: bool, with_model: bool, w
 	_log("Parsing R1CS JSON...", with_logs)
 	r1cs = parse_r1cs_json(r1cs_json_str)
 
-	_log("Solving R1CS using Z3...", with_logs)
+	_log("Solving R1CS using a SMT solver...", with_logs)
 	solution = solve_r1cs(r1cs, bool_vars=bool_vars)
 	_log_smt_results(solution, with_model)
 
@@ -56,11 +56,12 @@ def solve_gnark_command(gnark_path: Path, bool_vars: bool, with_model: bool, wit
 
 	_log(f"Compiling GNARK file: {gnark_path}...", with_logs=with_logs)
 	r1cs_json_str = get_r1cs_json(gnark_path)
+	# print(r1cs_json_str)
 
 	_log("Parsing R1CS JSON...", with_logs)
 	r1cs = parse_r1cs_json(r1cs_json_str)
 
-	_log("Solving R1CS using Z3...", with_logs)
+	_log("Solving R1CS using a SMT solver...", with_logs)
 	solution = solve_r1cs(r1cs, bool_vars=bool_vars)
 	_log_smt_results(solution, with_model)
 
@@ -76,10 +77,9 @@ class ZKDSL:
 
 def solve(smt_lib_path: Path, tmp_dir: Path = Path("/tmp/smt_solver"), with_logs: bool = False, zk_dsl: str = ZKDSL.CIRCOM):
 	"""
-	Solve an SMT-LIB file using Z3 solver.
+	Solve an SMT-LIB file using a SMT solver.
 	SMT_LIB_PATH: Path to the .smt2 file
 	"""
-
 	_log(f"Using ZK DSL: {zk_dsl}", with_logs=with_logs)
 	_log(f"Solving SMT-LIB file: {smt_lib_path}...", with_logs=with_logs)
 	file_content = smt_lib_path.read_text()
@@ -97,7 +97,7 @@ def solve(smt_lib_path: Path, tmp_dir: Path = Path("/tmp/smt_solver"), with_logs
 	if zk_dsl == ZKDSL.CIRCOM:
 		ctx.invoke(solve_circom_command, circom_path=dsl_path, bool_vars=True, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False)
 	elif zk_dsl == ZKDSL.GNARK:
-		ctx.invoke(solve_gnark_command, gnark_path=dsl_path, bool_vars=True, with_logs=with_logs, with_model=False)
+		ctx.invoke(solve_gnark_command, gnark_path=dsl_path, bool_vars=False, with_logs=with_logs, with_model=False)
 	else:
 		raise ValueError(f"Unsupported ZK DSL: {zk_dsl}")
 

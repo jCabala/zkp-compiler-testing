@@ -316,7 +316,8 @@ def cnf_to_smtlib2_command(in_folder: Path, out_folder: Path):
 @click.command(name="smtlib2-to-circom")
 @click.argument('in_folder', type=click.Path(exists=True, file_okay=False, path_type=Path))
 @click.argument('out_folder', type=click.Path(path_type=Path))
-def translate_to_circom_command(in_folder: Path, out_folder: Path):
+@click.option('--max-out', type=int, default=None, help="Maximum number of files to convert.")
+def translate_to_circom_command(in_folder: Path, out_folder: Path, max_out: int | None):
 	"""
 	Translate an SMT-LIB v2 core theory string into .circom files.
 
@@ -345,7 +346,7 @@ def translate_to_circom_command(in_folder: Path, out_folder: Path):
 	if not smt2_files:
 		click.echo(f"No .smt2 files found in {in_folder}")
 		return
-	for smt2_file in smt2_files:
+	for smt2_file in smt2_files[:max_out] if max_out is not None else smt2_files:
 		out_file = out_folder / (smt2_file.stem + ".circom")
 		click.echo(f"Translating {smt2_file} -> {out_file}")
 		smtlib2 = smt2_file.read_text()

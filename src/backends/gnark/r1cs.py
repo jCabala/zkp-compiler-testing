@@ -29,7 +29,7 @@ def get_r1cs_json(circuit_path: Path) -> str:
         raise RuntimeError(f"Circom compilation failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
 
     if not r1cs_json_path.exists():
-        raise RuntimeError(f"Expected R1CS file not found at {r1cs_path}")
+        raise RuntimeError(f"Expected R1CS file not found at {r1cs_json_path}")
 
     # Convert
     return r1cs_json_path.read_text()
@@ -37,20 +37,22 @@ def get_r1cs_json(circuit_path: Path) -> str:
 
 # --------- Parsing ---------
 
-_BN254_FR_PRIME = 21888242871839275222246405745257275088548364400416034343698204186575808495617
+BN254_FR_PRIME = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 
-_FIELD_PRIMES = {
-    "BN254": _BN254_FR_PRIME,
-    # add more if you need:
-    # "BLS12_381": <prime>,
-}
+class GNARKFieldPrimes:
+    BN254 = BN254_FR_PRIME
+    U32_2013265921 = 2013265921,
+    U32_2130706433 = 2130706433
+    U32_47 = 47
+
+    # Add more as needed
 
 def parse_r1cs_json(json_str: str) -> R1CS:
     """
     Parses JSON like:
 
     {
-      "field": "BN254",
+      "field": "47",
       "system": "R1CS",
       "constraints": [
         {"id":0, "L":[{"var":1,"coeff":"c1"}], "R":[...], "O":[...]}
@@ -68,13 +70,7 @@ def parse_r1cs_json(json_str: str) -> R1CS:
     if not isinstance(obj, dict):
         raise TypeError("Top-level JSON must be an object")
 
-    field = obj.get("field")
-    if not isinstance(field, str) or not field:
-        raise ValueError("Missing/invalid 'field'")
-
-    prime = _FIELD_PRIMES.get(field)
-    if prime is None:
-        raise ValueError(f"Unsupported field {field!r}. Known: {sorted(_FIELD_PRIMES)}")
+    prime = int(obj.get("field"))
 
     system = obj.get("system")
     if system != "R1CS":
