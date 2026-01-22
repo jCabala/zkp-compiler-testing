@@ -185,7 +185,11 @@ class EmitVisitor():
         if node.is_bool():
             self.buffer.write("true" if node.value else "false")
         elif node.is_int():
-            self.buffer.write(str(node.value))
+            val = int(node.value)
+            while val < 0:
+                val += self.field_prime
+
+            self.buffer.write(str(val))
         else:
             assert node.is_str(), "unexpected literal"
             self.buffer.write(f"\"{node.value}\"")
