@@ -3,6 +3,7 @@ experiments/**/obj/**
 experiments/**/*.out
 experiments/tmp_fusion/*
 *.log
+.vscode/*
 
 # Python bytecode
 __pycache__/
