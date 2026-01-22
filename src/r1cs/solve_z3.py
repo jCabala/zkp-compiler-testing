@@ -1,6 +1,5 @@
 from src.r1cs.ir import SMTResult
 from typing import Any
-from z3 import Solver, Int, Bool, sat
 
 def _safe_int(x: Any) -> int:
     """
@@ -21,6 +20,7 @@ def _safe_int(x: Any) -> int:
 
 
 def solve_r1cs_z3(r1cs, bool_vars: bool = False, with_logs: bool = False) -> SMTResult:
+    from z3 import Solver, Int, Bool, sat
     solver = Solver()
 
     if bool_vars:

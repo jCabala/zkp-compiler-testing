@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 from pathlib import Path
 import click
 from src.cli.helper import export_r1cs_command, generate_proof_command, cnf_to_smtlib2_command, translate_to_circom_command, translate_to_gnark_command

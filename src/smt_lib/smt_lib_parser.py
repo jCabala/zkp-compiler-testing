@@ -1,6 +1,10 @@
 from io import StringIO
+import os
 from typing import Dict, List, Tuple
-
+# --------------------
+# THIS IMPORT NEEDS TO STAY TO AVOID PROBLEMS BETWEEN PYSMT AND CVC5
+import cvc5.pythonic
+# --------------------
 from pysmt.smtlib.parser import SmtLibParser
 from pysmt.fnode import FNode
 from pysmt.smtlib.script import SmtLibScript
@@ -19,7 +23,6 @@ from src.smt_lib.zk_ir import (
     VariableType,
     Integer,  # assumes you have an Integer literal node in your IR
 )
-
 
 def parse_smtlib2_core(smtlib2: str) -> Circuit:
     """
