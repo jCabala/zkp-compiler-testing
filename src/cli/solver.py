@@ -19,7 +19,8 @@ from src.backends.gnark.ir2gnark import IR2GnarkVisitor
 @click.option('-o0', is_flag=True, help="Use optimization flag o0 for Circom compilation.")
 @click.option('-o1', is_flag=True, help="Use optimization flag o1 for Circom compilation.")
 @click.option('-o2', is_flag=True, help="Use optimization flag o2 for Circom compilation.")
-def solve_circom_command(circom_path: Path, bool_vars: bool, with_model: bool, with_logs: bool, o0: bool, o1: bool, o2: bool):
+@click.option('--solver', type=click.Choice(["z3", "cvc5"]), default="z3", help="Choose the SMT solver backend.")
+def solve_circom_command(circom_path: Path, bool_vars: bool, with_model: bool, with_logs: bool, solver: str, o0: bool, o1: bool, o2: bool):
 	"""
 	Compile a Circom circuit, export its R1CS representation, and use SMT solver to find a solution.
 	CIRCOM_PATH: Path to the .circom file
@@ -43,10 +44,16 @@ def solve_circom_command(circom_path: Path, bool_vars: bool, with_model: bool, w
 	r1cs = parse_r1cs_json(r1cs_json_str)
 
 	_log("Solving R1CS using a SMT solver...", with_logs)
-	solution = solve_r1cs(r1cs, bool_vars=bool_vars)
+	solution = solve_r1cs(r1cs, bool_vars=bool_vars, backend=solver, with_logs=with_logs)
 	_log_smt_results(solution, with_model)
 
-def solve_gnark_command(gnark_path: Path, bool_vars: bool, with_model: bool, with_logs: bool):
+@click.command()
+@click.argument('gnark_path', type=click.Path(exists=True, path_type=Path))
+@click.option('--bool-vars', is_flag=True, help="Treat all variables as booleans.")
+@click.option('--with-model', is_flag=True, help="Output the model if satisfiable.")
+@click.option("--with-logs", is_flag=True, help="Enable detailed logging.")
+@click.option("--solver", type=click.Choice(["z3", "cvc5"]), default="z3", help="Choose the SMT solver backend.")
+def solve_gnark_command(gnark_path: Path, bool_vars: bool, with_model: bool, with_logs: bool, solver: str):
 	"""
 	Compile a GNARK (Go) circuit, export its R1CS representation, and use SMT solver to find a solution.
 	GNARK_PATH: Path to the .go file
@@ -62,7 +69,7 @@ def solve_gnark_command(gnark_path: Path, bool_vars: bool, with_model: bool, wit
 	r1cs = parse_r1cs_json(r1cs_json_str)
 
 	_log("Solving R1CS using a SMT solver...", with_logs)
-	solution = solve_r1cs(r1cs, bool_vars=bool_vars)
+	solution = solve_r1cs(r1cs, bool_vars=bool_vars, backend=solver, with_logs=with_logs)
 	_log_smt_results(solution, with_model)
 
 class ZKDSL:
@@ -74,8 +81,10 @@ class ZKDSL:
 @click.option('--tmp-dir', type=click.Path(path_type=Path), default=Path("/tmp/smt_solver"), help="Temporary directory for intermediate files.")
 @click.option("--with-logs", is_flag=True, help="Enable detailed logging.")
 @click.option("--zk-dsl", type=click.Choice([ZKDSL.CIRCOM, ZKDSL.GNARK]), default=ZKDSL.CIRCOM, help="Choose the zero-knowledge DSL to use.")
+@click.option("--bool-vars", is_flag=True, help="Treat all variables as booleans.")
+@click.option("--solver", type=click.Choice(["z3", "cvc5"]), default="z3", help="Choose the SMT solver backend.")
 
-def solve(smt_lib_path: Path, tmp_dir: Path = Path("/tmp/smt_solver"), with_logs: bool = False, zk_dsl: str = ZKDSL.CIRCOM):
+def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, bool_vars: bool, solver: str):
 	"""
 	Solve an SMT-LIB file using a SMT solver.
 	SMT_LIB_PATH: Path to the .smt2 file
@@ -83,7 +92,7 @@ def solve(smt_lib_path: Path, tmp_dir: Path = Path("/tmp/smt_solver"), with_logs
 	_log(f"Using ZK DSL: {zk_dsl}", with_logs=with_logs)
 	_log(f"Solving SMT-LIB file: {smt_lib_path}...", with_logs=with_logs)
 	file_content = smt_lib_path.read_text()
-	dsl_code = _parse_smtlib2(file_content, dsl=zk_dsl)
+	dsl_code = _parse_smtlib2(file_content, dsl=zk_dsl, solver=solver)
 
 	# Write code to temporary file
 	tmp_dir.mkdir(parents=True, exist_ok=True)
@@ -95,9 +104,9 @@ def solve(smt_lib_path: Path, tmp_dir: Path = Path("/tmp/smt_solver"), with_logs
 	# Now use the previously defined command to solve the Circom file
 	ctx = click.get_current_context()
 	if zk_dsl == ZKDSL.CIRCOM:
-		ctx.invoke(solve_circom_command, circom_path=dsl_path, bool_vars=True, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False)
+		ctx.invoke(solve_circom_command, circom_path=dsl_path, bool_vars=bool_vars, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver)
 	elif zk_dsl == ZKDSL.GNARK:
-		ctx.invoke(solve_gnark_command, gnark_path=dsl_path, bool_vars=False, with_logs=with_logs, with_model=False)
+		ctx.invoke(solve_gnark_command, gnark_path=dsl_path, bool_vars=bool_vars, with_logs=with_logs, with_model=False, solver=solver)
 	else:
 		raise ValueError(f"Unsupported ZK DSL: {zk_dsl}")
 
@@ -121,10 +130,10 @@ def _log_smt_results(solution, with_model: bool ):
 		for var, value in solution.model.items():
 			click.echo(f"  {var} = {value}")
 
-def _parse_smtlib2(smtlib2: str, dsl: ZKDSL) -> str:
+def _parse_smtlib2(smtlib2: str, dsl: ZKDSL, solver: str = "z3") -> str:
 	def _smtlib2_to_circom(smtlib2: str) -> str:
 		# Parse SMT-LIB v2 to Circuit IR
-		circuit_ir: Circuit = parse_smtlib2_core(smtlib2)
+		circuit_ir: Circuit = parse_smtlib2_core(smtlib2, solver=solver)
 
 		# Convert Circuit IR to Circom IR
 		rng = Random(0)
@@ -139,7 +148,7 @@ def _parse_smtlib2(smtlib2: str, dsl: ZKDSL) -> str:
 
 
 	def _smtlib2_to_gnark(smtlib2: str) -> str:
-		circuit_ir: Circuit = parse_smtlib2_core(smtlib2)
+		circuit_ir: Circuit = parse_smtlib2_core(smtlib2, solver=solver)
 		ir2gnark_visitor = IR2GnarkVisitor()
 		gnark_ir = ir2gnark_visitor.visit_circuit(circuit_ir)
 		emitter = GnarkEmitter()

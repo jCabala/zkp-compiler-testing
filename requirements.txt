@@ -1,1 +1,4 @@
 click>=8.0.0
+pysmt
+z3-solver
+cvc5-pythonic

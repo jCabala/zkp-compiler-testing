@@ -1,5 +1,7 @@
 playground/*
-experiments/*
+experiments/**/obj/**
+experiments/**/*.out
+experiments/tmp_fusion/*
 *.log
 
 # Python bytecode

@@ -3,13 +3,24 @@ from typing import Any, Dict
 from src.r1cs.ir import SMTResult
 
 def _safe_int(x: Any) -> int:
+    # cvc5 pythonic finite-field numerals
+    if hasattr(x, "as_long"):
+        return int(x.as_long())
+
+    # sometimes useful if you want signed representative
+    if hasattr(x, "as_signed_long"):
+        return int(x.as_signed_long())
+
+    # base API sometimes exposes this (not usually in pythonic wrappers)
+    if hasattr(x, "getIntegerValue"):
+        return int(x.getIntegerValue())
+
+    # last resort: Python ints etc.
     try:
         return int(x)
     except Exception:
-        pass
-    if hasattr(x, "getIntegerValue"):
-        return int(x.getIntegerValue())
-    raise TypeError(f"Cannot convert model value to int: {x!r}")
+        raise TypeError(f"Cannot convert model value to int: {x!r} (type={type(x)})")
+
 
 def solve_r1cs_cvc5(r1cs, bool_vars: bool = False, with_logs: bool = False) -> SMTResult:
     # impirts inside to avaoid cvc vc z3 conflicts

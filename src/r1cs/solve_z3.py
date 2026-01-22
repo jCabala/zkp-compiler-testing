@@ -1,24 +1,6 @@
 from src.r1cs.ir import SMTResult
 from typing import Any
 
-def _safe_int(x: Any) -> int:
-    """
-    Convert solver values to Python int.
-
-    Supports:
-    - Z3 numerals: .as_long()
-    - cvc5 pythonic numerals (including finite-field values): .as_long()
-    - cvc5 base API integer values: .getIntegerValue()
-    """
-    try:
-        return int(x)
-    except Exception:
-        pass
-    if hasattr(x, "as_long"):
-        return int(x.as_long())
-    raise TypeError(f"Cannot convert model value to int: {x!r}")
-
-
 def solve_r1cs_z3(r1cs, bool_vars: bool = False, with_logs: bool = False) -> SMTResult:
     from z3 import Solver, Int, Bool, sat
     solver = Solver()
@@ -55,7 +37,7 @@ def solve_r1cs_z3(r1cs, bool_vars: bool = False, with_logs: bool = False) -> SMT
 
     if solver.check() == sat:
         m = solver.model()
-        solution = {d.name(): _safe_int(m[d]) for d in m.decls()}
+        solution = {d.name(): m[d] for d in m.decls()}
         return SMTResult(True, solution)
 
     return SMTResult(False, {})

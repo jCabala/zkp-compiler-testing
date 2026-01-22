@@ -1,15 +1,6 @@
 from io import StringIO
 import os
 from typing import Dict, List, Tuple
-# --------------------
-# THIS IMPORT NEEDS TO STAY TO AVOID PROBLEMS BETWEEN PYSMT AND CVC5
-import cvc5.pythonic
-# --------------------
-from pysmt.smtlib.parser import SmtLibParser
-from pysmt.fnode import FNode
-from pysmt.smtlib.script import SmtLibScript
-from pysmt import operators as op
-from pysmt.typing import BOOL
 
 from src.smt_lib.zk_ir import (
     Circuit,
@@ -24,7 +15,7 @@ from src.smt_lib.zk_ir import (
     Integer,  # assumes you have an Integer literal node in your IR
 )
 
-def parse_smtlib2_core(smtlib2: str) -> Circuit:
+def parse_smtlib2_core(smtlib2: str, solver: str = "z3") -> Circuit:
     """
     Parse SMT-LIB v2 in the (QF_)LIA fragment:
       sorts: Bool, Int
@@ -32,6 +23,30 @@ def parse_smtlib2_core(smtlib2: str) -> Circuit:
       supports let by inlining (substitution via environment).
     Assumption: benchmarks are well-formed (no extra typechecking/guards).
     """
+
+    if solver == "cvc5":
+        # --------------------
+        # THIS IMPORT NEEDS TO STAY TO AVOID PROBLEMS BETWEEN PYSMT AND CVC5
+        import cvc5.pythonic
+        # --------------------
+
+    from pysmt.smtlib.parser import SmtLibParser
+    from pysmt.fnode import FNode
+    from pysmt.smtlib.script import SmtLibScript
+    from pysmt import operators as op
+    from pysmt.typing import BOOL
+
+    def parse_smtlib2_to_pysmt_ir(smtlib2: str) -> Tuple[SmtLibScript, List[FNode]]:
+        parser = SmtLibParser()
+        script = parser.get_script(StringIO(smtlib2))
+
+        assertions: List[FNode] = []
+        for cmd in script.commands:
+            if cmd.name == "assert":
+                assertions.append(cmd.args[0])
+
+        return script, assertions
+
     script, assertions = parse_smtlib2_to_pysmt_ir(smtlib2)
 
     # Inputs from declare-fun
@@ -189,14 +204,3 @@ def parse_smtlib2_core(smtlib2: str) -> Circuit:
         statements=statements,
     )
 
-
-def parse_smtlib2_to_pysmt_ir(smtlib2: str) -> Tuple[SmtLibScript, List[FNode]]:
-    parser = SmtLibParser()
-    script = parser.get_script(StringIO(smtlib2))
-
-    assertions: List[FNode] = []
-    for cmd in script.commands:
-        if cmd.name == "assert":
-            assertions.append(cmd.args[0])
-
-    return script, assertions
