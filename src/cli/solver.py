@@ -59,15 +59,14 @@ def solve_gnark_command(gnark_path: Path, bool_vars: bool, with_model: bool, wit
 	GNARK_PATH: Path to the .go file
 	bool-vars: Treat all variables as booleans. Speeds up the SMT a lot.
 	"""
-	from src.backends.gnark.r1cs import get_r1cs_json, parse_r1cs_json
+	from src.backends.gnark.r1cs import get_r1cs_sr1cs, parse_sr1cs
 
 	_log(f"Compiling GNARK file: {gnark_path}...", with_logs=with_logs)
-	r1cs_json_str = get_r1cs_json(gnark_path)
-	# print(r1cs_json_str)
+	r1cs_sr1cs_str = get_r1cs_sr1cs(gnark_path)
+	# print(r1cs_sr1cs_str)
 
-	_log("Parsing R1CS JSON...", with_logs)
-	r1cs = parse_r1cs_json(r1cs_json_str)
-
+	_log("Parsing R1CS SR1CS...", with_logs)
+	r1cs = parse_sr1cs(r1cs_sr1cs_str)
 	_log("Solving R1CS using a SMT solver...", with_logs)
 	solution = solve_r1cs(r1cs, bool_vars=bool_vars, backend=solver, with_logs=with_logs)
 	_log_smt_results(solution, with_model)

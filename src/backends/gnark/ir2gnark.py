@@ -2,10 +2,10 @@ import src.smt_lib.zk_ir as IRNodes
 
 from .nodes import *
 
-MAX_64_BITS_INTEGER  = (1 << 64) - 1
+MAX_64_BITS_INTEGER = (1 << 64) - 1
 
-class IR2GnarkVisitor():
 
+class IR2GnarkVisitor:
     """
     NOTE:
         - circuit variables are replaced by "FVar_{name}"
@@ -13,23 +13,36 @@ class IR2GnarkVisitor():
         - relations are implemented using a subset of relations
 
         PATCH:
-        - output signals are now circuit members (struct fields), NOT local vars.
-        - output references are now `circuit.FVar_<name>`
+        - outputs are circuit members (struct fields), NOT local vars.
+        - output references are `circuit.FVar_<name>`
         - output assignments are normal assignments (no := local definitions)
+
+        NEW:
+        - preserve input/output information in circuit fields by using `is_public=True`
+          for outputs (so gnark tags them `gnark:",public"`).
+        - annotate inputs/outputs/labels for sr1cs generation via helper calls:
+            CircuitVarIn(circuit.FVar_x)
+            CircuitVarOut(circuit.FVar_y)
+            Label(circuit.FVar_x, "x")
+            Label(circuit.FVar_y, "y")
+        - constrain booleans for BOTH inputs and outputs (fixes TODO)
 
         - TODO: enable AssertIsDifferent again
         - TODO: think about modeling integers as big.NewInt(...)
         - TODO: deal with different assertion types
     """
 
-    # temporary variables count
-    __temporary_variables : int
+    __temporary_variables: int
 
     def __init__(self):
         self.__temporary_variables = 0
 
     def transform(self, system: IRNodes.Circuit) -> CircuitDefinitionCollection:
-       return self.visit_circuit(system)
+        return self.visit_circuit(system)
+
+    # ------------------------------------------------------------------
+    # Dispatch
+    # ------------------------------------------------------------------
 
     def visit_expression(self, node: IRNodes.IRNode) -> tuple[Expression, list[Statement]]:
         match node:
@@ -60,14 +73,14 @@ class IR2GnarkVisitor():
                 raise NotImplementedError()
 
     # ------------------------------------------------------------------
-    # PATCH: outputs are circuit members too, so variables always map to
-    # circuit.FVar_<name> (no more local output vars).
+    # Variables: everything is a circuit member now (inputs AND outputs)
     # ------------------------------------------------------------------
+
     def visit_variable(self, node: IRNodes.Variable) -> tuple[Expression, list[Statement]]:
         return FieldAccessExpression(Identifier("circuit"), f"FVar_{node.name}"), []
 
     def visit_boolean(self, node: IRNodes.Boolean) -> tuple[Expression, list[Statement]]:
-        return Literal(1) if node.value else Literal(0), []
+        return (Literal(1) if node.value else Literal(0)), []
 
     def visit_integer(self, node: IRNodes.Integer) -> tuple[Expression, list[Statement]]:
         return self._new_big_int(node.value)
@@ -81,7 +94,7 @@ class IR2GnarkVisitor():
         raise NotImplementedError(f"Unary expression is not supported '{node}'")
 
     def visit_binary_expression(self, node: IRNodes.BinaryExpression) -> tuple[Expression, list[Statement]]:
-        statements = []
+        statements: list[Statement] = []
         lhs, lhs_tail = self.visit_expression(node.lhs)
         statements += lhs_tail
         rhs, rhs_tail = self.visit_expression(node.rhs)
@@ -130,7 +143,7 @@ class IR2GnarkVisitor():
                 raise NotImplementedError(f"binary operator {node.op.value}")
 
     def visit_ternary_expression(self, node: IRNodes.TernaryExpression) -> tuple[Expression, list[Statement]]:
-        statements = []
+        statements: list[Statement] = []
         cond, cond_tail = self.visit_expression(node.condition)
         statements += cond_tail
         if_expr, if_expr_tail = self.visit_expression(node.if_expr)
@@ -143,11 +156,11 @@ class IR2GnarkVisitor():
         return self._visit_as_assertion_content(node.value)
 
     # ------------------------------------------------------------------
-    # PATCH: no special-casing outputs; assignments are always normal
-    # circuit field assignments (no := definitions).
+    # Assignments: always normal assignments (no :=)
     # ------------------------------------------------------------------
+
     def visit_assignment(self, node: IRNodes.Assignment) -> tuple[Statement, list[Statement]]:
-        statements = []
+        statements: list[Statement] = []
         lhs, lhs_tail = self.visit_expression(node.lhs)
         statements += lhs_tail
         rhs, rhs_tail = self.visit_expression(node.rhs)
@@ -159,50 +172,67 @@ class IR2GnarkVisitor():
     def visit_assume(self, node: IRNodes.Assume) -> tuple[Statement, list[Statement]]:
         return self._visit_as_assertion_content(node.condition)
 
+    # ------------------------------------------------------------------
+    # Circuit: preserve IO in struct fields + emit IO annotations + fix TODO
+    # ------------------------------------------------------------------
+
     def visit_circuit(self, node: IRNodes.Circuit) -> CircuitDefinitionCollection:
-        # ------------------------------------------------------------------
-        # PATCH: outputs are circuit members too (struct fields)
-        # ------------------------------------------------------------------
+        # Preserve IO information in the Go struct:
+        # - inputs: private (witness) fields
+        # - outputs: mark as public (so gnark tags them `gnark:",public"`)
+        #
+        # If you later want only some outputs public, adjust here.
         circuit_fields = (
-            [CircuitStructField(f"FVar_{e.name}", False) for e in node.inputs] +
-            [CircuitStructField(f"FVar_{e.name}", False) for e in node.outputs]
+            [CircuitStructField(f"FVar_{e.name}", False) for e in node.inputs]
+            + [CircuitStructField(f"FVar_{e.name}", True) for e in node.outputs]
         )
 
         circuit_struct = CircuitStruct(node.name, circuit_fields)
 
-        # iterate over statements to build up definition function
-        circuit_function_stmts = []
+        circuit_function_stmts: list[Statement] = []
 
-        # First constrain all boolean INPUT variables (unchanged)
-        # TODO: ONLY INPUTS ARE CONSTRAINT NOW
+        # --------------------------------------------------------------
+        # NEW: annotate inputs/outputs/labels for sr1cs dumping
+        # (prefix.go provides CircuitVarIn/CircuitVarOut/Label)
+        # --------------------------------------------------------------
         for v in node.inputs:
-            if v.variable_type == IRNodes.VariableType.BOOLEAN:
-                identifier = FieldAccessExpression(Identifier("circuit"), f"FVar_{v.name}")
-                bool_assertion = self._assert_is_boolean(identifier)
-                circuit_function_stmts.append(bool_assertion)
+            vref = FieldAccessExpression(Identifier("circuit"), f"FVar_{v.name}")
+            circuit_function_stmts.append(self._helper_stmt("CircuitVarIn", [vref.copy()]))
+            circuit_function_stmts.append(self._helper_stmt("Label", [vref.copy(), Literal(v.name)]))
 
+        for v in node.outputs:
+            vref = FieldAccessExpression(Identifier("circuit"), f"FVar_{v.name}")
+            circuit_function_stmts.append(self._helper_stmt("CircuitVarOut", [vref.copy()]))
+            circuit_function_stmts.append(self._helper_stmt("Label", [vref.copy(), Literal(v.name)]))
+
+        # --------------------------------------------------------------
+        # Fix TODO: constrain boolean-ness for ALL declared boolean vars,
+        # not just inputs. (inputs + outputs)
+        # --------------------------------------------------------------
+        for v in list(node.inputs) + list(node.outputs):
+            if v.variable_type == IRNodes.VariableType.BOOLEAN:
+                vref = FieldAccessExpression(Identifier("circuit"), f"FVar_{v.name}")
+                circuit_function_stmts.append(self._assert_is_boolean(vref))
+
+        # translate body
         for statement in node.statements:
             stmt, tail = self.visit_statement(statement)
-            if stmt:  # only if statement was parsed
+            if stmt:
                 circuit_function_stmts += tail
                 circuit_function_stmts.append(stmt)
 
-        # ------------------------------------------------------------------
-        # PATCH: print outputs via circuit fields (not local identifiers)
-        # ------------------------------------------------------------------
+        # optional debug prints (keep as you had)
         for e in node.outputs:
             out_ref = FieldAccessExpression(Identifier("circuit"), f"FVar_{e.name}")
-            debug_stmt = self._print([Literal(f"{e.name}:"), out_ref])
-            circuit_function_stmts.append(debug_stmt)
+            circuit_function_stmts.append(self._print([Literal(f"{e.name}:"), out_ref]))
 
         circuit_define = CircuitDefineFunction(node.name, circuit_function_stmts)
 
-        # create circuit definition (bundle)
         return CircuitDefinitionCollection(node.name, circuit_struct, circuit_define)
 
-    #
+    # ------------------------------------------------------------------
     # Helper
-    #
+    # ------------------------------------------------------------------
 
     def _assert_is_boolean(self, v: Expression) -> Statement:
         return self._api_stmt("AssertIsBoolean", [v])
@@ -224,8 +254,7 @@ class IR2GnarkVisitor():
 
     def _visit_as_assertion_content(self, value: IRNodes.Expression) -> tuple[Statement, list[Statement]]:
         if isinstance(value, IRNodes.BinaryExpression):
-            # try to use the built in assertions
-            statements = []
+            statements: list[Statement] = []
             lhs_expr, lhs_stmts = self.visit_expression(value.lhs)
             statements += lhs_stmts
             rhs_expr, rhs_stmts = self.visit_expression(value.rhs)
@@ -240,21 +269,24 @@ class IR2GnarkVisitor():
                 case IRNodes.Operator.NEQ:
                     return self._assert_ne(lhs_expr, rhs_expr), statements
                 case _:
-                    pass  # not possible to use default assertions
+                    pass
 
-        # use api.Cmp to deal with boolean expressions
         expr, statements = self.visit_expression(value)
         return self._assert(expr), statements
 
-    #
-    # API wrapper functions
-    #
+    # ------------------------------------------------------------------
+    # API wrapper functions (api.*)
+    # ------------------------------------------------------------------
 
     def _api_expr(self, func: str, args: list[Expression]) -> CallExpression:
         return CallExpression(FieldAccessExpression(Identifier("api"), func), args)
 
     def _api_stmt(self, func: str, args: list[Expression]) -> CallStatement:
         return CallStatement(self._api_expr(func, args))
+
+    # NEW: helper calls (global functions, not methods on api)
+    def _helper_stmt(self, func: str, args: list[Expression]) -> CallStatement:
+        return CallStatement(CallExpression(Identifier(func), args))
 
     # Arithmetic wrappers
 
@@ -306,12 +338,6 @@ class IR2GnarkVisitor():
     # Comparator Wrapper
 
     def _cmp(self, lhs: Expression, rhs: Expression) -> Expression:
-        """
-        The result is
-            -)  1 if i1>i2,
-            -)  0 if i1=i2,
-            -) -1 if i1<i2.
-        """
         return self._api_expr("Cmp", [lhs, rhs])
 
     # Assertion Wrapper
@@ -333,9 +359,9 @@ class IR2GnarkVisitor():
     def _compiler(self) -> Statement:
         return self._api_stmt("Compiler", [])
 
-    #
+    # ------------------------------------------------------------------
     # cmp package functions
-    #
+    # ------------------------------------------------------------------
 
     def _cmp_expr(self, func: str, args: list[Expression]) -> CallExpression:
         return CallExpression(FieldAccessExpression(Identifier("cmp"), func), [Identifier("api")] + args)
@@ -346,9 +372,9 @@ class IR2GnarkVisitor():
     def _leq(self, lhs: Expression, rhs: Expression) -> Expression:
         return self._cmp_expr("IsLessOrEqual", [lhs, rhs])
 
-    #
+    # ------------------------------------------------------------------
     # bits package
-    #
+    # ------------------------------------------------------------------
 
     def _bits_expr(self, func: str, args: list[Expression]) -> Expression:
         return CallExpression(FieldAccessExpression(Identifier("bits"), func), [Identifier("api")] + args)
@@ -359,9 +385,9 @@ class IR2GnarkVisitor():
     def _from_binary(self, value: Expression) -> Expression:
         return self._bits_expr("FromBinary", [value])
 
-    #
+    # ------------------------------------------------------------------
     # bitwise helper
-    #
+    # ------------------------------------------------------------------
 
     def _to_binary_as_stmt(self, value: Expression) -> tuple[Identifier, list[Statement]]:
         name = self._dispense_tmp_identifier("bits")
@@ -377,38 +403,24 @@ class IR2GnarkVisitor():
 
     def _field_bit_len(self) -> Expression:
         compiler = CallExpression(FieldAccessExpression(Identifier("api"), "Compiler"), [])
-        fieldBitLen = CallExpression(FieldAccessExpression(compiler, "FieldBitLen"), [])
-        return fieldBitLen
+        return CallExpression(FieldAccessExpression(compiler, "FieldBitLen"), [])
 
     def _bitwise_wrapper(self, lhs: Expression, rhs: Expression, api_func: str) -> tuple[Expression, list[Statement]]:
-        """
-        bits_1 := api.ToBinary(lhs)
-        bits_2 := api.ToBinary(rhs)
-        for i := 0; i < fieldBitLen; i++ {
-            bits_lhs[i] = api.<BIT_OPERATION>(bits_lhs[i], bits_rhs[i])
-        }
-        expr_3 := api.FromBinary(bits_1)
-        """
-        # prolog
-        statements = []
+        statements: list[Statement] = []
+
         lhs2bin_var, lhs2bin_stmt = self._to_binary_as_stmt(lhs)
         statements += lhs2bin_stmt
         rhs2bin_var, rhs2bin_stmt = self._to_binary_as_stmt(rhs)
         statements += rhs2bin_stmt
 
-        # body
-        body = []
+        body: list[Statement] = []
         lhs_bit = IndexAccessExpression(lhs2bin_var, Identifier("i"))
         rhs_bit = IndexAccessExpression(rhs2bin_var, Identifier("i"))
         bit_expr = self._api_expr(api_func, [lhs_bit, rhs_bit])
-        bit_assign = AssignStatement(lhs_bit.copy(), bit_expr, is_definition=False)
-        body.append(bit_assign)
+        body.append(AssignStatement(lhs_bit.copy(), bit_expr, is_definition=False))
 
-        # loop
-        loop_stmt = ForLoop(Literal(0), self._field_bit_len(), body, "i")
-        statements.append(loop_stmt)
+        statements.append(ForLoop(Literal(0), self._field_bit_len(), body, "i"))
 
-        # epilog
         result, from_bin_stmt = self._from_binary_as_stmt(lhs2bin_var.copy())
         statements += from_bin_stmt
 
@@ -423,9 +435,9 @@ class IR2GnarkVisitor():
     def _bitwise_xor(self, lhs: Expression, rhs: Expression) -> tuple[Expression, list[Statement]]:
         return self._bitwise_wrapper(lhs, rhs, "Xor")
 
-    #
+    # ------------------------------------------------------------------
     # temporary helpers
-    #
+    # ------------------------------------------------------------------
 
     def _dispense_tmp_name(self, prefix: str = "tmp") -> str:
         name = f"{prefix}_{self.__temporary_variables}"
@@ -435,9 +447,9 @@ class IR2GnarkVisitor():
     def _dispense_tmp_identifier(self, prefix: str = "tmp") -> Identifier:
         return Identifier(self._dispense_tmp_name(prefix=prefix))
 
-    #
+    # ------------------------------------------------------------------
     # big int helpers
-    #
+    # ------------------------------------------------------------------
 
     def _new_big_int(self, value: int) -> tuple[Identifier, list[Statement]]:
         identifier = self._dispense_tmp_identifier("cons")
@@ -446,10 +458,10 @@ class IR2GnarkVisitor():
         newExpr = CallExpression(Identifier("new"), [intId])
         declaration = AssignStatement(identifier, newExpr, True)
 
-        if value <= MAX_64_BITS_INTEGER:  # fits uint64
+        if value <= MAX_64_BITS_INTEGER:
             setMethod = FieldAccessExpression(identifier.copy(), "SetUint64")
             setMethodExpr = CallExpression(setMethod, [Literal(value)])
-        else:  # needs decoding from string
+        else:
             setMethod = FieldAccessExpression(identifier.copy(), "SetString")
             setMethodExpr = CallExpression(setMethod, [Literal(str(value)), Literal(10)])
 
