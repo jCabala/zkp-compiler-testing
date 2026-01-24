@@ -185,10 +185,49 @@ class IR2CircomVisitor():
     def visit_circuit(self, node: IRNodes.Circuit) -> Document:
         circuit_template_name = Identifier("main_template")
         circuit_statements: list[Statement] = []
+
+        # -------------------------
+        # Signal declarations
+        # -------------------------
         circuit_statements += [SignalDefinition(Identifier(v.name), SignalKind.INPUT) for v in node.inputs]
         circuit_statements += [SignalDefinition(Identifier(v.name), SignalKind.OUTPUT) for v in node.outputs]
 
-        # constrain boolean inputs and outputs with x * (1 - x) === 0
+        # -------------------------
+        # If an output is fused, assign it with `<--` from its fusion expression
+        # (NOT a constraint assignment).
+        # -------------------------
+        for out in node.outputs:
+            if isinstance(out, IRNodes.FusedVariable):
+                # Try common attribute names
+                fusion_expr_ir = None
+                if hasattr(out, "fusion_expression"):
+                    fusion_expr_ir = out.fusion_expression
+                elif hasattr(out, "fusion_expr"):
+                    fusion_expr_ir = out.fusion_expr
+                elif hasattr(out, "value"):
+                    fusion_expr_ir = out.value
+
+                if fusion_expr_ir is None:
+                    raise AttributeError(
+                        f"FusedVariable '{out.name}' has no fusion expression field "
+                        f"(expected .fusion_expression / .fusion_expr / .value)"
+                    )
+
+                fusion_expr_ast, fusion_tail = self.visit_expression(fusion_expr_ir)
+                circuit_statements += fusion_tail
+
+                # output_name <-- fusion_expr;
+                circuit_statements.append(
+                    AssignmentOrConstraint(
+                        Operator.SIGNAL_ASSIGN_LEFT,   # <-- (witness assignment)
+                        Identifier(out.name),
+                        fusion_expr_ast,
+                    )
+                )
+
+        # -------------------------
+        # Constrain boolean inputs and outputs with x * (1 - x) === 0
+        # -------------------------
         all_signals = node.inputs + node.outputs
         for var in all_signals:
             if var.variable_type == IRNodes.VariableType.BOOLEAN:
@@ -200,18 +239,21 @@ class IR2CircomVisitor():
                             BinaryExpression(
                                 Operator.SUB,
                                 IntegerLiteral(1),
-                                Identifier(var.name)
-                            )
+                                Identifier(var.name),
+                            ),
                         )
                     )
                 )
 
+        # -------------------------
+        # Lower all remaining statements
+        # -------------------------
         for statement in node.statements:
             stmt, tail = self.visit_statement(statement)
             circuit_statements += tail
             circuit_statements.append(stmt)
 
-        circuit_statements += self._log_statements_for_signals(node.outputs)
+        circuit_statements += self._log_statements_for_signals([v.name for v in node.outputs])
 
         circuit_block = BasicBlock(circuit_statements)
         circuit_template = TemplateDefinition(circuit_template_name, [], circuit_block)
@@ -219,7 +261,7 @@ class IR2CircomVisitor():
         main_component_name = Identifier("main")
         main_template_ref = Identifier("main_template")
         main_template_inst = CallExpression(main_template_ref)
-        main_component = ComponentDefinition(main_component_name,  [], main_template_inst)
+        main_component = ComponentDefinition(main_component_name, [], main_template_inst)
 
         document_definitions: list[Statement] = []
         for dependency in self.__dependency_manager.dependencies:

@@ -133,6 +133,14 @@ class Variable(Expression):
 
     def node_size(self) -> int:
         return 1
+    
+@dataclass
+class FusedVariable(Variable):
+    fusion_expression: Expression = None
+
+    def copy(self) -> 'FusedVariable':
+        return FusedVariable(self.name, self.variable_type, self.fusion_expression.copy() if self.fusion_expression else None)
+    
 
 @dataclass
 class Integer(Expression):
