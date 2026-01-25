@@ -30,7 +30,7 @@ You have to have `go` and `circom` installed
 sudo apt install -y z3
 ```
 
-**Python bindings **
+**Python bindings**
 ```bash
 pip install z3-solver
 ```
@@ -38,3 +38,6 @@ pip install z3-solver
 ### cvc5 (from source, with CoCoA backend)
 
 See [this instructions](./CVC_COCOA.md)
+
+### Picus
+This tool assumes a runPicus script is at `~/Picus/runPicus`. For the instalation guide look [here](https://github.com/Veridise/Picus);
