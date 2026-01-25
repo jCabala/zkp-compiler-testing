@@ -7,9 +7,9 @@ from src.r1cs.ir import R1CS, SMTResult
 
 BackendName = Literal["z3", "cvc5"]
 
-# -----------------------
-# Unified entry point
-# -----------------------
+# ---------------------------------------------
+# Unified entry point to the SMT solver solving
+# ---------------------------------------------
 
 def solve_r1cs(
     r1cs: R1CS,

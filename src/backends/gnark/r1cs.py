@@ -1,15 +1,14 @@
+import re
 import subprocess
-from pathlib import Path
 import tempfile
-from typing import Dict, List, Any
-import json
+from pathlib import Path
+from typing import List
+
 from src.r1cs.ir import R1CS, Variable, Constraint, LinearCombination, Term
 
 # --------- Translation ---------
 
 def _run(cmd: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
-    # text=True => strings, not bytes
-    # capture_output=True => no console spam
     return subprocess.run(
         cmd,
         cwd=str(cwd) if cwd else None,
@@ -18,21 +17,27 @@ def _run(cmd: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProc
         check=False,
     )
 
-def get_r1cs_json(circuit_path: Path) -> str:
+def get_r1cs_sr1cs(circuit_path: Path) -> str:
+    """
+    Runs the generated Go circuit and returns the produced .sr1cs text.
+
+    The Go program is expected to be:
+      go run <circuit_path> <outPath>
+
+    and it writes sr1cs s-expressions to outPath.
+    """
     circuit_name = circuit_path.stem
     temp_dir_path = Path(tempfile.mkdtemp())
-    r1cs_json_path = temp_dir_path / f"{circuit_name}.json"
+    sr1cs_path = temp_dir_path / f"{circuit_name}.sr1cs"
 
-    # Compile
-    p = _run(["go",  "run", str(circuit_path), str(r1cs_json_path)])
+    p = _run(["go", "run", str(circuit_path), str(sr1cs_path)])
     if p.returncode != 0:
-        raise RuntimeError(f"Circom compilation failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
+        raise RuntimeError(f"Gnark compilation/dump failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
 
-    if not r1cs_json_path.exists():
-        raise RuntimeError(f"Expected R1CS file not found at {r1cs_json_path}")
+    if not sr1cs_path.exists():
+        raise RuntimeError(f"Expected SR1CS file not found at {sr1cs_path}")
 
-    # Convert
-    return r1cs_json_path.read_text()
+    return sr1cs_path.read_text(encoding="utf-8")
 
 
 # --------- Parsing ---------
@@ -41,77 +46,137 @@ BN254_FR_PRIME = 218882428718392752222464057452572750885483644004160343436982041
 
 class GNARKFieldPrimes:
     BN254 = BN254_FR_PRIME
-    U32_2013265921 = 2013265921,
+    U32_2013265921 = 2013265921
     U32_2130706433 = 2130706433
     U32_47 = 47
-
     # Add more as needed
 
-def parse_r1cs_json(json_str: str) -> R1CS:
+
+_RE_PRIME = re.compile(r"^\s*\(prime-number\s+([0-9]+)\s*\)\s*$")
+_RE_IN = re.compile(r"^\s*\(in\s+([0-9]+)\s*\)\s*$")
+_RE_OUT = re.compile(r"^\s*\(out\s+([0-9]+)\s*\)\s*$")
+_RE_LABEL = re.compile(r"^\s*\(label\s+([0-9]+)\s+(.+?)\s*\)\s*$")
+_RE_EXTRA = re.compile(r"^\s*\(extra-constraint\s+(.+?)\s*\)\s*$")
+
+# (constraint [ ... ] [ ... ] [ ... ])
+_RE_CONSTRAINT_LINE = re.compile(r"^\s*\(constraint\s+(.*)\)\s*$")
+_RE_BRACKET_GROUPS = re.compile(r"\[(.*?)\]")
+_RE_PAIR = re.compile(r"\(\s*([^\s\)]+)\s+([0-9]+)\s*\)")
+
+
+def parse_sr1cs(sr1cs_str: str) -> R1CS:
     """
-    Parses JSON like:
+    Parses sr1cs s-expressions like:
 
-    {
-      "field": "47",
-      "system": "R1CS",
-      "constraints": [
-        {"id":0, "L":[{"var":1,"coeff":"c1"}], "R":[...], "O":[...]}
-      ]
-    }
+      (prime-number 47)
+      (in 3)
+      (out 9)
+      (label 3 x)
+      (extra-constraint ...)
+      (constraint [(c1 0) (c3 5)] [(c1 2)] [(c1 7)])
 
-    into the IR defined above.
+    into the R1CS IR (constraints only), while using (in)/(out) to fill counts.
 
     Notes:
-      - This JSON does not provide counts like nOutputs/nPubInputs/etc,
-        so those are set to 0 (except nVars/nConstraints which are inferred).
-      - Coefficients are reduced mod the field prime.
+      - Labels / extra-constraints are currently parsed but not stored in R1CS IR
+        (your src.r1cs.ir types don't expose a place for them yet).
+      - Coefficients are reduced mod prime.
+      - nVars inferred as max VID + 1.
     """
-    obj = json.loads(json_str)
-    if not isinstance(obj, dict):
-        raise TypeError("Top-level JSON must be an object")
-
-    prime = int(obj.get("field"))
-
-    system = obj.get("system")
-    if system != "R1CS":
-        raise ValueError(f"Expected system='R1CS', got {system!r}")
-
-    constraints_json = obj.get("constraints", [])
-    if not isinstance(constraints_json, list):
-        raise TypeError("Expected 'constraints' to be a list")
+    prime: int | None = None
+    in_vars: list[int] = []
+    out_vars: list[int] = []
+    labels: dict[int, str] = {}
+    extra_constraints: list[str] = []
 
     constraints: List[Constraint] = []
-    max_var = 0  # infer nVars as max var index + 1 (including constant wire 0)
-    for c in constraints_json:
-        if not isinstance(c, dict):
-            raise TypeError(f"Constraint must be object, got {type(c)}")
+    max_var = 0
 
-        A = _parse_lc(c.get("L", []), prime=prime)
-        B = _parse_lc(c.get("R", []), prime=prime)
-        C = _parse_lc(c.get("O", []), prime=prime)
-        constraints.append(Constraint(A=A, B=B, C=C))
+    for raw_line in sr1cs_str.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
 
-        for lc in (A, B, C):
-            for term in lc.terms:
-                if term.variable.index > max_var:
-                    max_var = term.variable.index
+        m = _RE_PRIME.match(line)
+        if m:
+            prime = int(m.group(1))
+            continue
 
-    nVars = max_var + 1  # includes var 0 if it appears; still correct if absent
+        m = _RE_IN.match(line)
+        if m:
+            in_vars.append(int(m.group(1)))
+            continue
+
+        m = _RE_OUT.match(line)
+        if m:
+            out_vars.append(int(m.group(1)))
+            continue
+
+        m = _RE_LABEL.match(line)
+        if m:
+            vid = int(m.group(1))
+            # label name might be quoted or not; keep raw token(s)
+            name = m.group(2).strip()
+            # strip surrounding quotes if present
+            if len(name) >= 2 and name[0] == '"' and name[-1] == '"':
+                name = name[1:-1]
+            labels[vid] = name
+            continue
+
+        m = _RE_EXTRA.match(line)
+        if m:
+            extra_constraints.append(m.group(1).strip())
+            continue
+
+        m = _RE_CONSTRAINT_LINE.match(line)
+        if m:
+            if prime is None:
+                raise ValueError("Encountered (constraint ...) before (prime-number ...).")
+            payload = m.group(1)
+
+            groups = _RE_BRACKET_GROUPS.findall(payload)
+            if len(groups) != 3:
+                raise ValueError(f"Malformed constraint line (expected 3 [..] groups): {raw_line}")
+
+            A = _parse_lc_from_group(groups[0], prime=prime)
+            B = _parse_lc_from_group(groups[1], prime=prime)
+            C = _parse_lc_from_group(groups[2], prime=prime)
+            constraints.append(Constraint(A=A, B=B, C=C))
+
+            for lc in (A, B, C):
+                for term in lc.terms:
+                    if term.variable.index > max_var:
+                        max_var = term.variable.index
+            continue
+
+        # If you want strict parsing, raise here. Otherwise, ignore unknown lines.
+        # raise ValueError(f"Unrecognized sr1cs line: {raw_line!r}")
+
+    if prime is None:
+        raise ValueError("Missing (prime-number ...) header in sr1cs.")
+
+    nVars = max_var + 1 if constraints else 0
     variables = [Variable(i) for i in range(nVars)]
 
+    # Populate counts using annotations
+    # (Your IR doesn't distinguish public/private inputs yet; treat all (in ...) as private inputs.)
+    nPrvInputs = len(in_vars)
+    nOutputs = len(out_vars)
+
     return R1CS(
-        n8=0,  # unknown from this JSON format
+        n8=0,  # unknown from sr1cs
         prime=prime,
         nVars=nVars,
-        nOutputs=0,
+        nOutputs=nOutputs,
         nPubInputs=0,
-        nPrvInputs=0,
-        nLabels=nVars,  # reasonable default if you don't have a separate label map
+        nPrvInputs=nPrvInputs,
+        nLabels=nVars,  # conservative default
         nConstraints=len(constraints),
         useCustomGates=False,
         variables=variables,
         constraints=constraints,
     )
+
 
 def _parse_coeff(value: object) -> int:
     """
@@ -119,7 +184,7 @@ def _parse_coeff(value: object) -> int:
       - int
       - decimal string e.g. "123"
       - hex string e.g. "0x2a"
-      - compact string e.g. "c0", "c1", "c42"  (treated as decimal after 'c')
+      - compact string e.g. "c0", "c1", "c42" (treated as decimal after 'c')
     """
     if isinstance(value, int):
         return value
@@ -134,34 +199,21 @@ def _parse_coeff(value: object) -> int:
         return int(s, 16)
 
     if s.startswith("c") and len(s) > 1:
-        # Your sample uses "c1", "c3", etc.
-        # Interpreted here as decimal integers 1, 3, ...
         return int(s[1:], 10)
 
-    # fallback: decimal
     return int(s, 10)
 
 
-def _parse_lc(lc_terms: object, *, prime: int) -> LinearCombination:
-    if lc_terms is None:
-        return LinearCombination(terms=[])
-    if not isinstance(lc_terms, list):
-        raise TypeError(f"Expected list for LC, got {type(lc_terms)}")
-
+def _parse_lc_from_group(group: str, *, prime: int) -> LinearCombination:
+    """
+    Parses a bracket-group payload like:
+      "(c1 0) (c3 5) (12 9)"
+    into LinearCombination.
+    """
     terms: List[Term] = []
-    for t in lc_terms:
-        if not isinstance(t, dict):
-            raise TypeError(f"Expected dict term, got {type(t)}")
-        if "var" not in t or "coeff" not in t:
-            raise ValueError(f"Term missing 'var'/'coeff': {t!r}")
-
-        var_idx = t["var"]
-        if not isinstance(var_idx, int) or var_idx < 0:
-            raise ValueError(f"Invalid var index: {var_idx!r}")
-
-        coeff = _parse_coeff(t["coeff"]) % prime
-        # You may choose to drop zero-coeff terms:
+    for coeff_s, var_s in _RE_PAIR.findall(group):
+        var_idx = int(var_s)
+        coeff = _parse_coeff(coeff_s) % prime
         if coeff != 0:
             terms.append(Term(variable=Variable(var_idx), coeff=coeff))
-
     return LinearCombination(terms=terms)

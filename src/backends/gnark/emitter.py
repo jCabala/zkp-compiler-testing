@@ -1,71 +1,88 @@
 import io
 from pathlib import Path
 
-from sympy import prime
-
 from src.backends.gnark.r1cs import GNARKFieldPrimes
 
 from .nodes import *
 
 
-class EmitVisitor():
+class EmitVisitor:
+    """
+    Emits a single self-contained Go file by concatenating:
 
-    def __init__(self, main_template_path: str = "./main_template.go", prime: GNARKFieldPrimes = GNARKFieldPrimes.U32_47):
+        prefix.go (package + imports + helpers + FIELD_PRIME placeholder)
+      + <generated circuit code> (struct + Define)
+      + main_template.go (main() that compiles circuit + dumps sr1cs)
+
+    Templates are treated as *fragments* (not standalone Go files).
+
+    Place ALL imports + helper runtime code in prefix.go.
+    Place only main() in main_template.go.
+    """
+
+    def __init__(
+        self,
+        main_template_path: str = "./go/main_template.go",
+        prefix_template_path: str = "./go/prefix_template.go",
+        prime: GNARKFieldPrimes = GNARKFieldPrimes.U32_47,
+    ):
         self.tabs = 0
         self.buffer = io.StringIO()
         here = Path(__file__).resolve().parent
         self.main_template_path = here / main_template_path
+        self.prefix_template_path = here / prefix_template_path
         self.field_prime = prime
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     def emit(self, node: ASTNode) -> str:
         self.tabs = 0
         self.buffer = io.StringIO()
 
-        # --- Go file prolog (package + imports) ---
-        self.buffer.write("package main\n\n")
-        self.buffer.write("import (\n")
-        self.buffer.write("\t\"os\"\n")
-        self.buffer.write("\t\"strings\"\n")
-        self.buffer.write("\t\"fmt\"\n")
-        self.buffer.write("\t\"encoding/json\"\n")
-        self.buffer.write("\t\"math/big\"\n")
-        
-        self.buffer.write("\t\"github.com/consensys/gnark/std/math/cmp\"\n")
-        self.buffer.write("\t\"github.com/consensys/gnark-crypto/ecc\"\n")
-        self.buffer.write("\t\"github.com/consensys/gnark/frontend\"\n")
-        self.buffer.write("\t\"github.com/consensys/gnark/frontend/cs/r1cs\"\n")
-        self.buffer.write("\t\"github.com/consensys/gnark/constraint\"\n")
+        # 1) Prefix: package + imports + helpers + FIELD_PRIME
+        self._append_prefix_template()
 
-        self.buffer.write(")\n\n")
-
-        self.buffer.write(f"var FIELD_PRIME = {self._field_prime_code()}\n\n")
-
-        # --- emit the circuit (type + Define) ---
+        # 2) Circuit code: type + Define
+        self.buffer.write("\n\n")
         self.visit(node)
 
-        # --- append main() from template, JSON-only ---
+        # 3) Main driver: compile + dump
         if isinstance(node, CircuitDefinitionCollection):
             self._append_main_template(node.name)
 
         return self.buffer.getvalue()
 
-    def _field_prime_code(self) -> str:
-        if not self.field_prime in GNARKFieldPrimes.__dict__.values():
-            raise ValueError(f"Unsupported field prime: {self.field_prime}")
-        
-        if self.field_prime == GNARKFieldPrimes.BN254:
-            return "ecc.BN254.ScalarField()"
-        else:
-            return f"big.NewInt({self.field_prime})"
+    # ------------------------------------------------------------------
+    # Templates
+    # ------------------------------------------------------------------
 
-    def _append_main_template(self, circuit_name: str):
+    def _append_prefix_template(self) -> None:
+        template_path = Path(self.prefix_template_path)
+        template = template_path.read_text(encoding="utf-8")
+        template = template.replace("__FIELD_PRIME__", self._field_prime_code())
+        self.buffer.write(template)
+
+    def _append_main_template(self, circuit_name: str) -> None:
         template_path = Path(self.main_template_path)
         template = template_path.read_text(encoding="utf-8")
         template = template.replace("__CIRCUIT_NAME__", circuit_name)
         self.buffer.write("\n\n")
         self.buffer.write(template)
 
-    # ---------------- visitor dispatch ----------------
+    def _field_prime_code(self) -> str:
+        if self.field_prime not in GNARKFieldPrimes.__dict__.values():
+            raise ValueError(f"Unsupported field prime: {self.field_prime}")
+
+        if self.field_prime == GNARKFieldPrimes.BN254:
+            return "ecc.BN254.ScalarField()"
+        else:
+            return f"big.NewInt({self.field_prime})"
+
+    # ------------------------------------------------------------------
+    # Visitor dispatch
+    # ------------------------------------------------------------------
 
     def visit(self, node: ASTNode):
         match node:
@@ -96,7 +113,9 @@ class EmitVisitor():
             case _:
                 raise NotImplementedError(f"unsupported node type '{node.__class__}'")
 
-    # ---------------- Circuit structure ----------------
+    # ------------------------------------------------------------------
+    # Circuit structure
+    # ------------------------------------------------------------------
 
     def visit_circuit_struct_field(self, node: CircuitStructField):
         self.buffer.write(self.current_tabs)
@@ -129,7 +148,9 @@ class EmitVisitor():
         self.buffer.write("\n\n")
         self.visit_circuit_define_function(node.circuit_define)
 
-    # ---------------- Statements ----------------
+    # ------------------------------------------------------------------
+    # Statements
+    # ------------------------------------------------------------------
 
     def visit_call_statement(self, node: CallStatement):
         self.buffer.write(self.current_tabs)
@@ -156,7 +177,9 @@ class EmitVisitor():
         self.buffer.write(self.current_tabs)
         self.buffer.write("}")
 
-    # ---------------- Expressions ----------------
+    # ------------------------------------------------------------------
+    # Expressions
+    # ------------------------------------------------------------------
 
     def visit_identifier(self, node: Identifier):
         self.buffer.write(node.name)
@@ -186,14 +209,18 @@ class EmitVisitor():
             self.buffer.write("true" if node.value else "false")
         elif node.is_int():
             val = int(node.value)
+            # normalize negatives modulo field prime (for small primes)
             while val < 0:
                 val += self.field_prime
-
             self.buffer.write(str(val))
         else:
             assert node.is_str(), "unexpected literal"
             self.buffer.write(f"\"{node.value}\"")
 
+    # ------------------------------------------------------------------
+    # Tabs
+    # ------------------------------------------------------------------
+
     @property
-    def current_tabs(self):
+    def current_tabs(self) -> str:
         return "\t" * self.tabs

@@ -4,7 +4,7 @@ cd $SCRIPT_DIR/
 ## CONFIGURATION
 ORACLE=sat # sat or unsat
 TIMEOUT=300 # seconds
-BENCHMARKS=$SCRIPT_DIR/../../benchmarks/SMT-benchmarks/core/sat/
+BENCHMARKS=$SCRIPT_DIR/../../benchmarks/SMT-benchmarks/lia/sat/
 SOLVER="z3" # z3 or cvc5
 DSL="gnark" # gnark or circom
 # Uncomment the next line to enable boolean-only mode if you are solving only boolean (core theory) benchmarks. Temporary solution. For cvc5 it doesn't really matter but huge help for z3.

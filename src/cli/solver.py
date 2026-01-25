@@ -23,7 +23,7 @@ from src.backends.gnark.ir2gnark import IR2GnarkVisitor
 def solve_circom_command(circom_path: Path, bool_vars: bool, with_model: bool, with_logs: bool, solver: str, o0: bool, o1: bool, o2: bool):
 	"""
 	Compile a Circom circuit, export its R1CS representation, and use SMT solver to find a solution.
-	CIRCOM_PATH: Path to the .circom file
+	CIRCOM_PATH: Path to the .circom file`
 	bool-vars: Treat all variables as booleans. Speeds up the SMT a lot.
 	"""
 	from src.backends.circom.r1cs import get_r1cs_json, parse_r1cs_json, OptFlag
@@ -36,7 +36,13 @@ def solve_circom_command(circom_path: Path, bool_vars: bool, with_model: bool, w
 		opt_level = OptFlag.O1
 	elif o2:
 		opt_level = OptFlag.O2
-		
+	
+	if solver == "picus":
+		from src.picus.solve_picus import solve_picus
+		_log("Solving R1CS using Picus...", with_logs)
+		_run_picus(circom_path)
+		return
+
 	_log(f"Compiling Circom file: {circom_path}...", with_logs)
 	r1cs_json_str = get_r1cs_json(circom_path, opt_flag=opt_level)
 
@@ -52,22 +58,29 @@ def solve_circom_command(circom_path: Path, bool_vars: bool, with_model: bool, w
 @click.option('--bool-vars', is_flag=True, help="Treat all variables as booleans.")
 @click.option('--with-model', is_flag=True, help="Output the model if satisfiable.")
 @click.option("--with-logs", is_flag=True, help="Enable detailed logging.")
-@click.option("--solver", type=click.Choice(["z3", "cvc5"]), default="z3", help="Choose the SMT solver backend.")
-def solve_gnark_command(gnark_path: Path, bool_vars: bool, with_model: bool, with_logs: bool, solver: str):
+@click.option("--solver", type=click.Choice(["z3", "cvc5", "picus"]), default="z3", help="Choose the SMT solver backend.")
+@click.option("--tmp-dir", type=click.Path(path_type=Path), default=Path("/tmp/smt_solver"), help="Temporary directory for intermediate files.")
+def solve_gnark_command(gnark_path: Path, bool_vars: bool, with_model: bool, with_logs: bool, solver: str, tmp_dir: Path):
 	"""
 	Compile a GNARK (Go) circuit, export its R1CS representation, and use SMT solver to find a solution.
 	GNARK_PATH: Path to the .go file
 	bool-vars: Treat all variables as booleans. Speeds up the SMT a lot.
 	"""
-	from src.backends.gnark.r1cs import get_r1cs_json, parse_r1cs_json
+	from src.backends.gnark.r1cs import get_r1cs_sr1cs, parse_sr1cs
 
 	_log(f"Compiling GNARK file: {gnark_path}...", with_logs=with_logs)
-	r1cs_json_str = get_r1cs_json(gnark_path)
-	# print(r1cs_json_str)
+	r1cs_sr1cs_str = get_r1cs_sr1cs(gnark_path)
+	
+	if solver == "picus":
+		from src.picus.solve_picus import solve_picus
+		_log("Solving R1CS using Picus...", with_logs)
+		tmp_sr1cs_path = tmp_dir / f"temp-{uuid4()}.sr1cs"
+		tmp_sr1cs_path.write_text(r1cs_sr1cs_str)
+		_run_picus(tmp_sr1cs_path)
+		return
 
-	_log("Parsing R1CS JSON...", with_logs)
-	r1cs = parse_r1cs_json(r1cs_json_str)
-
+	_log("Parsing R1CS SR1CS...", with_logs)
+	r1cs = parse_sr1cs(r1cs_sr1cs_str)
 	_log("Solving R1CS using a SMT solver...", with_logs)
 	solution = solve_r1cs(r1cs, bool_vars=bool_vars, backend=solver, with_logs=with_logs)
 	_log_smt_results(solution, with_model)
@@ -82,7 +95,7 @@ class ZKDSL:
 @click.option("--with-logs", is_flag=True, help="Enable detailed logging.")
 @click.option("--zk-dsl", type=click.Choice([ZKDSL.CIRCOM, ZKDSL.GNARK]), default=ZKDSL.CIRCOM, help="Choose the zero-knowledge DSL to use.")
 @click.option("--bool-vars", is_flag=True, help="Treat all variables as booleans.")
-@click.option("--solver", type=click.Choice(["z3", "cvc5"]), default="z3", help="Choose the SMT solver backend.")
+@click.option("--solver", type=click.Choice(["z3", "cvc5", "picus"]), default="z3", help="Choose the SMT solver backend.")
 
 def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, bool_vars: bool, solver: str):
 	"""
@@ -106,7 +119,7 @@ def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, bool_
 	if zk_dsl == ZKDSL.CIRCOM:
 		ctx.invoke(solve_circom_command, circom_path=dsl_path, bool_vars=bool_vars, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver)
 	elif zk_dsl == ZKDSL.GNARK:
-		ctx.invoke(solve_gnark_command, gnark_path=dsl_path, bool_vars=bool_vars, with_logs=with_logs, with_model=False, solver=solver)
+		ctx.invoke(solve_gnark_command, gnark_path=dsl_path, bool_vars=bool_vars, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir)
 	else:
 		raise ValueError(f"Unsupported ZK DSL: {zk_dsl}")
 
@@ -170,3 +183,15 @@ def _dsl_extension(zk_dsl: ZKDSL) -> str:
 		return "go"
 	else:
 		raise ValueError(f"Unsupported ZK DSL: {zk_dsl}")
+	
+def _run_picus(input_path: Path) -> None:
+	from src.picus.solve_picus import solve_picus
+
+	result = solve_picus(input_path)
+
+	if result.result == "properly_constrained":
+		click.echo("sat")
+	elif result.result == "underconstrained":
+		click.echo("unsat")
+	else:
+		click.echo("unknown")
