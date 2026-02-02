@@ -3,8 +3,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 import tempfile
-from dataclasses import dataclass
-from typing import Dict, List, Any
+from dataclasses import dataclass, field
+from typing import Dict, List, Any, Set
 import json
 
 
@@ -76,3 +76,11 @@ class R1CS:
 
     # Parsed constraints
     constraints: List[Constraint]
+    
+    # Wire indices that should be treated as boolean (0 or 1)
+    bool_wire_indices: Set[int] = field(default_factory=set)
+    
+    # Wire indices that should be treated as ternary (p-1, 0, or 1)
+    # Common pattern: when v1 = v2 + v3 where v1, v2 are boolean,
+    # then v3 can only be -1, 0, or 1 (represented as p-1, 0, 1 in finite field)
+    ternary_wire_indices: Set[int] = field(default_factory=set)

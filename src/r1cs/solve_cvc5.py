@@ -22,7 +22,7 @@ def _safe_int(x: Any) -> int:
         raise TypeError(f"Cannot convert model value to int: {x!r} (type={type(x)})")
 
 
-def solve_r1cs_cvc5(r1cs, bool_vars: bool = False, with_logs: bool = False) -> SMTResult:
+def solve_r1cs_cvc5(r1cs, with_logs: bool = False) -> SMTResult:
     # impirts inside to avaoid cvc vc z3 conflicts
     import cvc5.pythonic as cv
 
@@ -45,11 +45,17 @@ def solve_r1cs_cvc5(r1cs, bool_vars: bool = False, with_logs: bool = False) -> S
         name = f"v{var.index}"
         v = cv.FiniteFieldElem(name, F)
         var_map[var.index] = v
-
-        # If requested, restrict variables to {0,1} ⊆ F_p:
-        # v is boolean iff v*(v-1) = 0 in a field
-        if bool_vars:
+        
+        # If this wire should be boolean, add constraint: v * (v - 1) = 0
+        if var.index in r1cs.bool_wire_indices:
             solver.add(v * (v - ff_val(1)) == ff_val(0))
+        
+        # If this wire should be ternary, add constraint: v * (v - 1) * (v + 1) = 0
+        # This means v ∈ {p-1, 0, 1} in the finite field
+        # Common pattern: when v1 = v2 + v3 where v1, v2 are boolean,
+        # then v3 can only be -1, 0, or 1 (represented as p-1, 0, 1 in finite field)
+        elif var.index in r1cs.ternary_wire_indices:
+            solver.add(v * (v - ff_val(1)) * (v + ff_val(1)) == ff_val(0))
 
     # Constant-one wire in the field
     var_map[0] = ff_val(1)
@@ -76,6 +82,7 @@ def solve_r1cs_cvc5(r1cs, bool_vars: bool = False, with_logs: bool = False) -> S
     res = solver.check()
     if res == cv.sat:
         m = solver.model()
+        print("SMT Model (cvc5 pythonic):")
         solution: Dict[str, int] = {}
 
         # Extract values for declared vars (skip constant wire)

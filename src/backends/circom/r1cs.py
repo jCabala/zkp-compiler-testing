@@ -1,9 +1,10 @@
 import subprocess
 from pathlib import Path
 import tempfile
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple, Set
 import json
 from src.r1cs.ir import R1CS, Variable, Constraint, LinearCombination, Term
+from src.backends.circom.sym_parser import resolve_bool_wires
 
 # --------- Translation ---------
 
@@ -45,9 +46,57 @@ def get_r1cs_json(circuit_path: Path, opt_flag: OptFlag = OptFlag.O0) -> str:
     return r1cs_json_path.read_text()
 
 
-def parse_r1cs_json(json_str: str) -> R1CS:
+def get_r1cs_with_sym(circuit_path: Path, opt_flag: OptFlag = OptFlag.O0, bool_signal_names: List[str] = None) -> Tuple[str, Set[int]]:
+    """
+    Compile a Circom circuit to R1CS with symbol information.
+    
+    Args:
+        circuit_path: Path to the .circom file
+        opt_flag: Optimization flag for circom compiler
+        bool_signal_names: List of signal names to treat as boolean (e.g., ["main.flag", "main.arr[0]"])
+        
+    Returns:
+        Tuple of (r1cs_json_string, bool_wire_indices)
+    """
+    temp_dir_path = Path(tempfile.mkdtemp())
+    circuit_name = circuit_path.stem
+
+    # Compile with --sym flag
+    p = _run(["circom", str(circuit_path), "--r1cs", "--sym", opt_flag, "-o", str(temp_dir_path)])
+    if p.returncode != 0:
+        raise RuntimeError(f"Circom compilation failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
+
+    r1cs_path = temp_dir_path / f"{circuit_name}.r1cs"
+    sym_path = temp_dir_path / f"{circuit_name}.sym"
+    
+    if not r1cs_path.exists():
+        raise RuntimeError(f"Expected R1CS file not found at {r1cs_path}")
+    if not sym_path.exists():
+        raise RuntimeError(f"Expected .sym file not found at {sym_path}")
+
+    # Convert R1CS to JSON
+    r1cs_json_path = temp_dir_path / f"{circuit_name}.json"
+    p = _run(["snarkjs", "r1cs", "export", "json", str(r1cs_path), str(r1cs_json_path)])
+    if p.returncode != 0:
+        raise RuntimeError(f"snarkjs conversion failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
+
+    r1cs_json_str = r1cs_json_path.read_text()
+    
+    # Resolve boolean wire indices
+    bool_wire_indices: Set[int] = set()
+    if bool_signal_names:
+        bool_wire_indices = resolve_bool_wires(sym_path, bool_signal_names)
+    
+    return r1cs_json_str, bool_wire_indices
+
+
+def parse_r1cs_json(json_str: str, bool_wire_indices: Set[int] = None) -> R1CS:
     """
     Parse the given JSON string into an R1CS dataclass structure.
+    
+    Args:
+        json_str: JSON string representation of R1CS
+        bool_wire_indices: Optional set of wire indices to treat as boolean
     """
     data = json.loads(json_str)
 
@@ -83,6 +132,7 @@ def parse_r1cs_json(json_str: str) -> R1CS:
         useCustomGates=bool(data["useCustomGates"]),
         variables=variables_list,
         constraints=constraints,
+        bool_wire_indices=bool_wire_indices or set(),
     )
 
     return r1cs

@@ -139,6 +139,7 @@ def generate_proof_command(circom_path: Path, input_json: Path, ptau: Path, outd
 				"--wasm",
 				"--sym",
 				"--json",
+				"--O2",
 				"-o",
 				str(build_dir),
 			]
