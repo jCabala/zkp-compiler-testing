@@ -44,103 +44,80 @@ def preprocess_div_as_uf(smt2: str) -> str:
         return smt2[:m.end()] + "\n" + decl + smt2[m.end():]
     return decl + smt2
 
+
 # ------------------------------------------------------------
 # Fusion formula inference
 # ------------------------------------------------------------
 
-_FUSED_USE_SUB_RE = re.compile(
-    r"\(\s*-\s*\(\s*-\s*(?P<fused>[^\s\)]+)\s+(?P<var>[^\s\)]+)\s*\)"
-)
-_FUSED_USE_DIV_RE = re.compile(
-    r"\(\s*div\s+(?P<fused>[^\s\)]+)\s+(?P<var>[^\s\)]+)\s*\)"
-)
-
 def _infer_fusion_formula(var_name: str, smtlib2: str) -> Expression:
     """
-    Infer fusion expression for a fused variable like:
-        scr1_x5_plus_scr2_x3_minus_fused
+    TEMPORARY HACK (TODO): Always infer XOR fusion for fused variables.
 
-    Heuristic (as you specified):
-      - Parse the two source variables from the fused name by stripping "_fused"
-        and splitting into [<var1>, <var2>] at the boundary between "..._plus"
-        or "..._minus" and the next "scr..." prefix.
+    Semantics enforced:
+      fused = xor(var1, var2)
 
-      - Then detect how the fused var is used in SMT-LIB:
-          * if used as:   (- fused other)   (i.e. pattern "(- fused v)" inside a subtraction chain)
-            -> fused = v1 + v2
-          * if used as:   (div fused other)
-            -> fused = v1 * v2
-
-      - If we cannot detect usage, default to SUM (conservative).
+    For Circom witness assignment (<--), avoid boolean operators like `!` and `==`.
+    Use the field-safe polynomial for XOR (assuming inputs are constrained booleans):
+        xor(a,b) = a + b - 2*a*b
     """
 
     if not var_name.endswith(FUSION_SUFFIX):
-        raise ValueError(f"Expected fused variable name ending with '{FUSION_SUFFIX}', got: {var_name}")
+        raise ValueError(
+            f"Expected fused variable name ending with '{FUSION_SUFFIX}', got: {var_name}"
+        )
 
-    base = var_name[: -len(FUSION_SUFFIX)]  # strip "_fused"
-
-    # ----------------------------
-    # 1) Extract the two variables from the fused name
-    # ----------------------------
-    # We look for the second variable starting at the second "scr" occurrence.
-    # This matches your examples: scr1_..._scr2_...
-    first = base.find("scr")
-    if first == -1:
-        raise ValueError(f"Cannot parse fused name (no 'scr'): {var_name}")
-    second = base.find("scr", first + 1)
-    if second == -1:
-        raise ValueError(f"Cannot parse fused name (no second 'scr'): {var_name}")
-
-    var1 = base[:second]
-    var2 = base[second:]
-
-    if var1.endswith("_"):
-        var1 = var1[:-1]
-
-
-    # ----------------------------
-    # 2) Determine fusion kind from how it is used
-    # ----------------------------
-    # Look for patterns that clearly indicate whether the fused var participates
-    # in subtraction form "(- fused X)" or division form "(div fused X)".
-    # We also validate the "other" variable equals one of var1/var2.
-    kind = None  # "sum" | "prod"
-
-    for m in _FUSED_USE_SUB_RE.finditer(smtlib2):
-        fused = m.group("fused")
-        if fused != var_name:
-            continue
-        other = m.group("var")
-        if other == var1 or other == var2:
-            kind = "sum"
-            break
-
-    if kind is None:
-        for m in _FUSED_USE_DIV_RE.finditer(smtlib2):
-            fused = m.group("fused")
-            if fused != var_name:
-                continue
-            other = m.group("var")
-            if other == var1 or other == var2:
-                kind = "prod"
-                break
+    # Parse var1/var2 from name
+    # Format after pruning: var1__var2__orig__<original>_fused
+    # Original format: var1_var2_fused (where var1/var2 contain underscores)
+    base = var_name[: -len(FUSION_SUFFIX)]
     
-    # Default if we can't find usage (still return *something* deterministic)
-    if kind is None:
-        kind = "sum"
+    # Check if this is a renamed fused variable (contains __)
+    if "__" in base:
+        parts = base.split("__")
+        if len(parts) >= 2:
+            var1 = parts[0]
+            var2 = parts[1]
+        else:
+            raise ValueError(f"Cannot parse renamed fused name: {var_name}")
+    else:
+        # Original fused variable format: find second "scr"
+        first = base.find("scr")
+        if first == -1:
+            raise ValueError(f"Cannot parse fused name (no 'scr'): {var_name}")
+        second = base.find("scr", first + 1)
+        if second == -1:
+            raise ValueError(f"Cannot parse fused name (no second 'scr'): {var_name}")
 
-    # ----------------------------
-    # 3) Build the IR expression
-    # ----------------------------
-    a = Variable(var1, VariableType.FIELD)
-    b = Variable(var2, VariableType.FIELD)
+        var1 = base[:second]
+        var2 = base[second:]
+        if var1.endswith("_"):
+            var1 = var1[:-1]
 
-    if kind == "sum":
-        return BinaryExpression(Operator.ADD, a, b)
-    if kind == "prod":
-        return BinaryExpression(Operator.MUL, a, b)
+    # IMPORTANT: even though all variables are *typed* as BOOLEAN in the IR,
+    # we still use field arithmetic to encode XOR safely:
+    # xor(a,b) = a + b - 2ab
+    
+    # Handle literal boolean values in component names (from pruning)
+    if var1 == "true":
+        a = Boolean(True)
+    elif var1 == "false":
+        a = Boolean(False)
+    else:
+        a = Variable(var1, VariableType.BOOLEAN)
+    
+    if var2 == "true":
+        b = Boolean(True)
+    elif var2 == "false":
+        b = Boolean(False)
+    else:
+        b = Variable(var2, VariableType.BOOLEAN)
 
-    raise AssertionError("unreachable")
+    two = Integer(2)
+    ab = BinaryExpression(Operator.MUL, a, b)
+    twoab = BinaryExpression(Operator.MUL, two, ab)
+    a_plus_b = BinaryExpression(Operator.ADD, a, b)
+    return BinaryExpression(Operator.SUB, a_plus_b, twoab)
+
 
 # ------------------------------------------------------------
 # Main parser function
@@ -152,7 +129,10 @@ def parse_smtlib2_core(smtlib2: str, solver: str = "z3") -> Circuit:
       sorts: Bool, Int
       ops: core boolean + LIA arithmetic/comparisons
       supports let by inlining (substitution via environment).
-    Assumption: benchmarks are well-formed (no extra typechecking/guards).
+
+    IMPORTANT SIMPLIFICATION:
+      All variables are forced to be VariableType.BOOLEAN, regardless of SMT sort.
+      (No declaration sort inspection; SYMBOLs always become boolean vars.)
     """
 
     if solver == "cvc5":
@@ -165,7 +145,6 @@ def parse_smtlib2_core(smtlib2: str, solver: str = "z3") -> Circuit:
     from pysmt.fnode import FNode
     from pysmt.smtlib.script import SmtLibScript
     from pysmt import operators as op
-    from pysmt.typing import BOOL
 
     def parse_smtlib2_to_pysmt_ir(smtlib2: str) -> Tuple[SmtLibScript, List[FNode]]:
         parser = SmtLibParser()
@@ -194,23 +173,15 @@ def parse_smtlib2_core(smtlib2: str, solver: str = "z3") -> Circuit:
             if name == "div":
                 continue
 
-            # In LIA: only Bool or Int. Infer Bool if declared sort is Bool, else Int.
-            vtype = VariableType.FIELD
-            if len(cmd.args) >= 3:
-                sort = cmd.args[2]
-                if sort == "Bool" or sort == BOOL:
-                    vtype = VariableType.BOOLEAN
-            elif len(cmd.args) >= 2:
-                sort = cmd.args[1]
-                if sort == "Bool" or sort == BOOL:
-                    vtype = VariableType.BOOLEAN
+            # FORCE: everything is boolean
+            vtype = VariableType.BOOLEAN
 
             if name.endswith(FUSION_SUFFIX):
                 outputs.append(
                     FusedVariable(
                         name,
                         vtype,
-                        _infer_fusion_formula(name, smtlib2),  # placeholder
+                        _infer_fusion_formula(name, smtlib2),
                     )
                 )
             else:
@@ -241,9 +212,8 @@ def parse_smtlib2_core(smtlib2: str, solver: str = "z3") -> Circuit:
                 if name in env:
                     return env[name]
 
-                if node.symbol_type() == BOOL:
-                    return Variable(name, VariableType.BOOLEAN)
-                return Variable(name, VariableType.FIELD)  # Ints are cast to Field
+                # FORCE: every symbol is a boolean variable (even if SMT sort is Int).
+                return Variable(name, VariableType.BOOLEAN)
 
             case op.BOOL_CONSTANT:
                 return Boolean(bool(node.constant_value()))
@@ -284,7 +254,9 @@ def parse_smtlib2_core(smtlib2: str, solver: str = "z3") -> Circuit:
                     fnode_to_zkir(node.arg(1), env),
                 )
 
+
             # ----- LIA arithmetic -----
+            # NOTE: We do not typecheck; symbols are boolean-typed but can still appear here.
             case op.PLUS:
                 args = [fnode_to_zkir(a, env) for a in node.args()]
                 return fold_left(Operator.ADD, args)

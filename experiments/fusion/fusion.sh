@@ -15,4 +15,6 @@ if [ ! -d ./obj ]; then
     mkdir ./obj
 fi
 
-yinyang "../../cli.py solve $BOOL_ONLY --solver $SOLVER --tmp-dir ../tmp_fusion/"  --oracle $ORACLE --timeout $TIMEOUT --l ./obj/logs --s ./obj/scratch --b ./obj/bugs $BENCHMARKS > fusion.out 2>&1
+CLI_COMMAND=""../../cli.py solve $BOOL_ONLY --solver $SOLVER --tmp-dir ../tmp_fusion/""
+
+yinyang $CLI_COMMAND --oracle $ORACLE --timeout $TIMEOUT --l ./obj/logs --s ./obj/scratch --b ./obj/bugs $BENCHMARKS > fusion.out 2>&1
