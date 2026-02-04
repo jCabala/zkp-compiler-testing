@@ -4,6 +4,7 @@ from uuid import uuid4
 import click
 from src.smt_lib.smt_lib_parser import parse_smtlib2_core
 from src.smt_lib.zk_ir import Circuit
+from src.smt_lib.prune import prune_formula
 from src.r1cs.solve import solve_r1cs
 from src.r1cs.optimize import optimize_r1cs
 from src.backends.circom.ir2circom import IR2CircomVisitorConstrainAssertions
@@ -109,8 +110,10 @@ class ZKDSL:
 @click.option("--with-logs", is_flag=True, help="Enable detailed logging.")
 @click.option("--zk-dsl", type=click.Choice([ZKDSL.CIRCOM, ZKDSL.GNARK]), default=ZKDSL.CIRCOM, help="Choose the zero-knowledge DSL to use.")
 @click.option("--solver", type=click.Choice(["z3", "cvc5", "picus"]), default="z3", help="Choose the SMT solver backend.")
+@click.option('--prune', type=int, default=None, help="Prune formula to k variables before solving.")
+@click.option('--prune-seed', type=int, default=None, help="Random seed for pruning (for reproducibility).")
 
-def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str):
+def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int):
 	"""
 	Solve an SMT-LIB file using a SMT solver.
 	SMT_LIB_PATH: Path to the .smt2 file
@@ -118,6 +121,11 @@ def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solve
 	_log(f"Using ZK DSL: {zk_dsl}", with_logs=with_logs)
 	_log(f"Solving SMT-LIB file: {smt_lib_path}...", with_logs=with_logs)
 	file_content = smt_lib_path.read_text()
+	
+	# Apply pruning if requested
+	if prune is not None:
+		file_content = _apply_pruning(file_content, prune, solver, prune_seed, smt_lib_path, with_logs)
+	
 	dsl_code, bool_vars = _parse_smtlib2(file_content, dsl=zk_dsl, solver=solver)
 
 	# save DSL code next to smt_lib_path for debugging purposes
@@ -145,6 +153,28 @@ def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solve
 	dsl_path.unlink()
 
 # --------------------------- Helper Functions ----------------------------------
+
+def _apply_pruning(file_content: str, k: int, solver: str, seed: int, smt_lib_path: Path, with_logs: bool) -> str:
+	"""Apply pruning to SMT-LIB formula and log results."""
+	_log(f"Pruning formula to {k} variables...", with_logs=with_logs)
+	pruned_content, metadata = prune_formula(
+		file_content, 
+		k=k, 
+		solver=solver,
+		seed=seed
+	)
+	
+	if metadata.get("pruned", False):
+		_log(f"Pruned: {metadata['replaced_vars']} vars replaced, {metadata['kept_vars']} kept (original result: {metadata['original_result']})", with_logs=with_logs)
+		# Save pruned formula for debugging
+		if with_logs:
+			pruned_path = smt_lib_path.parent / f"{smt_lib_path.stem}_pruned.smt2"
+			pruned_path.write_text(pruned_content)
+			_log(f"Pruned formula saved to {pruned_path}", with_logs=with_logs)
+	else:
+		_log(f"Pruning skipped: {metadata.get('reason', 'unknown reason')}", with_logs=with_logs)
+	
+	return pruned_content
 
 def _log(message: str, with_logs: bool):
 	if with_logs:

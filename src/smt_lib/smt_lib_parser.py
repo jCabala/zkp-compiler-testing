@@ -66,25 +66,51 @@ def _infer_fusion_formula(var_name: str, smtlib2: str) -> Expression:
             f"Expected fused variable name ending with '{FUSION_SUFFIX}', got: {var_name}"
         )
 
-    # Parse var1/var2 from name: <var1><var2>_fused where var2 starts at 2nd "scr"
+    # Parse var1/var2 from name
+    # Format after pruning: var1__var2__orig__<original>_fused
+    # Original format: var1_var2_fused (where var1/var2 contain underscores)
     base = var_name[: -len(FUSION_SUFFIX)]
-    first = base.find("scr")
-    if first == -1:
-        raise ValueError(f"Cannot parse fused name (no 'scr'): {var_name}")
-    second = base.find("scr", first + 1)
-    if second == -1:
-        raise ValueError(f"Cannot parse fused name (no second 'scr'): {var_name}")
+    
+    # Check if this is a renamed fused variable (contains __)
+    if "__" in base:
+        parts = base.split("__")
+        if len(parts) >= 2:
+            var1 = parts[0]
+            var2 = parts[1]
+        else:
+            raise ValueError(f"Cannot parse renamed fused name: {var_name}")
+    else:
+        # Original fused variable format: find second "scr"
+        first = base.find("scr")
+        if first == -1:
+            raise ValueError(f"Cannot parse fused name (no 'scr'): {var_name}")
+        second = base.find("scr", first + 1)
+        if second == -1:
+            raise ValueError(f"Cannot parse fused name (no second 'scr'): {var_name}")
 
-    var1 = base[:second]
-    var2 = base[second:]
-    if var1.endswith("_"):
-        var1 = var1[:-1]
+        var1 = base[:second]
+        var2 = base[second:]
+        if var1.endswith("_"):
+            var1 = var1[:-1]
 
     # IMPORTANT: even though all variables are *typed* as BOOLEAN in the IR,
     # we still use field arithmetic to encode XOR safely:
     # xor(a,b) = a + b - 2ab
-    a = Variable(var1, VariableType.BOOLEAN)
-    b = Variable(var2, VariableType.BOOLEAN)
+    
+    # Handle literal boolean values in component names (from pruning)
+    if var1 == "true":
+        a = Boolean(True)
+    elif var1 == "false":
+        a = Boolean(False)
+    else:
+        a = Variable(var1, VariableType.BOOLEAN)
+    
+    if var2 == "true":
+        b = Boolean(True)
+    elif var2 == "false":
+        b = Boolean(False)
+    else:
+        b = Variable(var2, VariableType.BOOLEAN)
 
     two = Integer(2)
     ab = BinaryExpression(Operator.MUL, a, b)
@@ -228,17 +254,6 @@ def parse_smtlib2_core(smtlib2: str, solver: str = "z3") -> Circuit:
                     fnode_to_zkir(node.arg(1), env),
                 )
 
-            # Robustness: PySMT may keep XOR as a native node.
-            # Encode xor(x,y) as not (x = y) so we stay in core Bool ops in the IR.
-            case op.XOR:
-                args = [fnode_to_zkir(a, env) for a in node.args()]
-                out = args[0]
-                for e in args[1:]:
-                    out = UnaryExpression(
-                        Operator.NOT,
-                        BinaryExpression(Operator.EQU, out, e),
-                    )
-                return out
 
             # ----- LIA arithmetic -----
             # NOTE: We do not typecheck; symbols are boolean-typed but can still appear here.

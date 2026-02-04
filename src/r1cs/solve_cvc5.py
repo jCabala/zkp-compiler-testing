@@ -82,7 +82,8 @@ def solve_r1cs_cvc5(r1cs, with_logs: bool = False) -> SMTResult:
     res = solver.check()
     if res == cv.sat:
         m = solver.model()
-        print("SMT Model (cvc5 pythonic):")
+        if with_logs:
+            print("SMT Model (cvc5 pythonic):")
         solution: Dict[str, int] = {}
 
         # Extract values for declared vars (skip constant wire)

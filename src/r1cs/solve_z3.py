@@ -42,6 +42,10 @@ def solve_r1cs_z3(r1cs, with_logs: bool = False) -> SMTResult:
         print("SMT Query (Z3):")
         print(solver.assertions())
 
+        # Print how many variables and constraints
+        print(f"Z3 Solver: {len(var_map)} variables, {len(r1cs.constraints)} constraints")
+    
+    print("Num of variables:", len(var_map))
     ret = solver.check()
     if ret == sat:
         m = solver.model()
