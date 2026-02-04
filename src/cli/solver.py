@@ -2,6 +2,7 @@ from pathlib import Path
 from random import Random
 from uuid import uuid4
 import click
+from src.smt_lib.simplify import simplify_formula
 from src.smt_lib.smt_lib_parser import parse_smtlib2_core
 from src.smt_lib.zk_ir import Circuit
 from src.smt_lib.prune import prune_formula
@@ -126,6 +127,7 @@ def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solve
 	if prune is not None:
 		file_content = _apply_pruning(file_content, prune, solver, prune_seed, smt_lib_path, with_logs)
 	
+	file_content = simplify_formula(file_content)
 	dsl_code, bool_vars = _parse_smtlib2(file_content, dsl=zk_dsl, solver=solver)
 
 	# save DSL code next to smt_lib_path for debugging purposes
