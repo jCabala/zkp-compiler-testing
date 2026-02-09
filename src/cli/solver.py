@@ -124,8 +124,11 @@ def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solve
 	file_content = smt_lib_path.read_text()
 	
 	# Apply pruning if requested
+	# Pruning needs an actual SMT solver (z3/cvc5) to determine SAT/UNSAT and extract models.
+	# Picus is an external tool, not a pySMT backend, so fall back to z3 for pruning.
 	if prune is not None:
-		file_content = _apply_pruning(file_content, prune, solver, prune_seed, smt_lib_path, with_logs)
+		prune_solver = "z3" if solver == "picus" else solver
+		file_content = _apply_pruning(file_content, prune, prune_solver, prune_seed, smt_lib_path, with_logs)
 	
 	file_content = simplify_formula(file_content)
 	dsl_code, bool_vars = _parse_smtlib2(file_content, dsl=zk_dsl, solver=solver)
