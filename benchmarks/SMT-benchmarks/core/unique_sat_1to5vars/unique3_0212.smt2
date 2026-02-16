@@ -1,0 +1,11 @@
+; unique_target=101
+(set-logic QF_BV)
+(declare-fun x1 () Bool)
+(declare-fun x2 () Bool)
+(declare-fun x3 () Bool)
+(assert x1)
+(assert (or x3 x2))
+(assert (or (not x2) (not x3)))
+(assert (not x2))
+(check-sat)
+(get-model)

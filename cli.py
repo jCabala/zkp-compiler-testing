@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 import click
-from src.cli.helper import export_r1cs_command, generate_proof_command, cnf_to_smtlib2_command, translate_to_circom_command, translate_to_gnark_command
+from src.cli.helper import export_r1cs_command, generate_proof_command, cnf_to_smtlib2_command, generate_unique_sat_benchmark_command, prune_smtlib2_folder_command, sudoku17_to_smtlib2_command, translate_to_circom_command, translate_to_gnark_command
 from src.cli.solver import solve, solve_circom_command, solve_gnark_command
 
 @click.group()
@@ -22,6 +22,9 @@ cli.add_command(solve_gnark_command)
 cli.add_command(export_r1cs_command)
 cli.add_command(generate_proof_command)
 cli.add_command(cnf_to_smtlib2_command)
+cli.add_command(generate_unique_sat_benchmark_command)
+cli.add_command(prune_smtlib2_folder_command)
+cli.add_command(sudoku17_to_smtlib2_command)
 cli.add_command(translate_to_circom_command)
 cli.add_command(translate_to_gnark_command)
 

@@ -266,6 +266,7 @@ class Fuzzer:
                     log_crash_trigger(path)
                 else:
                     self.statistic.duplicates += 1
+                    self.statistic.ineff_duplicate += 1
                     log_duplicate_trigger()
                 return False  # Stop testing.
             else:
@@ -277,6 +278,7 @@ class Fuzzer:
                 if in_ignore_list(stdout, stderr):
                     log_ignore_list_mutant(solver_cli)
                     self.statistic.invalid_mutants += 1
+                    self.statistic.ineff_ignore_list += 1
                     continue  # Continue to the next solver.
 
                 if exitcode != 0:
@@ -294,12 +296,41 @@ class Fuzzer:
                     # Check whether the solver timed out.
                     elif exitcode == 137:
                         self.statistic.timeout += 1
+                        self.statistic.ineff_timeout += 1
                         self.timeout_of_current_seed += 1
                         log_solver_timeout(self.args, solver_cli, iteration)
                         continue  # Continue to the next solver.
 
                     # Check whether a "command not found" error occurred.
                     elif exitcode == 127:
+                        self.statistic.ineff_cmd_not_found += 1
+                        logging.debug(
+                            str(iteration)
+                            + "/"
+                            + str(self.args.iterations)
+                            + " Solver command not found. sol="
+                            + str(solver_cli)
+                        )
+                        continue  # Continue to the next solver.
+
+                    else:
+                        self.statistic.ineff_exit_other += 1
+                        out_preview = escape((stdout or "").strip().replace("\n", "\\n"))[:160]
+                        err_preview = escape((stderr or "").strip().replace("\n", "\\n"))[:160]
+                        logging.debug(
+                            str(iteration)
+                            + "/"
+                            + str(self.args.iterations)
+                            + " Non-timeout non-segfault exit code="
+                            + str(exitcode)
+                            + " sol="
+                            + str(solver_cli)
+                            + " stdout='"
+                            + str(out_preview)
+                            + "' stderr='"
+                            + str(err_preview)
+                            + "'"
+                        )
                         continue  # Continue to the next solver.
 
                 # Check if the stdout contains a valid solver query result,
@@ -310,6 +341,7 @@ class Fuzzer:
                     and not re.search("^unknown$", stdout, flags=re.MULTILINE)
                 ):
                     self.statistic.invalid_mutants += 1
+                    self.statistic.ineff_invalid_output += 1
                     log_invalid_mutant(self.args, iteration)
                     continue  # Continue to the next solver.
 

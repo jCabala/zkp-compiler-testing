@@ -129,7 +129,8 @@ def prune_formula(
     smtlib2_str: str, 
     k: int, 
     solver: str = "z3", 
-    seed: Optional[int] = None
+    seed: Optional[int] = None,
+    prefer_fused_pairs: bool = True,
 ) -> Tuple[str, Dict[str, Any]]:
     """
     Prune an SMT formula to k variables.
@@ -139,6 +140,8 @@ def prune_formula(
         k: Number of variables to keep
         solver: Solver to use ("z3" or "cvc5")
         seed: Random seed for reproducibility
+        prefer_fused_pairs: If True, prioritize keeping both sides of fused pairs.
+                           If False, treat all variables equally and sample uniformly.
     
     Returns:
         Tuple of (pruned_smtlib, metadata) where:
@@ -326,6 +329,84 @@ def prune_formula(
         
         rng = random.Random(seed)
         return set(rng.sample(all_vars, k))
+
+
+    def extract_fused_pairs(smtlib2_str: str) -> List[Tuple[str, str]]:
+        """
+        Extract fused-variable source pairs from declarations like:
+        (declare-fun <var1>_<var2>_fused () Bool)
+        using the same split heuristic used elsewhere in pruning for scr1/scr2 names.
+        """
+        import re
+        FUSION_SUFFIX = "_fused"
+        fused_pattern = re.compile(r'\(declare-fun (\w+' + re.escape(FUSION_SUFFIX) + r') \(\) Bool\)')
+        fused_vars = fused_pattern.findall(smtlib2_str)
+
+        pairs: List[Tuple[str, str]] = []
+        for fused_var in fused_vars:
+            base = fused_var[:-len(FUSION_SUFFIX)]
+            first = base.find("scr")
+            if first == -1:
+                continue
+            second = base.find("scr", first + 1)
+            if second == -1:
+                continue
+
+            var1 = base[:second]
+            if var1.endswith("_"):
+                var1 = var1[:-1]
+            var2 = base[second:]
+            pairs.append((var1, var2))
+        return pairs
+
+
+    def select_k_variables_preferring_fused_pairs(
+        all_vars: List[str], smtlib2_str: str, k: int, seed: Optional[int] = None
+    ) -> Set[str]:
+        """
+        Select variables while prioritizing complete fused pairs (both sides kept).
+        Falls back to random fill for remaining slots.
+        """
+        if k >= len(all_vars):
+            return set(all_vars)
+        if k <= 0:
+            return set()
+
+        rng = random.Random(seed)
+        all_vars_set = set(all_vars)
+        pairs = [(a, b) for a, b in extract_fused_pairs(smtlib2_str) if a in all_vars_set and b in all_vars_set and a != b]
+
+        # Deduplicate while preserving order
+        seen = set()
+        dedup_pairs: List[Tuple[str, str]] = []
+        for a, b in pairs:
+            key = tuple(sorted((a, b)))
+            if key in seen:
+                continue
+            seen.add(key)
+            dedup_pairs.append((a, b))
+
+        rng.shuffle(dedup_pairs)
+        selected: Set[str] = set()
+
+        # Fill with full pairs first.
+        for a, b in dedup_pairs:
+            if len(selected) + 2 > k:
+                continue
+            if a in selected or b in selected:
+                continue
+            selected.add(a)
+            selected.add(b)
+            if len(selected) == k:
+                return selected
+
+        # Fill any leftover slots randomly.
+        remaining = [v for v in all_vars if v not in selected]
+        need = k - len(selected)
+        if need > 0:
+            selected.update(rng.sample(remaining, need))
+
+        return selected
 
 
     def generate_random_substitutions(vars_to_replace: List[str], seed: Optional[int] = None) -> Dict[str, bool]:
@@ -521,7 +602,10 @@ def prune_formula(
         }
         return smtlib2_str, metadata
     
-    vars_to_keep = select_k_random_variables(all_vars, k, seed)
+    if prefer_fused_pairs:
+        vars_to_keep = select_k_variables_preferring_fused_pairs(all_vars, smtlib2_str, k, seed)
+    else:
+        vars_to_keep = select_k_random_variables(all_vars, k, seed)
     vars_to_replace = [v for v in all_vars if v not in vars_to_keep]
     
     if result == "sat":

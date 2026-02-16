@@ -39,6 +39,13 @@ class Statistic:
         self.timeout = 0
         self.solver_calls = 0
         self.effective_calls = 0
+        # Non-effective call breakdown (for debugging low effectiveness)
+        self.ineff_ignore_list = 0
+        self.ineff_invalid_output = 0
+        self.ineff_timeout = 0
+        self.ineff_exit_other = 0
+        self.ineff_cmd_not_found = 0
+        self.ineff_duplicate = 0
 
     def printbar(self, start_time):
         total_time = time.time() - start_time
@@ -63,6 +70,21 @@ class Statistic:
             eff_str,
             mutants_per_sec_str,
         )
+        if self.solver_calls != 0:
+            breakdown = (
+                "Non-effective breakdown: "
+                "ignore=%d, invalid_out=%d, timeout=%d, "
+                "exit_other=%d, cmd_not_found=%d, duplicate=%d"
+                % (
+                    self.ineff_ignore_list,
+                    self.ineff_invalid_output,
+                    self.ineff_timeout,
+                    self.ineff_exit_other,
+                    self.ineff_cmd_not_found,
+                    self.ineff_duplicate,
+                )
+            )
+            logging.debug(breakdown)
         logging.info(bar)
 
     def printsum(self):
