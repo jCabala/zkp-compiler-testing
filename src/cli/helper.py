@@ -17,7 +17,7 @@ from src.backends.gnark.ir2gnark import IR2GnarkVisitor
 from src.backends.gnark.emitter import EmitVisitor as GnarkEmitter
 from src.backends.noir.ir2noir import IR2NoirVisitor
 from src.backends.noir.emitter import EmitVisitor as NoirEmitter
-from src.smt_lib.prune import prune_formula, run_smt_solver
+from src.smt_lib.prune import prune_formula, run_smt_solver_models
 from third_party.yinyang.yinyang.src.parsing.Parse import parse_file
 from third_party.yinyang.yinyang.src.mutators.SemanticFusion.SemanticFusion import SemanticFusion
 
@@ -693,6 +693,13 @@ def translate_to_dsl_command(in_folder: Path, out_folder: Path, dsl: str, max_ou
 	default=None,
 	help="Maximum attempts before aborting (default: 50 * num-outputs).",
 )
+@click.option(
+	"--max-models",
+	type=int,
+	default=1,
+	show_default=True,
+	help="Maximum number of SAT models to store per fused output.",
+)
 def fuse_smt_to_dsl_command(
 	in_dir: Path,
 	out_dir: Path,
@@ -702,6 +709,7 @@ def fuse_smt_to_dsl_command(
 	config: Path,
 	oracle: str,
 	max_attempts: int | None,
+	max_models: int,
 ):
 	"""
 	Generate fused SMT programs using local YinYang SemanticFusion and emit paired DSL files.
@@ -712,6 +720,8 @@ def fuse_smt_to_dsl_command(
 	try:
 		if num_outputs <= 0:
 			raise ValueError("--num-outputs must be > 0")
+		if max_models <= 0:
+			raise ValueError("--max-models must be > 0")
 
 		seed_files = sorted(in_dir.rglob("*.smt2"))
 		if len(seed_files) < 2:
@@ -763,8 +773,8 @@ def fuse_smt_to_dsl_command(
 				failed += 1
 				continue
 
-			solve_result, solve_model = run_smt_solver(smt_text, solver="z3")
-			if solve_result != "sat" or solve_model is None:
+			solve_result, solve_models = run_smt_solver_models(smt_text, solver="z3", max_models=max_models)
+			if solve_result != "sat" or not solve_models:
 				failed += 1
 				continue
 
@@ -775,17 +785,27 @@ def fuse_smt_to_dsl_command(
 				right_circuit = parse_smtlib2_core(right.read_text())
 				seed_inputs_cache[right] = [v.name for v in right_circuit.inputs]
 
-			assignments: dict[str, object] = {}
-			for name in seed_inputs_cache[left]:
-				prefixed = f"scr1_{name}"
-				val = solve_model.get(prefixed)
-				if val is not None:
-					assignments[prefixed] = val
-			for name in seed_inputs_cache[right]:
-				prefixed = f"scr2_{name}"
-				val = solve_model.get(prefixed)
-				if val is not None:
-					assignments[prefixed] = val
+			model_payloads: list[dict[str, object]] = []
+			for model in solve_models:
+				assignments: dict[str, object] = {}
+				for name in seed_inputs_cache[left]:
+					prefixed = f"scr1_{name}"
+					val = model.get(prefixed)
+					if val is not None:
+						assignments[prefixed] = val
+				for name in seed_inputs_cache[right]:
+					prefixed = f"scr2_{name}"
+					val = model.get(prefixed)
+					if val is not None:
+						assignments[prefixed] = val
+				model_payloads.append(
+					{
+						"assignments": assignments,
+						"fused_assignments": {
+							name: val for name, val in model.items() if name.endswith("_fused")
+						},
+					}
+				)
 
 			generated += 1
 			stem = f"fused_{generated:04d}"
@@ -798,11 +818,13 @@ def fuse_smt_to_dsl_command(
 				"result": solve_result,
 				"seed_left": str(left),
 				"seed_right": str(right),
-				"assignments": assignments,
-				"fused_assignments": {
-					name: val for name, val in solve_model.items() if name.endswith("_fused")
-				},
+				"max_models_requested": max_models,
+				"model_count": len(model_payloads),
+				"models": model_payloads,
 			}
+			# Backward compatibility: keep first model flattened at top-level.
+			solution_payload["assignments"] = model_payloads[0]["assignments"]
+			solution_payload["fused_assignments"] = model_payloads[0]["fused_assignments"]
 			solution_path.write_text(json.dumps(solution_payload, indent=2))
 			manifest_rows.append(
 				{
@@ -827,6 +849,7 @@ def fuse_smt_to_dsl_command(
 			"out_dir": str(out_dir),
 			"solutions_dir": str(out_sol_dir),
 			"solution_solver": "z3",
+			"max_models_per_output": max_models,
 			"num_outputs_requested": num_outputs,
 			"num_outputs_generated": generated,
 			"attempts": attempts,
