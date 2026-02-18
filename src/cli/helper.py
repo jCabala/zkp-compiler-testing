@@ -13,6 +13,8 @@ from src.backends.circom.ir2circom import IR2CircomVisitorConstrainAssertions
 from src.smt_lib.smt_lib_parser import parse_smtlib2_core
 from src.backends.gnark.ir2gnark import IR2GnarkVisitor
 from src.backends.gnark.emitter import EmitVisitor as GnarkEmitter
+from src.backends.noir.ir2noir import IR2NoirVisitor
+from src.backends.noir.emitter import EmitVisitor as NoirEmitter
 from src.smt_lib.prune import prune_formula
 
 
@@ -619,13 +621,20 @@ def _translate_smtlib2_to_dsl(smtlib2: str, dsl: str) -> tuple[str, str]:
 		emitter = GnarkEmitter()
 		return emitter.emit(gnark_ir), ".go"
 
+	if dsl == "noir":
+		ir2noir_visitor = IR2NoirVisitor()
+		noir_ast = ir2noir_visitor.visit_circuit(circuit_ir)
+
+		emitter = NoirEmitter()
+		return emitter.emit(noir_ast), ".nr"
+
 	raise ValueError(f"Unsupported DSL: {dsl}")
 
 
 @click.command(name="smt-to-dsl")
 @click.argument('in_folder', type=click.Path(exists=True, file_okay=False, path_type=Path))
 @click.argument('out_folder', type=click.Path(path_type=Path))
-@click.option("--dsl", type=click.Choice(["circom", "gnark"]), required=True, help="Target DSL for generated programs.")
+@click.option("--dsl", type=click.Choice(["circom", "gnark", "noir"]), required=True, help="Target DSL for generated programs.")
 @click.option('--max-out', type=int, default=None, help="Maximum number of files to convert.")
 def translate_to_dsl_command(in_folder: Path, out_folder: Path, dsl: str, max_out: int | None):
 	"""
