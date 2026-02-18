@@ -3,6 +3,8 @@ from random import Random
 import random
 import shutil
 import subprocess
+from datetime import datetime, UTC
+from types import SimpleNamespace
 from pathlib import Path
 import click
 from src.backends.circom.r1cs import get_r1cs_json
@@ -16,6 +18,8 @@ from src.backends.gnark.emitter import EmitVisitor as GnarkEmitter
 from src.backends.noir.ir2noir import IR2NoirVisitor
 from src.backends.noir.emitter import EmitVisitor as NoirEmitter
 from src.smt_lib.prune import prune_formula
+from third_party.yinyang.yinyang.src.parsing.Parse import parse_file
+from third_party.yinyang.yinyang.src.mutators.SemanticFusion.SemanticFusion import SemanticFusion
 
 
 def check_cmd_exists(cmd: str):
@@ -661,3 +665,144 @@ def translate_to_dsl_command(in_folder: Path, out_folder: Path, dsl: str, max_ou
 		converted_count += 1
 
 	click.echo(f"✓ Converted {converted_count} files to {dsl} in {out_folder}")
+
+
+@click.command(name="fuse-smt-to-dsl")
+@click.argument("in_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.argument("out_dir", type=click.Path(path_type=Path))
+@click.option("--dsl", type=click.Choice(["circom", "gnark", "noir"]), required=True, help="Target DSL for generated programs.")
+@click.option("--seed", type=int, default=0, show_default=True, help="Random seed for reproducible fusion generation.")
+@click.option("--num-outputs", type=int, required=True, help="Number of fused outputs to generate.")
+@click.option(
+	"--config",
+	type=click.Path(exists=True, dir_okay=False, path_type=Path),
+	default=Path("third_party/yinyang/yinyang/config/fusion_functions.txt"),
+	show_default=True,
+	help="Path to YinYang fusion function config.",
+)
+@click.option(
+	"--oracle",
+	type=click.Choice(["sat", "unsat"]),
+	default="sat",
+	show_default=True,
+	help="Fusion oracle passed to SemanticFusion.",
+)
+@click.option(
+	"--max-attempts",
+	type=int,
+	default=None,
+	help="Maximum attempts before aborting (default: 50 * num-outputs).",
+)
+def fuse_smt_to_dsl_command(
+	in_dir: Path,
+	out_dir: Path,
+	dsl: str,
+	seed: int,
+	num_outputs: int,
+	config: Path,
+	oracle: str,
+	max_attempts: int | None,
+):
+	"""
+	Generate fused SMT programs using local YinYang SemanticFusion and emit paired DSL files.
+
+	IN_DIR:  Folder with input SMT seed programs (.smt2)
+	OUT_DIR: Folder where paired outputs will be written
+	"""
+	try:
+		if num_outputs <= 0:
+			raise ValueError("--num-outputs must be > 0")
+
+		seed_files = sorted(in_dir.rglob("*.smt2"))
+		if len(seed_files) < 2:
+			raise ValueError(f"Need at least 2 .smt2 seed files in {in_dir}, found {len(seed_files)}")
+
+		out_smt_dir = out_dir / "smt2"
+		out_dsl_dir = out_dir / "dsl"
+		out_smt_dir.mkdir(parents=True, exist_ok=True)
+		out_dsl_dir.mkdir(parents=True, exist_ok=True)
+		config_copy_path = out_dir / f"yinyang_config{config.suffix or '.txt'}"
+		shutil.copy2(config, config_copy_path)
+
+		rng = random.Random(seed)
+		args = SimpleNamespace(config=str(config), oracle=oracle)
+		limit = max_attempts if max_attempts is not None else 50 * num_outputs
+		if limit <= 0:
+			raise ValueError("--max-attempts must be > 0 when provided")
+
+		manifest_rows: list[dict[str, object]] = []
+		generated = 0
+		attempts = 0
+		skipped = 0
+		failed = 0
+
+		while generated < num_outputs and attempts < limit:
+			attempts += 1
+			left, right = rng.sample(seed_files, 2)
+			script1, _ = parse_file(str(left), silent=True)
+			script2, _ = parse_file(str(right), silent=True)
+			if script1 is None or script2 is None:
+				failed += 1
+				continue
+
+			# Seed global random because SemanticFusion uses random module internally.
+			random.seed(rng.randint(0, 2**31 - 1))
+			mutator = SemanticFusion(script1, script2, args)
+			mutant, success, skip_seed = mutator.mutate()
+			if not success or skip_seed:
+				skipped += 1
+				continue
+
+			smt_text = str(mutant)
+			try:
+				dsl_text, extension = _translate_smtlib2_to_dsl(smt_text, dsl)
+			except Exception:
+				failed += 1
+				continue
+
+			generated += 1
+			stem = f"fused_{generated:04d}"
+			smt_path = out_smt_dir / f"{stem}.smt2"
+			dsl_path = out_dsl_dir / f"{stem}{extension}"
+			smt_path.write_text(smt_text)
+			dsl_path.write_text(dsl_text)
+			manifest_rows.append(
+				{
+					"index": generated,
+					"attempt": attempts,
+					"seed_left": str(left),
+					"seed_right": str(right),
+					"smt_path": str(smt_path),
+					"dsl_path": str(dsl_path),
+				}
+			)
+			click.echo(f"[{generated}/{num_outputs}] {left.name} + {right.name} -> {dsl_path.name}")
+
+		manifest = {
+			"dsl": dsl,
+			"seed": seed,
+			"oracle": oracle,
+			"config": str(config),
+			"config_copy": str(config_copy_path),
+			"in_dir": str(in_dir),
+			"out_dir": str(out_dir),
+			"num_outputs_requested": num_outputs,
+			"num_outputs_generated": generated,
+			"attempts": attempts,
+			"skipped": skipped,
+			"failed": failed,
+			"generated_at": datetime.now(UTC).isoformat(),
+			"outputs": manifest_rows,
+		}
+		(out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
+
+		if generated < num_outputs:
+			raise RuntimeError(
+				f"Generated {generated}/{num_outputs} before reaching max attempts ({limit}). "
+				f"See {out_dir / 'manifest.json'}."
+			)
+
+		click.echo(f"✓ Generated {generated} fused SMT + {dsl} program pairs in {out_dir}")
+	except Exception as e:
+		click.echo(f"✗ Error: {e}", err=True)
+		raise click.Abort()

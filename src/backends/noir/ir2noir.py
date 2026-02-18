@@ -141,28 +141,33 @@ class IR2NoirVisitor:
         output_names = {o.name for o in node.outputs}
         statements: list[Statement] = []
 
-        # Mutable output locals allow assignments and fused-output synthesis.
+        # Declare output locals.
         for out in node.outputs:
             out_type = self._type_from_var(out)
-            default_value: Expression = BooleanLiteral(False) if isinstance(out_type, BoolType) else IntegerLiteral(0)
-            statements.append(
-                LetStatement(
-                    Identifier(out.name),
-                    default_value,
-                    out_type,
-                    is_mutable=True,
-                )
-            )
-
-        for stmt in node.statements:
-            statements += self.visit_statement(stmt)
-
-        # Fused outputs are computed from their fusion expressions.
-        for out in node.outputs:
             if isinstance(out, IRNodes.FusedVariable) and out.fusion_expression is not None:
                 fused_expr, fused_tail = self.visit_expression(out.fusion_expression)
                 statements += fused_tail
-                statements.append(AssignStatement(Identifier(out.name), fused_expr))
+                statements.append(
+                    LetStatement(
+                        Identifier(out.name),
+                        fused_expr,
+                        out_type,
+                        is_mutable=False,
+                    )
+                )
+            else:
+                default_value: Expression = BooleanLiteral(False) if isinstance(out_type, BoolType) else IntegerLiteral(0)
+                statements.append(
+                    LetStatement(
+                        Identifier(out.name),
+                        default_value,
+                        out_type,
+                        is_mutable=True,
+                    )
+                )
+
+        for stmt in node.statements:
+            statements += self.visit_statement(stmt)
 
         return_type: NoirType | None = None
         if len(node.outputs) == 0:
