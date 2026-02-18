@@ -6,7 +6,7 @@ YY_ROOT="$SCRIPT_DIR/../../third_party/yinyang"
 ORACLE=sat # sat or unsat
 BENCHMARKS=$SCRIPT_DIR/../../benchmarks/SMT-benchmarks/core/unique_sat_1to5vars/
 TIMEOUT=30 # seconds
-DSL="circom" # gnark or circom
+DSL="gnark" # gnark or circom
 
 # Fixed config for picus fusion
 FUSION_REWRITE_POLICY="all"
