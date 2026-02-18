@@ -17,7 +17,7 @@ from src.backends.gnark.ir2gnark import IR2GnarkVisitor
 from src.backends.gnark.emitter import EmitVisitor as GnarkEmitter
 from src.backends.noir.ir2noir import IR2NoirVisitor
 from src.backends.noir.emitter import EmitVisitor as NoirEmitter
-from src.smt_lib.prune import prune_formula
+from src.smt_lib.prune import prune_formula, run_smt_solver
 from third_party.yinyang.yinyang.src.parsing.Parse import parse_file
 from third_party.yinyang.yinyang.src.mutators.SemanticFusion.SemanticFusion import SemanticFusion
 
@@ -719,8 +719,10 @@ def fuse_smt_to_dsl_command(
 
 		out_smt_dir = out_dir / "smt2"
 		out_dsl_dir = out_dir / "dsl"
+		out_sol_dir = out_dir / "solutions"
 		out_smt_dir.mkdir(parents=True, exist_ok=True)
 		out_dsl_dir.mkdir(parents=True, exist_ok=True)
+		out_sol_dir.mkdir(parents=True, exist_ok=True)
 		config_copy_path = out_dir / f"yinyang_config{config.suffix or '.txt'}"
 		shutil.copy2(config, config_copy_path)
 
@@ -731,6 +733,7 @@ def fuse_smt_to_dsl_command(
 			raise ValueError("--max-attempts must be > 0 when provided")
 
 		manifest_rows: list[dict[str, object]] = []
+		seed_inputs_cache: dict[Path, list[str]] = {}
 		generated = 0
 		attempts = 0
 		skipped = 0
@@ -760,12 +763,47 @@ def fuse_smt_to_dsl_command(
 				failed += 1
 				continue
 
+			solve_result, solve_model = run_smt_solver(smt_text, solver="z3")
+			if solve_result != "sat" or solve_model is None:
+				failed += 1
+				continue
+
+			if left not in seed_inputs_cache:
+				left_circuit = parse_smtlib2_core(left.read_text())
+				seed_inputs_cache[left] = [v.name for v in left_circuit.inputs]
+			if right not in seed_inputs_cache:
+				right_circuit = parse_smtlib2_core(right.read_text())
+				seed_inputs_cache[right] = [v.name for v in right_circuit.inputs]
+
+			assignments: dict[str, object] = {}
+			for name in seed_inputs_cache[left]:
+				prefixed = f"scr1_{name}"
+				val = solve_model.get(prefixed)
+				if val is not None:
+					assignments[prefixed] = val
+			for name in seed_inputs_cache[right]:
+				prefixed = f"scr2_{name}"
+				val = solve_model.get(prefixed)
+				if val is not None:
+					assignments[prefixed] = val
+
 			generated += 1
 			stem = f"fused_{generated:04d}"
 			smt_path = out_smt_dir / f"{stem}.smt2"
 			dsl_path = out_dsl_dir / f"{stem}{extension}"
+			solution_path = out_sol_dir / f"{stem}.json"
 			smt_path.write_text(smt_text)
 			dsl_path.write_text(dsl_text)
+			solution_payload = {
+				"result": solve_result,
+				"seed_left": str(left),
+				"seed_right": str(right),
+				"assignments": assignments,
+				"fused_assignments": {
+					name: val for name, val in solve_model.items() if name.endswith("_fused")
+				},
+			}
+			solution_path.write_text(json.dumps(solution_payload, indent=2))
 			manifest_rows.append(
 				{
 					"index": generated,
@@ -774,6 +812,7 @@ def fuse_smt_to_dsl_command(
 					"seed_right": str(right),
 					"smt_path": str(smt_path),
 					"dsl_path": str(dsl_path),
+					"solution_path": str(solution_path),
 				}
 			)
 			click.echo(f"[{generated}/{num_outputs}] {left.name} + {right.name} -> {dsl_path.name}")
@@ -786,6 +825,8 @@ def fuse_smt_to_dsl_command(
 			"config_copy": str(config_copy_path),
 			"in_dir": str(in_dir),
 			"out_dir": str(out_dir),
+			"solutions_dir": str(out_sol_dir),
+			"solution_solver": "z3",
 			"num_outputs_requested": num_outputs,
 			"num_outputs_generated": generated,
 			"attempts": attempts,
