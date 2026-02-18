@@ -593,84 +593,62 @@ def sudoku17_to_smtlib2_command(sudoku_file: Path, out_folder: Path, start: int,
 		raise click.Abort()
 
 
-@click.command(name="smtlib2-to-circom")
-@click.argument('in_folder', type=click.Path(exists=True, file_okay=False, path_type=Path))
-@click.argument('out_folder', type=click.Path(path_type=Path))
-@click.option('--max-out', type=int, default=None, help="Maximum number of files to convert.")
-def translate_to_circom_command(in_folder: Path, out_folder: Path, max_out: int | None):
-	"""
-	Translate an SMT-LIB v2 core theory string into .circom files.
+def _translate_smtlib2_to_dsl(smtlib2: str, dsl: str) -> tuple[str, str]:
+	# Parse SMT-LIB v2 to Circuit IR
+	circuit_ir: Circuit = parse_smtlib2_core(smtlib2)
 
-	IN_FOLDER: Path to folder containing .smt2 files
-	OUT_FOLDER: Path to folder to store .circom files
-	"""
-
-	def smtlib2_to_circom(smtlib2: str) -> str:
-		# Parse SMT-LIB v2 to Circuit IR
-		circuit_ir: Circuit = parse_smtlib2_core(smtlib2)
-
+	if dsl == "circom":
 		# Convert Circuit IR to Circom IR
 		rng = Random(0)
-		ir2circom_visitor = IR2CircomVisitorConstrainAssertions(constraint_assignment_probability=1, rng=rng)
+		ir2circom_visitor = IR2CircomVisitorConstrainAssertions(
+			constraint_assignment_probability=1,
+			rng=rng,
+		)
 		circom_ir = ir2circom_visitor.visit_circuit(circuit_ir)
 
 		# Emit Circom code from Circom IR
 		emitter = CircomEmitter()
-		circom_code = emitter.emit(circom_ir)
+		return emitter.emit(circom_ir), ".circom"
 
-		return circom_code
-
-	check_cmd_exists("z3")
-	out_folder.mkdir(parents=True, exist_ok=True)
-	smt2_files = list(in_folder.glob("*.smt2"))
-	if not smt2_files:
-		click.echo(f"No .smt2 files found in {in_folder}")
-		return
-	for smt2_file in smt2_files[:max_out] if max_out is not None else smt2_files:
-		out_file = out_folder / (smt2_file.stem + ".circom")
-		click.echo(f"Translating {smt2_file} -> {out_file}")
-		smtlib2 = smt2_file.read_text()
-		circom_code = smtlib2_to_circom(smtlib2)
-		out_file.write_text(circom_code)
-	click.echo(f"✓ Converted {len(smt2_files)} files to Circom in {out_folder}")
-
-@click.command(name="smtlib2-to-gnark")
-@click.argument('in_folder', type=click.Path(exists=True, file_okay=False, path_type=Path))
-@click.argument('out_folder', type=click.Path(path_type=Path))
-@click.option('--max-out', type=int, default=None, help="Maximum number of files to convert.")
-def translate_to_gnark_command(in_folder: Path, out_folder: Path, max_out: int | None):
-	"""
-	Translate an SMT-LIB v2 core theory string into .go files for Gnark.
-
-	IN_FOLDER: Path to folder containing .smt2 files
-	OUT_FOLDER: Path to folder to store .go files
-	"""
-
-	def smtlib2_to_gnark(smtlib2: str) -> str:
-		# Parse SMT-LIB v2 to Circuit IR
-		circuit_ir: Circuit = parse_smtlib2_core(smtlib2)
-
+	if dsl == "gnark":
 		# Convert Circuit IR to Gnark IR
 		ir2gnark_visitor = IR2GnarkVisitor()
 		gnark_ir = ir2gnark_visitor.visit_circuit(circuit_ir)
 
 		# Emit Gnark code from Gnark IR
 		emitter = GnarkEmitter()
-		gnark_code = emitter.emit(gnark_ir)
+		return emitter.emit(gnark_ir), ".go"
 
-		return gnark_code
-		
-		
+	raise ValueError(f"Unsupported DSL: {dsl}")
+
+
+@click.command(name="smt-to-dsl")
+@click.argument('in_folder', type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.argument('out_folder', type=click.Path(path_type=Path))
+@click.option("--dsl", type=click.Choice(["circom", "gnark"]), required=True, help="Target DSL for generated programs.")
+@click.option('--max-out', type=int, default=None, help="Maximum number of files to convert.")
+def translate_to_dsl_command(in_folder: Path, out_folder: Path, dsl: str, max_out: int | None):
+	"""
+	Translate SMT-LIB v2 core theory files into target DSL programs.
+
+	IN_FOLDER: Path to folder containing .smt2 files
+	OUT_FOLDER: Path to folder to store generated DSL files
+	"""
 	check_cmd_exists("z3")
 	out_folder.mkdir(parents=True, exist_ok=True)
 	smt2_files = list(in_folder.glob("*.smt2"))
 	if not smt2_files:
 		click.echo(f"No .smt2 files found in {in_folder}")
 		return
-	for smt2_file in smt2_files[:max_out] if max_out is not None else smt2_files:
-		out_file = out_folder / (smt2_file.stem + ".go")
-		click.echo(f"Translating {smt2_file} -> {out_file}")
+
+	selected_files = smt2_files[:max_out] if max_out is not None else smt2_files
+	converted_count = 0
+	for smt2_file in selected_files:
 		smtlib2 = smt2_file.read_text()
-		gnark_code = smtlib2_to_gnark(smtlib2)
-		out_file.write_text(gnark_code)
-	click.echo(f"✓ Converted {len(smt2_files)} files to Gnark in {out_folder}")
+		dsl_code, extension = _translate_smtlib2_to_dsl(smtlib2, dsl)
+		out_file = out_folder / f"{smt2_file.stem}{extension}"
+		click.echo(f"Translating {smt2_file} -> {out_file}")
+		out_file.write_text(dsl_code)
+		converted_count += 1
+
+	click.echo(f"✓ Converted {converted_count} files to {dsl} in {out_folder}")
