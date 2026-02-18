@@ -5,9 +5,9 @@ cd $SCRIPT_DIR/
 ORACLE=sat # sat or unsat
 BENCHMARKS=$SCRIPT_DIR/../../benchmarks/SMT-benchmarks/core/sat/
 TIMEOUT=30 # seconds
-SOLVER="cvc5" # z3 or cvc5
-PRUNE=5
-DSL="gnark" # gnark or circom
+SOLVER="picus" # z3 or cvc5 or picus
+PRUNE=2
+DSL="circom" # gnark or circom
 CONFIG="./sat_fusion_config.txt"
 PRUNE_SEED=42
 

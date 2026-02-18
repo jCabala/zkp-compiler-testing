@@ -18,6 +18,11 @@ Run `./cli.py solve --help` for more details.~
 
 When using circom dsl make sure your `tmp-dir` has circomlib files at ../circomlib. E.g set `--tmp-dir experiments/tmp-circom`.
 
+## Experiment Scripts
+
+- `experiments/sat_fusion/sat_fusion.sh`: baseline SAT fusion run.
+- `experiments/picus_fusion/picus_fusion.sh`: Picus fusion experiment runner intended for all-occurrence fusion-rewrite policy testing.
+
 ## Requirements / Installation
 
 ### ZK DSLs

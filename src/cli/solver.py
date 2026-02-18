@@ -128,7 +128,14 @@ def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solve
 	# Picus is an external tool, not a pySMT backend, so fall back to z3 for pruning.
 	if prune is not None:
 		prune_solver = "z3" if solver == "picus" else solver
-		file_content = _apply_pruning(file_content, prune, prune_solver, prune_seed, smt_lib_path, with_logs)
+		file_content = _apply_pruning(
+			file_content,
+			prune,
+			prune_solver,
+			prune_seed,
+			smt_lib_path,
+			with_logs,
+		)
 	
 	file_content = simplify_formula(file_content)
 	dsl_code, bool_vars = _parse_smtlib2(file_content, dsl=zk_dsl, solver=solver)
@@ -159,14 +166,22 @@ def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solve
 
 # --------------------------- Helper Functions ----------------------------------
 
-def _apply_pruning(file_content: str, k: int, solver: str, seed: int, smt_lib_path: Path, with_logs: bool) -> str:
+def _apply_pruning(
+	file_content: str,
+	k: int,
+	solver: str,
+	seed: int,
+	smt_lib_path: Path,
+	with_logs: bool,
+) -> str:
 	"""Apply pruning to SMT-LIB formula and log results."""
 	_log(f"Pruning formula to {k} variables...", with_logs=with_logs)
+	_log("Pruning mode: keep complete fused pairs", with_logs=with_logs)
 	pruned_content, metadata = prune_formula(
 		file_content, 
 		k=k, 
 		solver=solver,
-		seed=seed
+		seed=seed,
 	)
 	
 	if metadata.get("pruned", False):

@@ -1,5 +1,6 @@
 import json
 from random import Random
+import random
 import shutil
 import subprocess
 from pathlib import Path
@@ -12,6 +13,7 @@ from src.backends.circom.ir2circom import IR2CircomVisitorConstrainAssertions
 from src.smt_lib.smt_lib_parser import parse_smtlib2_core
 from src.backends.gnark.ir2gnark import IR2GnarkVisitor
 from src.backends.gnark.emitter import EmitVisitor as GnarkEmitter
+from src.smt_lib.prune import prune_formula
 
 
 def check_cmd_exists(cmd: str):
@@ -28,6 +30,143 @@ def run(cmd, cwd=None):
 	except subprocess.CalledProcessError as e:
 		click.echo(f"\n✗ Command failed with exit code {e.returncode}", err=True)
 		raise click.Abort()
+
+
+def _sudoku_var_id(row: int, col: int, digit: int) -> int:
+	"""
+	Map (row, col, digit) in 1..9 to DIMACS variable id in 1..729.
+	"""
+	return 81 * (row - 1) + 9 * (col - 1) + digit
+
+
+def _sudoku_cnf_from_line(puzzle: str) -> str:
+	"""
+	Build DIMACS CNF for a 9x9 Sudoku puzzle encoded as 81 chars.
+	Accepted empty markers: '0' or '.'.
+	"""
+	puzzle = puzzle.strip()
+	if len(puzzle) != 81:
+		raise ValueError(f"Expected puzzle line of length 81, got {len(puzzle)}")
+	if any(ch not in "0123456789." for ch in puzzle):
+		raise ValueError("Puzzle contains invalid characters (expected digits, 0, or .)")
+
+	clauses: list[list[int]] = []
+
+	# 1) Each cell has exactly one digit
+	for r in range(1, 10):
+		for c in range(1, 10):
+			# At least one
+			clauses.append([_sudoku_var_id(r, c, d) for d in range(1, 10)])
+			# At most one (pairwise)
+			for d1 in range(1, 10):
+				for d2 in range(d1 + 1, 10):
+					clauses.append([-_sudoku_var_id(r, c, d1), -_sudoku_var_id(r, c, d2)])
+
+	# 2) Each row has each digit exactly once
+	for r in range(1, 10):
+		for d in range(1, 10):
+			clauses.append([_sudoku_var_id(r, c, d) for c in range(1, 10)])
+			for c1 in range(1, 10):
+				for c2 in range(c1 + 1, 10):
+					clauses.append([-_sudoku_var_id(r, c1, d), -_sudoku_var_id(r, c2, d)])
+
+	# 3) Each column has each digit exactly once
+	for c in range(1, 10):
+		for d in range(1, 10):
+			clauses.append([_sudoku_var_id(r, c, d) for r in range(1, 10)])
+			for r1 in range(1, 10):
+				for r2 in range(r1 + 1, 10):
+					clauses.append([-_sudoku_var_id(r1, c, d), -_sudoku_var_id(r2, c, d)])
+
+	# 4) Each 3x3 box has each digit exactly once
+	for br in (1, 4, 7):
+		for bc in (1, 4, 7):
+			cells = [(r, c) for r in range(br, br + 3) for c in range(bc, bc + 3)]
+			for d in range(1, 10):
+				clauses.append([_sudoku_var_id(r, c, d) for (r, c) in cells])
+				for i in range(len(cells)):
+					for j in range(i + 1, len(cells)):
+						r1, c1 = cells[i]
+						r2, c2 = cells[j]
+						clauses.append([-_sudoku_var_id(r1, c1, d), -_sudoku_var_id(r2, c2, d)])
+
+	# 5) Clues
+	for idx, ch in enumerate(puzzle):
+		if ch in ("0", "."):
+			continue
+		r = idx // 9 + 1
+		c = idx % 9 + 1
+		d = int(ch)
+		clauses.append([_sudoku_var_id(r, c, d)])
+
+	lines = [f"p cnf 729 {len(clauses)}"]
+	lines.extend(" ".join(str(l) for l in clause) + " 0" for clause in clauses)
+	return "\n".join(lines) + "\n"
+
+
+def _all_assignments(nvars: int) -> list[tuple[bool, ...]]:
+	return [tuple(bool((mask >> i) & 1) for i in range(nvars)) for mask in range(1 << nvars)]
+
+
+def _lit_value(lit: int, assignment: tuple[bool, ...]) -> bool:
+	idx = abs(lit) - 1
+	val = assignment[idx]
+	return val if lit > 0 else (not val)
+
+
+def _clause_satisfied(clause: tuple[int, ...], assignment: tuple[bool, ...]) -> bool:
+	return any(_lit_value(l, assignment) for l in clause)
+
+
+def _random_clause_keep_target(rng: random.Random, nvars: int, target: tuple[bool, ...]) -> tuple[int, ...]:
+	width = rng.randint(1, min(3, nvars))
+	vars_chosen = rng.sample(range(1, nvars + 1), width)
+	lits = [rng.choice([1, -1]) * v for v in vars_chosen]
+	if not _clause_satisfied(tuple(lits), target):
+		j = rng.randrange(len(lits))
+		v = abs(lits[j])
+		lits[j] = v if target[v - 1] else -v
+	return tuple(lits)
+
+
+def _build_unique_cnf(rng: random.Random, nvars: int) -> tuple[list[tuple[int, ...]], tuple[bool, ...]]:
+	universe = _all_assignments(nvars)
+	target = rng.choice(universe)
+	remaining = {a for a in universe if a != target}
+	clauses: list[tuple[int, ...]] = []
+	seen: set[tuple[int, ...]] = set()
+
+	attempts = 0
+	while remaining:
+		attempts += 1
+		if attempts > 20000:
+			raise RuntimeError("Could not construct a unique CNF in allotted attempts.")
+
+		clause = _random_clause_keep_target(rng, nvars, target)
+		if clause in seen:
+			continue
+		killed = {a for a in remaining if not _clause_satisfied(clause, a)}
+		if not killed:
+			continue
+
+		seen.add(clause)
+		clauses.append(clause)
+		remaining.difference_update(killed)
+
+	# Extra target-satisfying clauses for syntactic diversity
+	for _ in range(rng.randint(0, 4)):
+		clause = _random_clause_keep_target(rng, nvars, target)
+		if clause not in seen:
+			seen.add(clause)
+			clauses.append(clause)
+
+	return clauses, target
+
+
+def _clauses_to_dimacs(nvars: int, clauses: list[tuple[int, ...]]) -> str:
+	lines = [f"p cnf {nvars} {len(clauses)}"]
+	lines.extend(" ".join(str(l) for l in c) + " 0" for c in clauses)
+	return "\n".join(lines) + "\n"
 
 # --------------------------- Export R1CS Command ----------------------------------
 @click.command()
@@ -309,6 +448,146 @@ def cnf_to_smtlib2_command(in_folder: Path, out_folder: Path):
 			# Z3 translation: z3 -dimacs input.cnf -smt2 > output.smt2
 			out_file.write_text(cnf_string_to_smt2(cnf_file.read_text()))
 		click.echo(f"✓ Converted {len(cnf_files)} files to SMT-LIB v2 in {out_folder}")
+	except Exception as e:
+		click.echo(f"✗ Error: {e}", err=True)
+		raise click.Abort()
+
+
+@click.command(name="prune-smtlib2-folder")
+@click.argument("in_folder", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.argument("out_folder", type=click.Path(path_type=Path))
+@click.option("--k", type=int, required=True, help="Keep k variables in each pruned output.")
+@click.option("--variants", type=int, default=1, show_default=True, help="How many pruned variants to output per input formula.")
+@click.option("--seed", type=int, default=0, show_default=True, help="Base random seed. Variant i uses seed+i.")
+@click.option("--solver", type=click.Choice(["z3", "cvc5"]), default="z3", show_default=True, help="Solver used by pruning.")
+def prune_smtlib2_folder_command(in_folder: Path, out_folder: Path, k: int, variants: int, seed: int, solver: str):
+	"""
+	Prune all .smt2 files in IN_FOLDER and write pruned variants to OUT_FOLDER.
+
+	Each input formula produces --variants outputs with different seeds.
+	"""
+	try:
+		if k <= 0:
+			raise ValueError("--k must be > 0")
+		if variants <= 0:
+			raise ValueError("--variants must be > 0")
+
+		out_folder.mkdir(parents=True, exist_ok=True)
+		smt2_files = sorted(in_folder.glob("*.smt2"))
+		if not smt2_files:
+			click.echo(f"No .smt2 files found in {in_folder}")
+			return
+
+		written = 0
+		for smt2_file in smt2_files:
+			content = smt2_file.read_text()
+			for i in range(variants):
+				variant_seed = seed + i
+				pruned_content, metadata = prune_formula(
+					content,
+					k=k,
+					solver=solver,
+					seed=variant_seed,
+					prefer_fused_pairs=False,
+				)
+				if not metadata.get("pruned", False):
+					click.echo(
+						f"Skipping {smt2_file.name} variant {i + 1}/{variants}: "
+						f"{metadata.get('reason', 'pruning skipped')}"
+					)
+					continue
+
+				out_file = out_folder / f"{smt2_file.stem}--prune{k}--seed{variant_seed}.smt2"
+				out_file.write_text(pruned_content)
+				written += 1
+
+		click.echo(
+			f"✓ Wrote {written} pruned SMT-LIB2 file(s) "
+			f"from {len(smt2_files)} input file(s) to {out_folder}"
+		)
+	except Exception as e:
+		click.echo(f"✗ Error: {e}", err=True)
+		raise click.Abort()
+
+
+@click.command(name="generate-unique-sat-benchmark")
+@click.argument("out_folder", type=click.Path(path_type=Path))
+@click.option("--count", type=int, default=1000, show_default=True, help="Number of SMT2 files to generate.")
+@click.option("--nvars", type=int, default=5, show_default=True, help="Number of Boolean variables per formula.")
+@click.option("--seed", type=int, default=42, show_default=True, help="Random seed.")
+def generate_unique_sat_benchmark_command(out_folder: Path, count: int, nvars: int, seed: int):
+	"""
+	Generate a benchmark of uniquely satisfiable SMT-LIB2 formulas.
+	"""
+	try:
+		if count <= 0:
+			raise ValueError("--count must be > 0")
+		if nvars <= 0:
+			raise ValueError("--nvars must be > 0")
+
+		out_folder.mkdir(parents=True, exist_ok=True)
+		rng = random.Random(seed)
+		generated = 0
+
+		while generated < count:
+			clauses, target = _build_unique_cnf(rng, nvars)
+
+			dimacs = _clauses_to_dimacs(nvars, clauses)
+			smt2 = cnf_string_to_smt2(dimacs)
+			target_bits = "".join("1" if b else "0" for b in target)
+			smt2 = f"; unique_target={target_bits}\n{smt2}"
+
+			generated += 1
+			out_file = out_folder / f"unique{nvars}_{generated:04d}.smt2"
+			out_file.write_text(smt2)
+
+		click.echo(f"✓ Generated {generated} unique SAT SMT-LIB2 file(s) in {out_folder}")
+	except Exception as e:
+		click.echo(f"✗ Error: {e}", err=True)
+		raise click.Abort()
+
+
+@click.command(name="sudoku17-to-smtlib2")
+@click.argument("sudoku_file", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.argument("out_folder", type=click.Path(path_type=Path))
+@click.option("--start", type=int, default=1, show_default=True, help="1-based puzzle index to start from.")
+@click.option("--max-out", type=int, default=None, help="Maximum number of puzzles to convert.")
+def sudoku17_to_smtlib2_command(sudoku_file: Path, out_folder: Path, start: int, max_out: int | None):
+	"""
+	Convert Royle sudoku17 text file into SMT-LIB2 files via CNF->SMT utility.
+
+	SUDOKU_FILE: Path to sudoku17.txt (one 81-char puzzle per line)
+	OUT_FOLDER:  Output folder for generated .smt2 files
+	"""
+	try:
+		if start <= 0:
+			raise ValueError("--start must be >= 1")
+		if max_out is not None and max_out <= 0:
+			raise ValueError("--max-out must be > 0 when provided")
+
+		out_folder.mkdir(parents=True, exist_ok=True)
+
+		lines = [ln.strip() for ln in sudoku_file.read_text().splitlines() if ln.strip()]
+		total = len(lines)
+		begin = start - 1
+		if begin >= total:
+			click.echo(f"No puzzles to convert: start={start}, total={total}")
+			return
+		selected = lines[begin:]
+		if max_out is not None:
+			selected = selected[:max_out]
+
+		converted = 0
+		for i, puzzle in enumerate(selected, start=start):
+			cnf = _sudoku_cnf_from_line(puzzle)
+			smt2 = cnf_string_to_smt2(cnf)
+			out_file = out_folder / f"royle17_{i:05d}.smt2"
+			out_file.write_text(smt2)
+			converted += 1
+
+		click.echo(
+			f"✓ Converted {converted} puzzle(s) from {sudoku_file} to SMT-LIB2 in {out_folder}"
+		)
 	except Exception as e:
 		click.echo(f"✗ Error: {e}", err=True)
 		raise click.Abort()
