@@ -213,6 +213,10 @@ class IR2CircomVisitor():
                         f"(expected .fusion_expression / .fusion_expr / .value)"
                     )
 
+                # Keep parser/backend contract:
+                # - IR encodes fused variables as logical XOR (LXOR)
+                # - Circom witness assignment (<--) uses field arithmetic encoding.
+                fusion_expr_ir = self._lower_lxor_to_field_expr(fusion_expr_ir)
                 fusion_expr_ast, fusion_tail = self.visit_expression(fusion_expr_ir)
                 circuit_statements += fusion_tail
 
@@ -269,6 +273,28 @@ class IR2CircomVisitor():
 
         document_definitions.append(circuit_template)
         return Document(document_definitions, main_component)
+
+    def _lower_lxor_to_field_expr(self, expr: IRNodes.Expression) -> IRNodes.Expression:
+        # Recursively lower logical XOR into a+b-2ab over the field.
+        if isinstance(expr, IRNodes.BinaryExpression):
+            lhs = self._lower_lxor_to_field_expr(expr.lhs)
+            rhs = self._lower_lxor_to_field_expr(expr.rhs)
+            if expr.op == IRNodes.Operator.LXOR:
+                two = IRNodes.Integer(2)
+                ab = IRNodes.BinaryExpression(IRNodes.Operator.MUL, lhs, rhs)
+                twoab = IRNodes.BinaryExpression(IRNodes.Operator.MUL, two, ab)
+                a_plus_b = IRNodes.BinaryExpression(IRNodes.Operator.ADD, lhs, rhs)
+                return IRNodes.BinaryExpression(IRNodes.Operator.SUB, a_plus_b, twoab)
+            return IRNodes.BinaryExpression(expr.op, lhs, rhs)
+        if isinstance(expr, IRNodes.UnaryExpression):
+            return IRNodes.UnaryExpression(expr.op, self._lower_lxor_to_field_expr(expr.value))
+        if isinstance(expr, IRNodes.TernaryExpression):
+            return IRNodes.TernaryExpression(
+                self._lower_lxor_to_field_expr(expr.condition),
+                self._lower_lxor_to_field_expr(expr.if_expr),
+                self._lower_lxor_to_field_expr(expr.else_expr),
+            )
+        return expr
 
     def _assert_not_zero(self, value: Expression, msg: str | None = None) -> Statement:
         zero_lit = IntegerLiteral(0)

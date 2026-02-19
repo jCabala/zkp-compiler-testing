@@ -33,9 +33,13 @@ class IR2GnarkVisitor:
     """
 
     __temporary_variables: int
+    __output_signals: set[str]
+    __circuzz_compat: bool
 
-    def __init__(self):
+    def __init__(self, circuzz_compat: bool = False):
         self.__temporary_variables = 0
+        self.__output_signals = set()
+        self.__circuzz_compat = circuzz_compat
 
     def transform(self, system: IRNodes.Circuit) -> CircuitDefinitionCollection:
         return self.visit_circuit(system)
@@ -77,6 +81,8 @@ class IR2GnarkVisitor:
     # ------------------------------------------------------------------
 
     def visit_variable(self, node: IRNodes.Variable) -> tuple[Expression, list[Statement]]:
+        if self.__circuzz_compat and node.name in self.__output_signals:
+            return Identifier(node.name), []
         return FieldAccessExpression(Identifier("circuit"), f"FVar_{node.name}"), []
 
     def visit_boolean(self, node: IRNodes.Boolean) -> tuple[Expression, list[Statement]]:
@@ -166,7 +172,12 @@ class IR2GnarkVisitor:
         rhs, rhs_tail = self.visit_expression(node.rhs)
         statements += rhs_tail
 
-        assignment = AssignStatement(lhs, rhs, is_definition=False)
+        is_definition = False
+        if self.__circuzz_compat and isinstance(node.lhs, IRNodes.Variable):
+            if node.lhs.name in self.__output_signals:
+                is_definition = True
+
+        assignment = AssignStatement(lhs, rhs, is_definition=is_definition)
         return assignment, statements
 
     def visit_assume(self, node: IRNodes.Assume) -> tuple[Statement, list[Statement]]:
@@ -177,6 +188,48 @@ class IR2GnarkVisitor:
     # ------------------------------------------------------------------
 
     def visit_circuit(self, node: IRNodes.Circuit) -> CircuitDefinitionCollection:
+        self.__output_signals = {v.name for v in node.outputs}
+
+        if self.__circuzz_compat:
+            # Circuzz gnark harness expects only input fields in the struct and local output vars.
+            circuit_fields = [CircuitStructField(f"FVar_{e.name}", False) for e in node.inputs]
+            circuit_struct = CircuitStruct(node.name, circuit_fields)
+
+            circuit_function_stmts: list[Statement] = []
+
+            # Keep legacy behavior: constrain only boolean inputs.
+            for v in node.inputs:
+                if v.variable_type == IRNodes.VariableType.BOOLEAN:
+                    vref = FieldAccessExpression(Identifier("circuit"), f"FVar_{v.name}")
+                    circuit_function_stmts.append(self._assert_is_boolean(vref))
+
+            # Materialize fused outputs as local variables in circuzz mode.
+            # The circuzz fragment omits output struct fields, so these values must
+            # be defined before they are referenced by assertions/prints.
+            for out in node.outputs:
+                if isinstance(out, IRNodes.FusedVariable) and out.fusion_expression is not None:
+                    fused_expr, fused_tail = self.visit_expression(out.fusion_expression)
+                    circuit_function_stmts += fused_tail
+                    circuit_function_stmts.append(
+                        AssignStatement(
+                            Identifier(out.name),
+                            fused_expr,
+                            is_definition=True,
+                        )
+                    )
+
+            for statement in node.statements:
+                stmt, tail = self.visit_statement(statement)
+                if stmt:
+                    circuit_function_stmts += tail
+                    circuit_function_stmts.append(stmt)
+
+            for e in node.outputs:
+                circuit_function_stmts.append(self._print([Literal(f"{e.name}:"), Identifier(e.name)]))
+
+            circuit_define = CircuitDefineFunction(node.name, circuit_function_stmts)
+            return CircuitDefinitionCollection(node.name, circuit_struct, circuit_define)
+
         # Preserve IO information in the Go struct:
         # - inputs: private (witness) fields
         # - outputs: mark as public (so gnark tags them `gnark:",public"`)
