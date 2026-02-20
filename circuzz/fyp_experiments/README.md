@@ -85,3 +85,5 @@ Generates couple circom programs using the quadratic generator.
 10. Added zokrates backend
 
 11. Setup fully-constrained-circom experiments
+
+12. Added the "smt-fusion" oracle that checks the satysfying models
