@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from backends.common.config_shared import GeneratorSource, OracleType, SMTFusionSettings
+from cross_oracle.config.shared import GeneratorSource, OracleType, SMTFusionSettings
 
 @dataclass(frozen=True)
 class NoirConfig():
