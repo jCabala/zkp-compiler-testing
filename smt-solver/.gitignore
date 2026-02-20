@@ -1,0 +1,14 @@
+playground/*
+experiments/**/obj/**
+experiments/**/*.out
+data/*.ptau
+experiments/tmp_fusion/*
+*.log
+.vscode/*
+
+# Python bytecode
+__pycache__/
+**/__pycache__/
+**/**/__pycache__/
+*.py[cod]
+*$py.class
