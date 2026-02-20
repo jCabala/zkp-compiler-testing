@@ -1,0 +1,13 @@
+{
+    "extends": "../../../res/configs/default/gnark.json",
+    "gnark": {
+        "oracle_type": "smt_pipeline",
+        "generator_source": "smt_fusion",
+        "smt_solver_path": "../smt-solver",
+        "smt_seed_dir": "benchmarks/SMT-benchmarks/core/unique_sat_1to5vars",
+        "smt_num_outputs": 100,
+        "smt_max_models": 2,
+        "smt_yinyang_config": "experiments/sat_fusion/sat_fusion_config.txt",
+        "smt_oracle": "sat"
+    }
+}

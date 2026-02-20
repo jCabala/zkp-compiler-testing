@@ -1,0 +1,69 @@
+FROM circuzz/base
+
+# -------------------------------
+# Node.js 22.x setup (required for o1js)
+# -------------------------------
+
+# Install Node.js 22.x (o1js requires Node >= 20.17 or >= 22.9)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y nodejs
+
+# Install TypeScript globally
+RUN npm install -g typescript
+
+# -------------------------------
+# o1js project setup
+# -------------------------------
+
+# Create a workspace for Mina circuits
+RUN mkdir -p /circuzz/programs-mina
+
+# Create a base project with o1js installed
+WORKDIR /circuzz/programs-mina
+
+# Create package.json with o1js dependency
+RUN echo '{\
+  "name": "mina-circuits",\
+  "version": "1.0.0",\
+  "type": "module",\
+  "dependencies": {\
+    "o1js": "^2.2.0"\
+  },\
+  "devDependencies": {\
+    "typescript": "^5.7.0"\
+  }\
+}' > package.json
+
+# Create tsconfig.json
+RUN echo '{\
+  "compilerOptions": {\
+    "target": "ESNext",\
+    "module": "ESNext",\
+    "moduleResolution": "bundler",\
+    "strict": true,\
+    "esModuleInterop": true,\
+    "skipLibCheck": true,\
+    "resolveJsonModule": true,\
+    "declaration": true,\
+    "declarationMap": true,\
+    "sourceMap": true,\
+    "outDir": "."\
+  },\
+  "include": ["*.ts"],\
+  "exclude": ["node_modules"]\
+}' > tsconfig.json
+
+# Install o1js (this may take a while)
+RUN npm install
+
+# -------------------------------
+# circuzz setup
+# -------------------------------
+
+# copy circuzz source code
+COPY . /app
+
+WORKDIR /app
+
+# Set default command
+CMD ["/bin/bash"]

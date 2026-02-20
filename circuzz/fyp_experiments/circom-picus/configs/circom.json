@@ -1,0 +1,199 @@
+{
+  "experiment": {
+    "enable_exit_on_failure": false,
+    "enable_working_dir_cleanup": true,
+
+    "prove_and_verify_tuning_strategy": "time",
+    "prove_and_verify_tuning_percentage": 0.5
+  },
+
+  "circom": {
+    "boundary_input_probability": 0.1,
+    "test_iterations": 2,
+
+    "likelihood_cpp_witness_generation": 0.2,
+    "likelihood_snark_witness_check": 0,
+
+    "constraint_assignment_probability": 1,
+    "oracle_type": "picus",
+
+    "constrain_equality_assertions": true,
+    "constrain_sharp_inequality_assertions": true
+  },
+
+  "ir": {
+    "operators": {
+      "relations": ["=="],
+      "boolean_unary_operators": [],
+      "boolean_binary_operators": [],
+      "arithmetic_unary_operators": ["-", "~"],
+      "arithmetic_binary_operators": ["+", "-", "*", "**", "/", "%", "^"],
+
+      "is_arithmetic_ternary_supported": true,
+      "is_boolean_ternary_supported": true
+    },
+
+    "generation": {
+      "generator": "quadratic",
+
+      "constant_probability_weight": 1,
+      "variable_probability_weight": 1,
+      "unary_probability_weight": 1,
+      "binary_probability_weight": 1,
+      "relation_probability_weight": 1,
+      "ternary_probability_weight": 1,
+
+      "max_expression_depth": 2,
+      "min_number_of_assertions": 1,
+      "max_number_of_assertions": 2,
+      "min_number_of_input_variables": 1,
+      "max_number_of_input_variables": 2,
+      "min_number_of_output_variables": 1,
+      "max_number_of_output_variables": 2,
+
+      "max_exponent_value": 4,
+      "boundary_value_probability": 0.25
+    },
+
+    "rewrite": {
+      "weakening_probability": 0,
+      "min_rewrites": 1,
+      "max_rewrites": 64,
+      "rules": {
+        "equivalence": [
+          { "name": "comm-add", "match": "(?a + ?b)", "rewrite": "(?b + ?a)" },
+          { "name": "comm-mul", "match": "(?a * ?b)", "rewrite": "(?b * ?a)" },
+          {
+            "name": "comm-div",
+            "match": "(?a / ?b)",
+            "rewrite": "((1 / ?b) * ?a)"
+          },
+          {
+            "name": "dist-mul-add",
+            "match": "((?a + ?b) * ?c)",
+            "rewrite": "((?a * ?c) + (?b * ?c))"
+          },
+          {
+            "name": "dist-add-mul",
+            "match": "((?a * ?c) + (?b * ?c))",
+            "rewrite": "((?a + ?b) * ?c)"
+          },
+          {
+            "name": "assoc-add",
+            "match": "((?a + ?b) + ?c)",
+            "rewrite": "(?a + (?b + ?c))"
+          },
+          {
+            "name": "assoc-add-rev",
+            "match": "(?a + (?b + ?c))",
+            "rewrite": "((?a + ?b) + ?c)"
+          },
+          {
+            "name": "assoc-mul",
+            "match": "((?a * ?b) * ?c)",
+            "rewrite": "(?a * (?b * ?c))"
+          },
+          {
+            "name": "assoc-mul-rev",
+            "match": "(?a * (?b * ?c))",
+            "rewrite": "((?a * ?b) * ?c)"
+          },
+          {
+            "name": "assoc-div",
+            "match": "((?a / ?b) * ?c)",
+            "rewrite": "(?a * (?c / ?b))"
+          },
+          {
+            "name": "assoc-div-rev",
+            "match": "(?a * (?c / ?b))",
+            "rewrite": "((?a / ?b) * ?c)"
+          },
+          { "name": "zero-add-des", "match": "(?a + 0)", "rewrite": "?a" },
+          { "name": "one-mul-des", "match": "(?a * 1)", "rewrite": "?a" },
+          { "name": "one-div-des", "match": "(?a / 1)", "rewrite": "?a" },
+          { "name": "inv-zero-add-des", "match": "(?a - 0)", "rewrite": "?a" },
+          {
+            "name": "neg-zero-add-des",
+            "match": "(0 - ?a)",
+            "rewrite": "(-?a)"
+          },
+          { "name": "inv-add-des", "match": "(?a - ?a)", "rewrite": "0" },
+          {
+            "name": "inv-assoc-neg2pos",
+            "match": "((?a - ?b) - ?c)",
+            "rewrite": "(?a - (?b + ?c))"
+          },
+          {
+            "name": "inv-assoc-pos2neg",
+            "match": "(?a - (?b + ?c))",
+            "rewrite": "((?a - ?b) - ?c)"
+          },
+          {
+            "name": "inv_addition_inl",
+            "match": "(?a + (-?c))",
+            "rewrite": "(?a - ?c)"
+          },
+          {
+            "name": "double-negation-add-des",
+            "match": "(-(-?a))",
+            "rewrite": "?a"
+          },
+          {
+            "name": "pow2_to_mul",
+            "match": "(?a ** 2)",
+            "rewrite": "(?a * ?a)"
+          },
+          {
+            "name": "pow3_to_mul",
+            "match": "(?a ** 3)",
+            "rewrite": "((?a * ?a) * ?a)"
+          },
+          {
+            "name": "mul_to_pow2",
+            "match": "(?a * ?a)",
+            "rewrite": "(?a ** 2)"
+          },
+          {
+            "name": "mul_to_pow3",
+            "match": "((?a * ?a) * ?a)",
+            "rewrite": "(?a ** 3)"
+          },
+          { "name": "zero-add-con", "match": "?a:int", "rewrite": "(?a + 0)" },
+          { "name": "one-mul-con", "match": "?a:int", "rewrite": "(?a * 1)" },
+          { "name": "one-div-con", "match": "?a:int", "rewrite": "(?a / 1)" },
+          {
+            "name": "inv-zero-add-con",
+            "match": "?a:int",
+            "rewrite": "(?a - 0)"
+          },
+          {
+            "name": "neg-zero-add-con",
+            "match": "(-?a)",
+            "rewrite": "(0 - ?a)"
+          },
+          {
+            "name": "inv_addition_exp",
+            "match": "(?a - ?c)",
+            "rewrite": "(?a + (-?c))"
+          },
+          {
+            "name": "double-negation-add-con",
+            "match": "?a:int",
+            "rewrite": "(-(-?a))"
+          },
+          {
+            "name": "add_sub_random_value",
+            "match": "?a:int",
+            "rewrite": "((?a - $r:int) + $r:int)"
+          },
+          {
+            "name": "commutativity-equ",
+            "match": "(?a == ?b)",
+            "rewrite": "(?b == ?a)"
+          }
+        ],
+        "weakening": []
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+FROM circuzz/noir-toolchain-base
+
+# get special dependency needed for building noir from scratch
+RUN apt-get -y install \
+    jq \
+    lsb-release
+
+# Clone sources shallow and blob-less to reduce memory/disk pressure during image build.
+RUN git clone --depth 1 --filter=blob:none https://github.com/AztecProtocol/barretenberg.git /circuzz/barretenberg
+
+# installation of noir's nargo tool from scratch with specific version.
+#
+# NOTE: alternatively we could use noirup.
+RUN git clone --depth 1 --filter=blob:none https://github.com/noir-lang/noir.git /circuzz/noir

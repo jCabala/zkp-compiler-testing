@@ -1,0 +1,109 @@
+{
+  "experiment": {
+    "enable_exit_on_failure": false,
+    "enable_working_dir_cleanup": true,
+
+    "prove_and_verify_tuning_strategy": "time",
+    "prove_and_verify_tuning_percentage": 0.5
+  },
+
+  "zokrates": {
+    "boundary_input_probability": 0.1,
+    "test_iterations": 2
+  },
+
+  "ir": {
+    "operators": {
+      "relations": ["<", ">", "<=", ">=", "==", "!="],
+      "boolean_unary_operators": ["!"],
+      "boolean_binary_operators": ["&&", "||"],
+      "arithmetic_unary_operators": ["-"],
+      "arithmetic_binary_operators": ["+", "-", "*", "/"],
+
+      "is_arithmetic_ternary_supported": true,
+      "is_boolean_ternary_supported": false
+    },
+
+    "generation": {
+      "generator": "arithmetic",
+
+      "constant_probability_weight": 1,
+      "variable_probability_weight": 1,
+      "unary_probability_weight": 1,
+      "binary_probability_weight": 1,
+      "relation_probability_weight": 1,
+      "ternary_probability_weight": 1,
+
+      "max_expression_depth": 4,
+      "min_number_of_assertions": 0,
+      "max_number_of_assertions": 2,
+      "min_number_of_input_variables": 1,
+      "max_number_of_input_variables": 2,
+      "min_number_of_output_variables": 0,
+      "max_number_of_output_variables": 2,
+
+      "max_exponent_value": 4,
+      "boundary_value_probability": 0.25
+    },
+
+    "rewrite": {
+      "weakening_probability": 0,
+      "min_rewrites": 1,
+      "max_rewrites": 64,
+      "rules": {
+        "equivalence": [
+          { "name": "comm-add", "match": "(?a + ?b)", "rewrite": "(?b + ?a)" },
+          { "name": "comm-mul", "match": "(?a * ?b)", "rewrite": "(?b * ?a)" },
+          {
+            "name": "assoc-add",
+            "match": "((?a + ?b) + ?c)",
+            "rewrite": "(?a + (?b + ?c))"
+          },
+          {
+            "name": "assoc-add-rev",
+            "match": "(?a + (?b + ?c))",
+            "rewrite": "((?a + ?b) + ?c)"
+          },
+          {
+            "name": "assoc-mul",
+            "match": "((?a * ?b) * ?c)",
+            "rewrite": "(?a * (?b * ?c))"
+          },
+          {
+            "name": "assoc-mul-rev",
+            "match": "(?a * (?b * ?c))",
+            "rewrite": "((?a * ?b) * ?c)"
+          },
+          {
+            "name": "distrib-mul-add",
+            "match": "((?a + ?b) * ?c)",
+            "rewrite": "((?a * ?c) + (?b * ?c))"
+          },
+          {
+            "name": "distrib-mul-add-rev",
+            "match": "((?a * ?c) + (?b * ?c))",
+            "rewrite": "((?a + ?b) * ?c)"
+          },
+          { "name": "add-zero", "match": "(?a + 0)", "rewrite": "?a" },
+          { "name": "add-zero-rev", "match": "?a:int", "rewrite": "(?a + 0)" },
+          { "name": "mul-one", "match": "(?a * 1)", "rewrite": "?a" },
+          { "name": "mul-one-rev", "match": "?a:int", "rewrite": "(?a * 1)" },
+          { "name": "mul-zero", "match": "(?a * 0)", "rewrite": "0" },
+          { "name": "double-neg", "match": "(-(-?a))", "rewrite": "?a" },
+          {
+            "name": "double-neg-rev",
+            "match": "?a:int",
+            "rewrite": "(-(-?a))"
+          },
+          { "name": "sub-self", "match": "(?a - ?a)", "rewrite": "0" },
+          {
+            "name": "sub-as-add-neg",
+            "match": "(?a - ?b)",
+            "rewrite": "(?a + (-?b))"
+          }
+        ],
+        "weakening": []
+      }
+    }
+  }
+}
