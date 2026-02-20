@@ -9,6 +9,129 @@ from typing import Dict, List, Set, Tuple, Optional, Any
 from io import StringIO
 
 
+def _add_fused_variable_constraints(smtlib2_str: str) -> str:
+    """
+    Add temporary XOR constraints for fused variables to ensure consistent model values.
+    """
+    import re
+
+    FUSION_SUFFIX = "_fused"
+    fused_pattern = re.compile(r'\(declare-fun (\w+' + re.escape(FUSION_SUFFIX) + r') \(\) Bool\)')
+    fused_vars = fused_pattern.findall(smtlib2_str)
+
+    if not fused_vars:
+        return smtlib2_str
+
+    constraints = []
+    for fused_var in fused_vars:
+        base = fused_var[:-len(FUSION_SUFFIX)]
+        first = base.find("scr")
+        if first == -1:
+            continue
+        second = base.find("scr", first + 1)
+        if second == -1:
+            continue
+
+        var1 = base[:second]
+        if var1.endswith("_"):
+            var1 = var1[:-1]
+        var2 = base[second:]
+        constraints.append(f"(assert (= {fused_var} (xor {var1} {var2})))")
+
+    lines = smtlib2_str.split('\n')
+    insert_idx = len(lines)
+    for i, line in enumerate(lines):
+        if line.strip().startswith("(check-sat"):
+            insert_idx = i
+            break
+
+    for constraint in constraints:
+        lines.insert(insert_idx, constraint)
+        insert_idx += 1
+
+    return '\n'.join(lines)
+
+
+def run_smt_solver_models(smtlib2_str: str, solver: str = "z3", max_models: int = 1) -> Tuple[str, List[Dict[str, Any]]]:
+    """
+    Run SMT solver and enumerate up to max_models satisfying assignments.
+
+    Returns:
+      - result: "sat", "unsat", or "unknown"
+      - models: list of model dictionaries (empty for unsat/unknown)
+    """
+    if max_models <= 0:
+        raise ValueError("max_models must be > 0")
+
+    if solver == "cvc5":
+        # ------------------------------------------------------------------
+        # THIS IMPORT NEEDS TO STAY TO AVOID PROBLEMS BETWEEN PYSMT AND CVC5
+        import cvc5.pythonic
+        # ------------------------------------------------------------------
+
+    from pysmt.shortcuts import Solver, And, Not, Int, Equals
+    from pysmt.smtlib.parser import SmtLibParser
+    from pysmt.exceptions import SolverReturnedUnknownResultError
+
+    try:
+        smtlib2_str_with_constraints = _add_fused_variable_constraints(smtlib2_str)
+        parser = SmtLibParser()
+        script = parser.get_script(StringIO(smtlib2_str_with_constraints))
+
+        assertions = []
+        for cmd in script.commands:
+            if cmd.name == "assert":
+                assertions.append(cmd.args[0])
+
+        if not assertions:
+            return "sat", [{}]
+
+        formula = And(assertions) if len(assertions) > 1 else assertions[0]
+        free_vars = [v for v in formula.get_free_variables() if v.symbol_name() != "div"]
+        models: List[Dict[str, Any]] = []
+
+        with Solver(name=solver) as s:
+            s.add_assertion(formula)
+            while len(models) < max_models and s.solve():
+                model = s.get_model()
+                model_dict: Dict[str, Any] = {}
+                block_terms = []
+
+                for var_symbol in free_vars:
+                    if var_symbol not in model:
+                        continue
+
+                    var_name = var_symbol.symbol_name()
+                    value = model[var_symbol]
+                    if value.is_bool_constant():
+                        bool_val = value.is_true()
+                        model_dict[var_name] = bool_val
+                        block_terms.append(var_symbol if bool_val else Not(var_symbol))
+                    elif value.is_int_constant():
+                        int_val = int(value.constant_value())
+                        model_dict[var_name] = int_val
+                        block_terms.append(Equals(var_symbol, Int(int_val)))
+                    else:
+                        model_dict[var_name] = str(value)
+
+                models.append(model_dict)
+
+                if not block_terms:
+                    break
+                s.add_assertion(Not(And(block_terms)))
+
+        if models:
+            return "sat", models
+        return "unsat", []
+
+    except SolverReturnedUnknownResultError:
+        return "unknown", []
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        return "unknown", []
+
+
 def run_smt_solver(smtlib2_str: str, solver: str = "z3") -> Tuple[str, Optional[Dict[str, Any]]]:
     """
     Public wrapper for running SMT solver. Used by tests.
@@ -22,107 +145,10 @@ def run_smt_solver(smtlib2_str: str, solver: str = "z3") -> Tuple[str, Optional[
         - result: "sat", "unsat", or "unknown"
         - model: Dictionary mapping variable names to values (if SAT), None otherwise
     """
-    if solver == "cvc5":
-        # ------------------------------------------------------------------
-        # THIS IMPORT NEEDS TO STAY TO AVOID PROBLEMS BETWEEN PYSMT AND CVC5
-        import cvc5.pythonic
-        # ------------------------------------------------------------------
-    
-    from pysmt.shortcuts import Solver, Symbol, And, TRUE, FALSE, Int
-    from pysmt.smtlib.parser import SmtLibParser
-    from pysmt.exceptions import SolverReturnedUnknownResultError
-    
-    def _add_fused_variable_constraints(smtlib2_str: str) -> str:
-        """
-        Add temporary XOR constraints for fused variables to ensure consistent model values.
-        """
-        import re
-        FUSION_SUFFIX = "_fused"
-        
-        fused_pattern = re.compile(r'\(declare-fun (\w+' + re.escape(FUSION_SUFFIX) + r') \(\) Bool\)')
-        fused_vars = fused_pattern.findall(smtlib2_str)
-        
-        if not fused_vars:
-            return smtlib2_str
-        
-        constraints = []
-        for fused_var in fused_vars:
-            base = fused_var[:-len(FUSION_SUFFIX)]
-            first = base.find("scr")
-            if first == -1:
-                continue
-            second = base.find("scr", first + 1)
-            if second == -1:
-                continue
-            
-            var1 = base[:second]
-            if var1.endswith("_"):
-                var1 = var1[:-1]
-            var2 = base[second:]
-            
-            constraints.append(f"(assert (= {fused_var} (xor {var1} {var2})))")
-        
-        lines = smtlib2_str.split('\n')
-        insert_idx = len(lines)
-        for i, line in enumerate(lines):
-            if line.strip().startswith('(check-sat'):
-                insert_idx = i
-                break
-        
-        for constraint in constraints:
-            lines.insert(insert_idx, constraint)
-            insert_idx += 1
-        
-        return '\n'.join(lines)
-    
-    try:
-        smtlib2_str_with_constraints = _add_fused_variable_constraints(smtlib2_str)
-        
-        parser = SmtLibParser()
-        script = parser.get_script(StringIO(smtlib2_str_with_constraints))
-        
-        assertions = []
-        for cmd in script.commands:
-            if cmd.name == "assert":
-                assertions.append(cmd.args[0])
-        
-        if not assertions:
-            return "sat", {}
-        
-        formula = And(assertions) if len(assertions) > 1 else assertions[0]
-        
-        with Solver(name=solver) as s:
-            s.add_assertion(formula)
-            result = s.solve()
-            
-            if result:
-                model = s.get_model()
-                model_dict = {}
-                
-                for var_symbol in formula.get_free_variables():
-                    var_name = var_symbol.symbol_name()
-                    if var_name == "div":
-                        continue
-                    
-                    if var_symbol in model:
-                        value = model[var_symbol]
-                        if value.is_bool_constant():
-                            model_dict[var_name] = value.is_true()
-                        elif value.is_int_constant():
-                            model_dict[var_name] = value.constant_value()
-                        else:
-                            model_dict[var_name] = str(value)
-                
-                return "sat", model_dict
-            else:
-                return "unsat", None
-                
-    except SolverReturnedUnknownResultError:
-        return "unknown", None
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return "unknown", None
+    result, models = run_smt_solver_models(smtlib2_str=smtlib2_str, solver=solver, max_models=1)
+    if result != "sat" or not models:
+        return result, None
+    return "sat", models[0]
 
 
 def prune_formula(

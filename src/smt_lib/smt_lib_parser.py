@@ -55,10 +55,6 @@ def _infer_fusion_formula(var_name: str, smtlib2: str) -> Expression:
 
     Semantics enforced:
       fused = xor(var1, var2)
-
-    For Circom witness assignment (<--), avoid boolean operators like `!` and `==`.
-    Use the field-safe polynomial for XOR (assuming inputs are constrained booleans):
-        xor(a,b) = a + b - 2*a*b
     """
 
     if not var_name.endswith(FUSION_SUFFIX):
@@ -93,10 +89,6 @@ def _infer_fusion_formula(var_name: str, smtlib2: str) -> Expression:
         if var1.endswith("_"):
             var1 = var1[:-1]
 
-    # IMPORTANT: even though all variables are *typed* as BOOLEAN in the IR,
-    # we still use field arithmetic to encode XOR safely:
-    # xor(a,b) = a + b - 2ab
-    
     # Handle literal boolean values in component names (from pruning)
     if var1 == "true":
         a = Boolean(True)
@@ -111,12 +103,7 @@ def _infer_fusion_formula(var_name: str, smtlib2: str) -> Expression:
         b = Boolean(False)
     else:
         b = Variable(var2, VariableType.BOOLEAN)
-
-    two = Integer(2)
-    ab = BinaryExpression(Operator.MUL, a, b)
-    twoab = BinaryExpression(Operator.MUL, two, ab)
-    a_plus_b = BinaryExpression(Operator.ADD, a, b)
-    return BinaryExpression(Operator.SUB, a_plus_b, twoab)
+    return BinaryExpression(Operator.LXOR, a, b)
 
 
 # ------------------------------------------------------------

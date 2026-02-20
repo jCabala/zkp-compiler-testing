@@ -1,8 +1,11 @@
 import json
+import re
 from random import Random
 import random
 import shutil
 import subprocess
+from datetime import datetime, UTC
+from types import SimpleNamespace
 from pathlib import Path
 import click
 from src.backends.circom.r1cs import get_r1cs_json
@@ -13,7 +16,11 @@ from src.backends.circom.ir2circom import IR2CircomVisitorConstrainAssertions
 from src.smt_lib.smt_lib_parser import parse_smtlib2_core
 from src.backends.gnark.ir2gnark import IR2GnarkVisitor
 from src.backends.gnark.emitter import EmitVisitor as GnarkEmitter
-from src.smt_lib.prune import prune_formula
+from src.backends.noir.ir2noir import IR2NoirVisitor
+from src.backends.noir.emitter import EmitVisitor as NoirEmitter
+from src.smt_lib.prune import prune_formula, run_smt_solver_models
+from third_party.yinyang.yinyang.src.parsing.Parse import parse_file
+from third_party.yinyang.yinyang.src.mutators.SemanticFusion.SemanticFusion import SemanticFusion
 
 
 def check_cmd_exists(cmd: str):
@@ -593,84 +600,355 @@ def sudoku17_to_smtlib2_command(sudoku_file: Path, out_folder: Path, start: int,
 		raise click.Abort()
 
 
-@click.command(name="smtlib2-to-circom")
-@click.argument('in_folder', type=click.Path(exists=True, file_okay=False, path_type=Path))
-@click.argument('out_folder', type=click.Path(path_type=Path))
-@click.option('--max-out', type=int, default=None, help="Maximum number of files to convert.")
-def translate_to_circom_command(in_folder: Path, out_folder: Path, max_out: int | None):
-	"""
-	Translate an SMT-LIB v2 core theory string into .circom files.
+def _extract_gnark_fragment_for_circuzz(go_source: str) -> str:
+	start_idx = go_source.find("\ntype ")
+	if start_idx == -1:
+		start_idx = go_source.find("type ")
+	if start_idx == -1:
+		raise ValueError("Unable to locate Gnark type definition in generated source")
 
-	IN_FOLDER: Path to folder containing .smt2 files
-	OUT_FOLDER: Path to folder to store .circom files
-	"""
+	end_idx = go_source.find("\nfunc main()")
+	if end_idx == -1:
+		raise ValueError("Unable to locate Gnark main() in generated source")
 
-	def smtlib2_to_circom(smtlib2: str) -> str:
-		# Parse SMT-LIB v2 to Circuit IR
-		circuit_ir: Circuit = parse_smtlib2_core(smtlib2)
+	fragment = go_source[start_idx:end_idx].strip()
+	return fragment + "\n"
 
+
+def _sanitize_noir_package_name(name: str) -> str:
+	cleaned = re.sub(r"[^a-zA-Z0-9_]", "_", name)
+	if not cleaned:
+		cleaned = "noir_case"
+	if cleaned[0].isdigit():
+		cleaned = f"p_{cleaned}"
+	return cleaned.lower()
+
+
+def _write_noir_project(project_dir: Path, package_name: str, main_nr_source: str):
+	src_dir = project_dir / "src"
+	src_dir.mkdir(parents=True, exist_ok=True)
+	(src_dir / "main.nr").write_text(main_nr_source)
+
+	nargo_toml = project_dir / "Nargo.toml"
+	nargo_toml.write_text(
+		"\n".join(
+			[
+				"[package]",
+				f'name = "{package_name}"',
+				'type = "bin"',
+				'authors = [""]',
+				"",
+				"[dependencies]",
+				"",
+			]
+		)
+	)
+
+
+def _translate_smtlib2_to_dsl(smtlib2: str, dsl: str, output_format: str = "standalone") -> tuple[str, str]:
+	# Parse SMT-LIB v2 to Circuit IR
+	circuit_ir: Circuit = parse_smtlib2_core(smtlib2)
+
+	if dsl == "circom":
 		# Convert Circuit IR to Circom IR
 		rng = Random(0)
-		ir2circom_visitor = IR2CircomVisitorConstrainAssertions(constraint_assignment_probability=1, rng=rng)
+		ir2circom_visitor = IR2CircomVisitorConstrainAssertions(
+			constraint_assignment_probability=1,
+			rng=rng,
+		)
 		circom_ir = ir2circom_visitor.visit_circuit(circuit_ir)
 
 		# Emit Circom code from Circom IR
 		emitter = CircomEmitter()
-		circom_code = emitter.emit(circom_ir)
+		circom_source = emitter.emit(circom_ir)
+		if output_format == "circuzz":
+			circom_source = circom_source.replace("../circomlib/", "")
+		return circom_source, ".circom"
 
-		return circom_code
-
-	check_cmd_exists("z3")
-	out_folder.mkdir(parents=True, exist_ok=True)
-	smt2_files = list(in_folder.glob("*.smt2"))
-	if not smt2_files:
-		click.echo(f"No .smt2 files found in {in_folder}")
-		return
-	for smt2_file in smt2_files[:max_out] if max_out is not None else smt2_files:
-		out_file = out_folder / (smt2_file.stem + ".circom")
-		click.echo(f"Translating {smt2_file} -> {out_file}")
-		smtlib2 = smt2_file.read_text()
-		circom_code = smtlib2_to_circom(smtlib2)
-		out_file.write_text(circom_code)
-	click.echo(f"✓ Converted {len(smt2_files)} files to Circom in {out_folder}")
-
-@click.command(name="smtlib2-to-gnark")
-@click.argument('in_folder', type=click.Path(exists=True, file_okay=False, path_type=Path))
-@click.argument('out_folder', type=click.Path(path_type=Path))
-@click.option('--max-out', type=int, default=None, help="Maximum number of files to convert.")
-def translate_to_gnark_command(in_folder: Path, out_folder: Path, max_out: int | None):
-	"""
-	Translate an SMT-LIB v2 core theory string into .go files for Gnark.
-
-	IN_FOLDER: Path to folder containing .smt2 files
-	OUT_FOLDER: Path to folder to store .go files
-	"""
-
-	def smtlib2_to_gnark(smtlib2: str) -> str:
-		# Parse SMT-LIB v2 to Circuit IR
-		circuit_ir: Circuit = parse_smtlib2_core(smtlib2)
-
+	if dsl == "gnark":
 		# Convert Circuit IR to Gnark IR
-		ir2gnark_visitor = IR2GnarkVisitor()
+		ir2gnark_visitor = IR2GnarkVisitor(circuzz_compat=(output_format == "circuzz"))
 		gnark_ir = ir2gnark_visitor.visit_circuit(circuit_ir)
 
 		# Emit Gnark code from Gnark IR
 		emitter = GnarkEmitter()
-		gnark_code = emitter.emit(gnark_ir)
+		gnark_source = emitter.emit(gnark_ir)
+		if output_format == "circuzz":
+			return _extract_gnark_fragment_for_circuzz(gnark_source), ".go"
+		return gnark_source, ".go"
 
-		return gnark_code
-		
-		
+	if dsl == "noir":
+		ir2noir_visitor = IR2NoirVisitor()
+		noir_ast = ir2noir_visitor.visit_circuit(circuit_ir)
+
+		emitter = NoirEmitter()
+		return emitter.emit(noir_ast), ".nr"
+
+	raise ValueError(f"Unsupported DSL: {dsl}")
+
+
+@click.command(name="smt-to-dsl")
+@click.argument('in_folder', type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.argument('out_folder', type=click.Path(path_type=Path))
+@click.option("--dsl", type=click.Choice(["circom", "gnark", "noir"]), required=True, help="Target DSL for generated programs.")
+@click.option('--max-out', type=int, default=None, help="Maximum number of files to convert.")
+@click.option(
+	"--format",
+	"output_format",
+	type=click.Choice(["standalone", "circuzz"]),
+	default="standalone",
+	show_default=True,
+	help="Output layout/format profile.",
+)
+def translate_to_dsl_command(in_folder: Path, out_folder: Path, dsl: str, max_out: int | None, output_format: str):
+	"""
+	Translate SMT-LIB v2 core theory files into target DSL programs.
+
+	IN_FOLDER: Path to folder containing .smt2 files
+	OUT_FOLDER: Path to folder to store generated DSL files
+	"""
 	check_cmd_exists("z3")
 	out_folder.mkdir(parents=True, exist_ok=True)
 	smt2_files = list(in_folder.glob("*.smt2"))
 	if not smt2_files:
 		click.echo(f"No .smt2 files found in {in_folder}")
 		return
-	for smt2_file in smt2_files[:max_out] if max_out is not None else smt2_files:
-		out_file = out_folder / (smt2_file.stem + ".go")
-		click.echo(f"Translating {smt2_file} -> {out_file}")
+
+	selected_files = smt2_files[:max_out] if max_out is not None else smt2_files
+	converted_count = 0
+	for smt2_file in selected_files:
 		smtlib2 = smt2_file.read_text()
-		gnark_code = smtlib2_to_gnark(smtlib2)
-		out_file.write_text(gnark_code)
-	click.echo(f"✓ Converted {len(smt2_files)} files to Gnark in {out_folder}")
+		dsl_code, extension = _translate_smtlib2_to_dsl(smtlib2, dsl, output_format=output_format)
+		if output_format == "circuzz" and dsl == "noir":
+			project_dir = out_folder / smt2_file.stem
+			package_name = _sanitize_noir_package_name(smt2_file.stem)
+			_write_noir_project(project_dir, package_name, dsl_code)
+			out_file = project_dir / "src" / "main.nr"
+		else:
+			out_file = out_folder / f"{smt2_file.stem}{extension}"
+			out_file.write_text(dsl_code)
+		click.echo(f"Translating {smt2_file} -> {out_file}")
+		converted_count += 1
+
+	click.echo(f"✓ Converted {converted_count} files to {dsl} ({output_format}) in {out_folder}")
+
+
+@click.command(name="fuse-smt-to-dsl")
+@click.argument("in_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.argument("out_dir", type=click.Path(path_type=Path))
+@click.option("--dsl", type=click.Choice(["circom", "gnark", "noir"]), required=True, help="Target DSL for generated programs.")
+@click.option("--seed", type=int, default=0, show_default=True, help="Random seed for reproducible fusion generation.")
+@click.option("--num-outputs", type=int, required=True, help="Number of fused outputs to generate.")
+@click.option(
+	"--config",
+	type=click.Path(exists=True, dir_okay=False, path_type=Path),
+	default=Path("third_party/yinyang/yinyang/config/fusion_functions.txt"),
+	show_default=True,
+	help="Path to YinYang fusion function config.",
+)
+@click.option(
+	"--oracle",
+	type=click.Choice(["sat", "unsat"]),
+	default="sat",
+	show_default=True,
+	help="Fusion oracle passed to SemanticFusion.",
+)
+@click.option(
+	"--max-attempts",
+	type=int,
+	default=None,
+	help="Maximum attempts before aborting (default: 50 * num-outputs).",
+)
+@click.option(
+	"--max-models",
+	type=int,
+	default=1,
+	show_default=True,
+	help="Maximum number of SAT models to store per fused output.",
+)
+@click.option(
+	"--format",
+	"output_format",
+	type=click.Choice(["standalone", "circuzz"]),
+	default="standalone",
+	show_default=True,
+	help="Output layout/format profile.",
+)
+def fuse_smt_to_dsl_command(
+	in_dir: Path,
+	out_dir: Path,
+	dsl: str,
+	seed: int,
+	num_outputs: int,
+	config: Path,
+	oracle: str,
+	max_attempts: int | None,
+	max_models: int,
+	output_format: str,
+):
+	"""
+	Generate fused SMT programs using local YinYang SemanticFusion and emit paired DSL files.
+
+	IN_DIR:  Folder with input SMT seed programs (.smt2)
+	OUT_DIR: Folder where paired outputs will be written
+	"""
+	try:
+		if num_outputs <= 0:
+			raise ValueError("--num-outputs must be > 0")
+		if max_models <= 0:
+			raise ValueError("--max-models must be > 0")
+
+		seed_files = sorted(in_dir.rglob("*.smt2"))
+		if len(seed_files) < 2:
+			raise ValueError(f"Need at least 2 .smt2 seed files in {in_dir}, found {len(seed_files)}")
+
+		out_smt_dir = out_dir / "smt2"
+		out_dsl_dir = out_dir / "dsl"
+		out_sol_dir = out_dir / "solutions"
+		out_smt_dir.mkdir(parents=True, exist_ok=True)
+		out_dsl_dir.mkdir(parents=True, exist_ok=True)
+		out_sol_dir.mkdir(parents=True, exist_ok=True)
+		config_copy_path = out_dir / f"yinyang_config{config.suffix or '.txt'}"
+		shutil.copy2(config, config_copy_path)
+
+		rng = random.Random(seed)
+		args = SimpleNamespace(config=str(config), oracle=oracle)
+		limit = max_attempts if max_attempts is not None else 50 * num_outputs
+		if limit <= 0:
+			raise ValueError("--max-attempts must be > 0 when provided")
+
+		manifest_rows: list[dict[str, object]] = []
+		seed_inputs_cache: dict[Path, list[str]] = {}
+		generated = 0
+		attempts = 0
+		skipped = 0
+		failed = 0
+
+		while generated < num_outputs and attempts < limit:
+			attempts += 1
+			left, right = rng.sample(seed_files, 2)
+			script1, _ = parse_file(str(left), silent=True)
+			script2, _ = parse_file(str(right), silent=True)
+			if script1 is None or script2 is None:
+				failed += 1
+				continue
+
+			# Seed global random because SemanticFusion uses random module internally.
+			random.seed(rng.randint(0, 2**31 - 1))
+			mutator = SemanticFusion(script1, script2, args)
+			mutant, success, skip_seed = mutator.mutate()
+			if not success or skip_seed:
+				skipped += 1
+				continue
+
+			smt_text = str(mutant)
+			try:
+				dsl_text, extension = _translate_smtlib2_to_dsl(smt_text, dsl, output_format=output_format)
+			except Exception:
+				failed += 1
+				continue
+
+			solve_result, solve_models = run_smt_solver_models(smt_text, solver="z3", max_models=max_models)
+			if solve_result != "sat" or not solve_models:
+				failed += 1
+				continue
+
+			if left not in seed_inputs_cache:
+				left_circuit = parse_smtlib2_core(left.read_text())
+				seed_inputs_cache[left] = [v.name for v in left_circuit.inputs]
+			if right not in seed_inputs_cache:
+				right_circuit = parse_smtlib2_core(right.read_text())
+				seed_inputs_cache[right] = [v.name for v in right_circuit.inputs]
+
+			model_payloads: list[dict[str, object]] = []
+			for model in solve_models:
+				assignments: dict[str, object] = {}
+				for name in seed_inputs_cache[left]:
+					prefixed = f"scr1_{name}"
+					val = model.get(prefixed)
+					if val is not None:
+						assignments[prefixed] = val
+				for name in seed_inputs_cache[right]:
+					prefixed = f"scr2_{name}"
+					val = model.get(prefixed)
+					if val is not None:
+						assignments[prefixed] = val
+				model_payloads.append(
+					{
+						"assignments": assignments,
+						"fused_assignments": {
+							name: val for name, val in model.items() if name.endswith("_fused")
+						},
+					}
+				)
+
+			generated += 1
+			stem = f"fused_{generated:04d}"
+			smt_path = out_smt_dir / f"{stem}.smt2"
+			if output_format == "circuzz" and dsl == "noir":
+				dsl_project_dir = out_dsl_dir / stem
+				package_name = _sanitize_noir_package_name(stem)
+				_write_noir_project(dsl_project_dir, package_name, dsl_text)
+				dsl_path = dsl_project_dir / "src" / "main.nr"
+			else:
+				dsl_path = out_dsl_dir / f"{stem}{extension}"
+				dsl_path.write_text(dsl_text)
+			solution_path = out_sol_dir / f"{stem}.json"
+			smt_path.write_text(smt_text)
+			solution_payload = {
+				"result": solve_result,
+				"seed_left": str(left),
+				"seed_right": str(right),
+				"max_models_requested": max_models,
+				"model_count": len(model_payloads),
+				"models": model_payloads,
+			}
+			# Backward compatibility: keep first model flattened at top-level.
+			solution_payload["assignments"] = model_payloads[0]["assignments"]
+			solution_payload["fused_assignments"] = model_payloads[0]["fused_assignments"]
+			solution_path.write_text(json.dumps(solution_payload, indent=2))
+			manifest_rows.append(
+				{
+					"index": generated,
+					"attempt": attempts,
+					"seed_left": str(left),
+					"seed_right": str(right),
+					"smt_path": str(smt_path),
+					"dsl_path": str(dsl_path),
+					"solution_path": str(solution_path),
+				}
+			)
+			click.echo(f"[{generated}/{num_outputs}] {left.name} + {right.name} -> {dsl_path.name}")
+
+		manifest = {
+			"dsl": dsl,
+			"format": output_format,
+			"seed": seed,
+			"oracle": oracle,
+			"config": str(config),
+			"config_copy": str(config_copy_path),
+			"in_dir": str(in_dir),
+			"out_dir": str(out_dir),
+			"solutions_dir": str(out_sol_dir),
+			"solution_solver": "z3",
+			"max_models_per_output": max_models,
+			"num_outputs_requested": num_outputs,
+			"num_outputs_generated": generated,
+			"attempts": attempts,
+			"skipped": skipped,
+			"failed": failed,
+			"generated_at": datetime.now(UTC).isoformat(),
+			"outputs": manifest_rows,
+		}
+		(out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
+
+		if generated < num_outputs:
+			raise RuntimeError(
+				f"Generated {generated}/{num_outputs} before reaching max attempts ({limit}). "
+				f"See {out_dir / 'manifest.json'}."
+			)
+
+		click.echo(f"✓ Generated {generated} fused SMT + {dsl} ({output_format}) program pairs in {out_dir}")
+	except Exception as e:
+		click.echo(f"✗ Error: {e}", err=True)
+		raise click.Abort()
