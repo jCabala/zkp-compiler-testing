@@ -76,6 +76,8 @@ MAX_TIMEOUTS = 32
 class Fuzzer:
     def __init__(self, args, strategy):
         self.args = args
+        if self.args.seed is not None:
+            random.seed(self.args.seed)
         self.currentseeds = ""
         self.strategy = strategy
         self.statistic = Statistic()
@@ -490,11 +492,21 @@ class Fuzzer:
         print("All seeds processed", flush=True)
         if not self.args.quiet:
             self.statistic.printsum()
+        self.cleanup_scratchfiles()
         if self.statistic.crashes + self.statistic.soundness == 0:
             exit(OK_NOBUGS)
         exit(OK_BUGS)
 
-    def __del__(self):
+    def cleanup_scratchfiles(self):
+        if not os.path.isdir(self.args.scratchfolder):
+            return
         for fn in os.listdir(self.args.scratchfolder):
             if self.name in fn:
-                os.remove(os.path.join(self.args.scratchfolder, fn))
+                try:
+                    os.remove(os.path.join(self.args.scratchfolder, fn))
+                except OSError:
+                    # Best-effort cleanup; ignore races or already-removed files.
+                    pass
+
+    def __del__(self):
+        self.cleanup_scratchfiles()

@@ -27,17 +27,18 @@ def get_r1cs_sr1cs(circuit_path: Path) -> str:
     and it writes sr1cs s-expressions to outPath.
     """
     circuit_name = circuit_path.stem
-    temp_dir_path = Path(tempfile.mkdtemp())
-    sr1cs_path = temp_dir_path / f"{circuit_name}.sr1cs"
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir_path = Path(temp_dir)
+        sr1cs_path = temp_dir_path / f"{circuit_name}.sr1cs"
 
-    p = _run(["go", "run", str(circuit_path), str(sr1cs_path)])
-    if p.returncode != 0:
-        raise RuntimeError(f"Gnark compilation/dump failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
+        p = _run(["go", "run", str(circuit_path), str(sr1cs_path)])
+        if p.returncode != 0:
+            raise RuntimeError(f"Gnark compilation/dump failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
 
-    if not sr1cs_path.exists():
-        raise RuntimeError(f"Expected SR1CS file not found at {sr1cs_path}")
+        if not sr1cs_path.exists():
+            raise RuntimeError(f"Expected SR1CS file not found at {sr1cs_path}")
 
-    return sr1cs_path.read_text(encoding="utf-8")
+        return sr1cs_path.read_text(encoding="utf-8")
 
 
 # --------- Parsing ---------

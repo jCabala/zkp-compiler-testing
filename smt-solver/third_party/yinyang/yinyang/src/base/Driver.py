@@ -97,6 +97,8 @@ def get_seeds():
             temp_seeds.append(path)
         elif os.path.isdir(path):
             for subdir, dirs, files in os.walk(path):
+                dirs.sort()
+                files.sort()
                 for filename in files:
                     filepath = subdir + os.sep + filename
                     if filepath.endswith(".smt2"):

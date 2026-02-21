@@ -25,25 +25,26 @@ class OptFlag(str):
     O2 = "--O2"
 
 def get_r1cs_json(circuit_path: Path, opt_flag: OptFlag = OptFlag.O0) -> str:
-    temp_dir_path = Path(tempfile.mkdtemp())
     circuit_name = circuit_path.stem
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir_path = Path(temp_dir)
 
-    # Compile
-    p = _run(["circom", str(circuit_path), "--r1cs", opt_flag, "-o", str(temp_dir_path)])
-    if p.returncode != 0:
-        raise RuntimeError(f"Circom compilation failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
+        # Compile
+        p = _run(["circom", str(circuit_path), "--r1cs", opt_flag, "-o", str(temp_dir_path)])
+        if p.returncode != 0:
+            raise RuntimeError(f"Circom compilation failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
 
-    r1cs_path = temp_dir_path / f"{circuit_name}.r1cs"
-    if not r1cs_path.exists():
-        raise RuntimeError(f"Expected R1CS file not found at {r1cs_path}")
+        r1cs_path = temp_dir_path / f"{circuit_name}.r1cs"
+        if not r1cs_path.exists():
+            raise RuntimeError(f"Expected R1CS file not found at {r1cs_path}")
 
-    # Convert
-    r1cs_json_path = temp_dir_path / f"{circuit_name}.json"
-    p = _run(["snarkjs", "r1cs", "export", "json", str(r1cs_path), str(r1cs_json_path)])
-    if p.returncode != 0:
-        raise RuntimeError(f"snarkjs conversion failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
+        # Convert
+        r1cs_json_path = temp_dir_path / f"{circuit_name}.json"
+        p = _run(["snarkjs", "r1cs", "export", "json", str(r1cs_path), str(r1cs_json_path)])
+        if p.returncode != 0:
+            raise RuntimeError(f"snarkjs conversion failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
 
-    return r1cs_json_path.read_text()
+        return r1cs_json_path.read_text()
 
 
 def get_r1cs_with_sym(circuit_path: Path, opt_flag: OptFlag = OptFlag.O0, bool_signal_names: List[str] = None) -> Tuple[str, Set[int]]:
@@ -58,36 +59,37 @@ def get_r1cs_with_sym(circuit_path: Path, opt_flag: OptFlag = OptFlag.O0, bool_s
     Returns:
         Tuple of (r1cs_json_string, bool_wire_indices)
     """
-    temp_dir_path = Path(tempfile.mkdtemp())
     circuit_name = circuit_path.stem
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir_path = Path(temp_dir)
 
-    # Compile with --sym flag
-    p = _run(["circom", str(circuit_path), "--r1cs", "--sym", opt_flag, "-o", str(temp_dir_path)])
-    if p.returncode != 0:
-        raise RuntimeError(f"Circom compilation failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
+        # Compile with --sym flag
+        p = _run(["circom", str(circuit_path), "--r1cs", "--sym", opt_flag, "-o", str(temp_dir_path)])
+        if p.returncode != 0:
+            raise RuntimeError(f"Circom compilation failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
 
-    r1cs_path = temp_dir_path / f"{circuit_name}.r1cs"
-    sym_path = temp_dir_path / f"{circuit_name}.sym"
-    
-    if not r1cs_path.exists():
-        raise RuntimeError(f"Expected R1CS file not found at {r1cs_path}")
-    if not sym_path.exists():
-        raise RuntimeError(f"Expected .sym file not found at {sym_path}")
+        r1cs_path = temp_dir_path / f"{circuit_name}.r1cs"
+        sym_path = temp_dir_path / f"{circuit_name}.sym"
+        
+        if not r1cs_path.exists():
+            raise RuntimeError(f"Expected R1CS file not found at {r1cs_path}")
+        if not sym_path.exists():
+            raise RuntimeError(f"Expected .sym file not found at {sym_path}")
 
-    # Convert R1CS to JSON
-    r1cs_json_path = temp_dir_path / f"{circuit_name}.json"
-    p = _run(["snarkjs", "r1cs", "export", "json", str(r1cs_path), str(r1cs_json_path)])
-    if p.returncode != 0:
-        raise RuntimeError(f"snarkjs conversion failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
+        # Convert R1CS to JSON
+        r1cs_json_path = temp_dir_path / f"{circuit_name}.json"
+        p = _run(["snarkjs", "r1cs", "export", "json", str(r1cs_path), str(r1cs_json_path)])
+        if p.returncode != 0:
+            raise RuntimeError(f"snarkjs conversion failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
 
-    r1cs_json_str = r1cs_json_path.read_text()
-    
-    # Resolve boolean wire indices
-    bool_wire_indices: Set[int] = set()
-    if bool_signal_names:
-        bool_wire_indices = resolve_bool_wires(sym_path, bool_signal_names)
-    
-    return r1cs_json_str, bool_wire_indices
+        r1cs_json_str = r1cs_json_path.read_text()
+        
+        # Resolve boolean wire indices
+        bool_wire_indices: Set[int] = set()
+        if bool_signal_names:
+            bool_wire_indices = resolve_bool_wires(sym_path, bool_signal_names)
+        
+        return r1cs_json_str, bool_wire_indices
 
 
 def parse_r1cs_json(json_str: str, bool_wire_indices: Set[int] = None) -> R1CS:

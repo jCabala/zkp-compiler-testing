@@ -86,9 +86,14 @@ def solve_gnark_command(gnark_path: Path, with_model: bool, with_logs: bool, sol
 	if solver == "picus":
 		from src.picus.solve_picus import solve_picus
 		_log("Solving R1CS using Picus...", with_logs)
+		tmp_dir.mkdir(parents=True, exist_ok=True)
 		tmp_sr1cs_path = tmp_dir / f"temp-{uuid4()}.sr1cs"
-		tmp_sr1cs_path.write_text(r1cs_sr1cs_str)
-		_run_picus(tmp_sr1cs_path)
+		try:
+			tmp_sr1cs_path.write_text(r1cs_sr1cs_str)
+			_run_picus(tmp_sr1cs_path)
+		finally:
+			if tmp_sr1cs_path.exists():
+				tmp_sr1cs_path.unlink()
 		return
 
 	_log("Parsing R1CS SR1CS...", with_logs)
@@ -140,10 +145,11 @@ def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solve
 	file_content = simplify_formula(file_content)
 	dsl_code, bool_vars = _parse_smtlib2(file_content, dsl=zk_dsl, solver=solver)
 
-	# save DSL code next to smt_lib_path for debugging purposes
-	debug_dsl_path = smt_lib_path.parent / f"{smt_lib_path.stem}_converted.{_dsl_extension(zk_dsl)}"
-	debug_dsl_path.write_text(dsl_code)
-	_log(f"Converted {smt_lib_path} to {debug_dsl_path}", with_logs=with_logs)
+	# save DSL code next to smt_lib_path for debugging purposes when logs are enabled
+	if with_logs:
+		debug_dsl_path = smt_lib_path.parent / f"{smt_lib_path.stem}_converted.{_dsl_extension(zk_dsl)}"
+		debug_dsl_path.write_text(dsl_code)
+		_log(f"Converted {smt_lib_path} to {debug_dsl_path}", with_logs=with_logs)
 
 	# Write code to temporary file
 	tmp_dir.mkdir(parents=True, exist_ok=True)
@@ -153,16 +159,18 @@ def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solve
 	dsl_path.write_text(dsl_code)
 
 	# Now use the previously defined command to solve the Circom file
-	ctx = click.get_current_context()
-	if zk_dsl == ZKDSL.CIRCOM:
-		ctx.invoke(solve_circom_command, circom_path=dsl_path, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver, bool_vars=tuple(bool_vars))
-	elif zk_dsl == ZKDSL.GNARK:
-		ctx.invoke(solve_gnark_command, gnark_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir)
-	else:
-		raise ValueError(f"Unsupported ZK DSL: {zk_dsl}")
-
-	# Remove temporary Circom file
-	dsl_path.unlink()
+	try:
+		ctx = click.get_current_context()
+		if zk_dsl == ZKDSL.CIRCOM:
+			ctx.invoke(solve_circom_command, circom_path=dsl_path, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver, bool_vars=tuple(bool_vars))
+		elif zk_dsl == ZKDSL.GNARK:
+			ctx.invoke(solve_gnark_command, gnark_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir)
+		else:
+			raise ValueError(f"Unsupported ZK DSL: {zk_dsl}")
+	finally:
+		# Remove temporary DSL file, even if compilation/solving fails.
+		if dsl_path.exists():
+			dsl_path.unlink()
 
 # --------------------------- Helper Functions ----------------------------------
 

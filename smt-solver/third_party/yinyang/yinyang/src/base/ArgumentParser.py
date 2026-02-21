@@ -101,6 +101,12 @@ def add_common_args(parser, rootpath, current_dir):
         default=100000,
         type=int,
     )
+    parser.add_argument(
+        "--seed",
+        metavar="N",
+        default=None,
+        type=int,
+    )
 
 
 def add_opfuzz_args(parser, rootpath, current_dir):

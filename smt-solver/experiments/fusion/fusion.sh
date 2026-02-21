@@ -1,20 +1,20 @@
-SCRIPT_DIR=$(dirname -- "$0")
-cd $SCRIPT_DIR/
+#!/usr/bin/env bash
+set -euo pipefail
 
-## CONFIGURATION
-ORACLE=sat # sat or unsat
-TIMEOUT=300 # seconds
-BENCHMARKS=$SCRIPT_DIR/../../benchmarks/SMT-benchmarks/lia/sat/
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
+source "$SCRIPT_DIR/../common.sh"
+
+ORACLE="sat" # sat or unsat
+TIMEOUT="300" # seconds
+BENCHMARKS="$SCRIPT_DIR/../../benchmarks/SMT-benchmarks/lia/sat/"
 SOLVER="z3" # z3 or cvc5
 DSL="gnark" # gnark or circom
-# Uncomment the next line to enable boolean-only mode if you are solving only boolean (core theory) benchmarks. Temporary solution. For cvc5 it doesn't really matter but huge help for z3.
-#BOOL_ONLY=--bool-only
+BOOL_ONLY="" # e.g. --bool-only
+TMP_DIR="${TMP_DIR:-/tmp/smt_solver}"
 
-# If object directory does not exist, create it
-if [ ! -d ./obj ]; then
-    mkdir ./obj
-fi
+CLI_COMMAND="python3.11 /workspace/smt-solver/cli.py solve --zk-dsl $DSL $BOOL_ONLY --solver $SOLVER --tmp-dir $TMP_DIR"
+OUT_FILE="./obj/fusion.out"
 
-CLI_COMMAND=""../../cli.py solve $BOOL_ONLY --solver $SOLVER --tmp-dir ../tmp_fusion/""
-
-yinyang $CLI_COMMAND --oracle $ORACLE --timeout $TIMEOUT --l ./obj/logs --s ./obj/scratch --b ./obj/bugs $BENCHMARKS > fusion.out 2>&1
+run_in_podman_if_needed "fusion/fusion.sh"
+cd "$SCRIPT_DIR"
+run_yinyang_experiment
