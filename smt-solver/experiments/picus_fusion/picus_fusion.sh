@@ -12,7 +12,7 @@ FUSION_REWRITE_POLICY="all"
 FUSION_SIDE_POLICY="one"
 SOLVER="picus"
 CONFIG="./picus_fusion_config.txt"
-YY_SEED="42"
+YY_SEED="${YY_SEED:-42}"
 CONTAINER_MEMORY="${CONTAINER_MEMORY:-4g}"
 CONTAINER_MEMORY_SWAP="${CONTAINER_MEMORY_SWAP:--1}"
 
@@ -24,15 +24,16 @@ if [[ "${IN_PODMAN:-0}" != "1" ]]; then
 
   pids=()
   labels=()
+
   for target in "${targets[@]}"; do
     case "$target" in
       gnark)
         dsl="gnark"
-        label="gnark"
+        run_label="gnark"
         ;;
       circom|circuzz)
         dsl="circom"
-        label="circom"
+        run_label="circom"
         ;;
       *)
         echo "unsupported target '$target' (use: gnark|circom)" >&2
@@ -40,20 +41,23 @@ if [[ "${IN_PODMAN:-0}" != "1" ]]; then
         ;;
     esac
 
+    container_name="picus-fusion-${run_label}-$$"
     DSL="$dsl"
     image=$(_select_image_for_dsl)
     podman run --rm \
+      --name "$container_name" \
       -v "$REPO_ROOT":/workspace \
       --workdir /workspace/smt-solver/experiments/picus_fusion \
       --memory "$CONTAINER_MEMORY" \
       --memory-swap "$CONTAINER_MEMORY_SWAP" \
       -e IN_PODMAN=1 \
       -e YY_SEED \
+      -e TMP_DIR \
       -e IMAGE_CIRCOM -e IMAGE_GNARK \
       "$image" \
-      bash -lc "./picus_fusion.sh --in-container $dsl $label" &
+      bash -lc "./picus_fusion.sh --in-container $dsl $run_label" &
     pids+=("$!")
-    labels+=("$label")
+    labels+=("${run_label} (seed=$YY_SEED)")
   done
 
   overall_status=0
@@ -73,8 +77,9 @@ fi
 
 DSL="${2:-gnark}"          # gnark|circom
 RUN_LABEL="${3:-$DSL}"     # used for output/log folder names
+TMP_DIR="${TMP_DIR:-/tmp/smt_solver/$RUN_LABEL}"
 
-CLI_COMMAND="python3.11 /workspace/smt-solver/cli.py solve --zk-dsl $DSL --solver $SOLVER --tmp-dir /workspace/smt-solver/experiments/tmp_fusion/"
+CLI_COMMAND="python3.11 /workspace/smt-solver/cli.py solve --zk-dsl $DSL --solver $SOLVER --tmp-dir $TMP_DIR"
 YY_CONFIG="$CONFIG"
 OUT_FILE="./obj/picus_fusion_${RUN_LABEL}.out"
 YY_LOG_DIR="./obj/${RUN_LABEL}/logs"

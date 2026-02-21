@@ -5,18 +5,85 @@ SCRIPT_DIR=$(dirname "$(realpath "$0")")
 source "$SCRIPT_DIR/../common.sh"
 
 ORACLE="sat" # sat or unsat
-BENCHMARKS="$SCRIPT_DIR/../../benchmarks/SMT-benchmarks/core/sat/"
+BENCHMARKS="$SCRIPT_DIR/../../benchmarks/SMT-benchmarks/core/unique_sat_1to5vars/"
 TIMEOUT="30" # seconds
 SOLVER="picus" # z3 or cvc5 or picus
-PRUNE="2"
-DSL="circom" # gnark or circom
+# PRUNE="2"
+# PRUNE_SEED="42" # NOT USING NOW. IF YOU NEED PRUNING ADD THESE TWO ARGS TO THE CLI_COMMAND
 CONFIG="./sat_fusion_config.txt"
-PRUNE_SEED="42"
+YY_SEED="${YY_SEED:-42}"
+CONTAINER_MEMORY="${CONTAINER_MEMORY:-4g}"
+CONTAINER_MEMORY_SWAP="${CONTAINER_MEMORY_SWAP:--1}"
 
-CLI_COMMAND="python3.11 /workspace/smt-solver/cli.py solve --zk-dsl $DSL --solver $SOLVER --prune $PRUNE --prune-seed $PRUNE_SEED --tmp-dir /workspace/smt-solver/experiments/tmp_fusion/"
+if [[ "${IN_PODMAN:-0}" != "1" ]]; then
+  targets=("$@")
+  if [[ ${#targets[@]} -eq 0 ]]; then
+    targets=("gnark" "circom")
+  fi
+
+  pids=()
+  labels=()
+
+  for target in "${targets[@]}"; do
+    case "$target" in
+      gnark)
+        dsl="gnark"
+        run_label="gnark"
+        ;;
+      circom|circuzz)
+        dsl="circom"
+        run_label="circom"
+        ;;
+      *)
+        echo "unsupported target '$target' (use: gnark|circom)" >&2
+        exit 1
+        ;;
+    esac
+
+    container_name="sat-fusion-${run_label}-$$"
+    DSL="$dsl"
+    image=$(_select_image_for_dsl)
+    podman run --rm \
+      --name "$container_name" \
+      -v "$REPO_ROOT":/workspace \
+      --workdir /workspace/smt-solver/experiments/sat_fusion \
+      --memory "$CONTAINER_MEMORY" \
+      --memory-swap "$CONTAINER_MEMORY_SWAP" \
+      -e IN_PODMAN=1 \
+      -e YY_SEED \
+      -e TMP_DIR \
+      -e IMAGE_CIRCOM -e IMAGE_GNARK \
+      "$image" \
+      bash -lc "./sat_fusion.sh --in-container $dsl $run_label" &
+    pids+=("$!")
+    labels+=("${run_label} (seed=$YY_SEED)")
+  done
+
+  overall_status=0
+  for i in "${!pids[@]}"; do
+    if ! wait "${pids[$i]}"; then
+      echo "target '${labels[$i]}' failed" >&2
+      overall_status=1
+    fi
+  done
+  exit "$overall_status"
+fi
+
+if [[ "${1:-}" != "--in-container" ]]; then
+  echo "container mode expects: --in-container <dsl> <label>" >&2
+  exit 1
+fi
+
+DSL="${2:-gnark}"          # gnark|circom
+RUN_LABEL="${3:-$DSL}"     # used for output/log folder names
+TMP_DIR="${TMP_DIR:-/tmp/smt_solver/$RUN_LABEL}"
+
+CLI_COMMAND="python3.11 /workspace/smt-solver/cli.py solve --zk-dsl $DSL --solver $SOLVER --tmp-dir $TMP_DIR"
 YY_CONFIG="$CONFIG"
-OUT_FILE="./obj/sat_fusion.out"
+OUT_FILE="./obj/sat_fusion_${RUN_LABEL}.out"
+YY_LOG_DIR="./obj/${RUN_LABEL}/logs"
+YY_SCRATCH_DIR="./obj/${RUN_LABEL}/scratch"
+YY_BUG_DIR="./obj/${RUN_LABEL}/bugs"
 
-run_in_podman_if_needed "sat_fusion/sat_fusion.sh"
 cd "$SCRIPT_DIR"
 run_yinyang_experiment
