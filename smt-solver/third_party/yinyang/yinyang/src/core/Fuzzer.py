@@ -76,6 +76,8 @@ MAX_TIMEOUTS = 32
 class Fuzzer:
     def __init__(self, args, strategy):
         self.args = args
+        if self.args.seed is not None:
+            random.seed(self.args.seed)
         self.currentseeds = ""
         self.strategy = strategy
         self.statistic = Statistic()

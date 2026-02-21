@@ -45,7 +45,7 @@ run_in_podman_if_needed() {
     ORACLE TIMEOUT BENCHMARKS SOLVER DSL BOOL_ONLY PRUNE PRUNE_SEED \
     CONFIG FUSION_REWRITE_POLICY FUSION_SIDE_POLICY \
     IMAGE_CIRCOM IMAGE_GNARK CLI_COMMAND OUT_FILE YY_CONFIG \
-    YY_LOG_DIR YY_SCRATCH_DIR YY_BUG_DIR
+    YY_LOG_DIR YY_SCRATCH_DIR YY_BUG_DIR YY_SEED
   do
     if [[ -v "$var" ]]; then
       args+=( -e "$var" )
@@ -79,7 +79,10 @@ run_yinyang_experiment() {
   if [[ -n "${YY_CONFIG:-}" ]]; then
     cmd+=( -c "$YY_CONFIG" )
   fi
-  cmd+=( --l "$log_dir" --s "$scratch_dir" --b "$bug_dir" "$BENCHMARKS" )
+  if [[ -n "${YY_SEED:-}" ]]; then
+    cmd+=( --seed "$YY_SEED" )
+  fi
+  cmd+=( --logfolder "$log_dir" --scratchfolder "$scratch_dir" --bugsfolder "$bug_dir" "$BENCHMARKS" )
 
   local -a env_prefix=("PYTHONPATH=$yy_root")
   if [[ -n "${FUSION_REWRITE_POLICY:-}" ]]; then
@@ -100,7 +103,7 @@ run_yinyang_experiment() {
       ORACLE TIMEOUT BENCHMARKS SOLVER DSL BOOL_ONLY PRUNE PRUNE_SEED \
       CONFIG FUSION_REWRITE_POLICY FUSION_SIDE_POLICY \
       IMAGE_CIRCOM IMAGE_GNARK CLI_COMMAND OUT_FILE YY_CONFIG \
-      YY_LOG_DIR YY_SCRATCH_DIR YY_BUG_DIR IN_PODMAN
+      YY_LOG_DIR YY_SCRATCH_DIR YY_BUG_DIR YY_SEED IN_PODMAN
     do
       if [[ -v "$var" ]]; then
         printf '%s=%q\n' "$var" "${!var}"
