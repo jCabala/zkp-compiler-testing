@@ -28,25 +28,17 @@ IMAGE_CIRCOM_DEFAULT="localhost/circom-latest:latest"
 IMAGE_GNARK_DEFAULT="localhost/gnark-latest:latest"
 IMAGE_NOIR_DEFAULT="localhost/noir-latest-patched:latest"
 
-SEED=2123
+SEED=1234
 VERBOSITY=2
 USE_TMP=1
-CIRCOM_MEMORY_LIMIT="4g"
-GNARK_MEMORY_LIMIT="4g"
-NOIR_MEMORY_LIMIT="4g"
-
 # Timeout settings
 T_SECONDS=0
 T_MINUTES=0
-T_HOURS=48
+T_HOURS=144
 
-CIRCOM_NUM=1
-GNARK_NUM=1
-NOIR_NUM=1
-
-CIRCOM_CPUS=2
-GNARK_CPUS=2
-NOIR_CPUS=2
+CIRCOM_NUM=4
+GNARK_NUM=4
+NOIR_NUM=4
 
 WAIT_BETWEEN=1
 TMP_DIR="/tmp/circuzz/seed-$SEED-date-$start"
@@ -74,13 +66,12 @@ if [[ $USE_TMP -eq 1 ]]; then
   mkdir -p "$TMP_DIR"
 fi
 
+
 start_tool() {
   local tool="$1"
   local image="$2"
   local run_name="$3"
-  local cpus="$4"
-  local memory_limit="$5"
-  local run_seed="$6"
+  local run_seed="$4"
 
   local config
   case "$tool" in
@@ -104,13 +95,13 @@ start_tool() {
 
   # Mount repo root so both /workspace/circuzz and /workspace/smt-solver are available.
   if [[ $USE_TMP -eq 1 ]]; then
-    podman run --timeout="$PODMAN_TIMEOUT" --pids-limit=-1 --cpus="$cpus" --memory="$memory_limit" \
+    podman run --timeout="$PODMAN_TIMEOUT" --pids-limit=-1 \
       -v "$REPO_ROOT":/workspace -v "$TMP_DIR":/tmp --workdir /workspace/circuzz --rm "$image" \
       python3 cli.py explore --tool "$tool" -v"$VERBOSITY" --timeout "$TOOL_TIMEOUT" \
       --working-dir "$exp_work_dir" --report-dir "$prefixed_report_dir" --seed "$run_seed" --config "$config" \
       > "$log_dir_run/$run_name-explore.log" 2>&1
   else
-    podman run --timeout="$PODMAN_TIMEOUT" --pids-limit=-1 --cpus="$cpus" --memory="$memory_limit" \
+    podman run --timeout="$PODMAN_TIMEOUT" --pids-limit=-1 \
       -v "$REPO_ROOT":/workspace --workdir /workspace/circuzz --rm "$image" \
       python3 cli.py explore --tool "$tool" -v"$VERBOSITY" --timeout "$TOOL_TIMEOUT" \
       --working-dir "$exp_work_dir" --report-dir "$prefixed_report_dir" --seed "$run_seed" --config "$config" \
@@ -122,15 +113,14 @@ run_group() {
   local tool="$1"
   local image="$2"
   local num="$3"
-  local cpus="$4"
-  local memory_limit="$5"
   if [[ $num -eq 0 ]]; then
     return
   fi
   local pids=()
   for i in $(seq 1 "$num"); do
     local r="$RANDOM"
-    start_tool "$tool" "$image" "$tool-$i" "$cpus" "$memory_limit" "$r" &
+    echo "$tool-$i $r" >> "$OBJ_DIR/seeds.txt"
+    start_tool "$tool" "$image" "$tool-$i" "$r" &
     pids+=($!)
     echo "Started $tool $i/$num with seed $r ..."
     sleep "$WAIT_BETWEEN"
@@ -138,31 +128,32 @@ run_group() {
   wait "${pids[@]}"
 }
 
-tool_pids=()
+
+pids=()
 tool_names=()
 for tool in "${TOOLS[@]}"; do
   case "$tool" in
     circom)
-      run_group circom "$IMAGE_CIRCOM_DEFAULT" "$CIRCOM_NUM" "$CIRCOM_CPUS" "$CIRCOM_MEMORY_LIMIT" &
+      run_group circom "$IMAGE_CIRCOM_DEFAULT" "$CIRCOM_NUM" &
       ;;
     gnark)
-      run_group gnark "$IMAGE_GNARK_DEFAULT" "$GNARK_NUM" "$GNARK_CPUS" "$GNARK_MEMORY_LIMIT" &
+      run_group gnark "$IMAGE_GNARK_DEFAULT" "$GNARK_NUM" &
       ;;
     noir)
-      run_group noir "$IMAGE_NOIR_DEFAULT" "$NOIR_NUM" "$NOIR_CPUS" "$NOIR_MEMORY_LIMIT" &
+      run_group noir "$IMAGE_NOIR_DEFAULT" "$NOIR_NUM" &
       ;;
     *)
       echo "unsupported tool selector '$tool' (use: circom gnark noir)"
       exit 1
       ;;
   esac
-  tool_pids+=($!)
+  pids+=($!)
   tool_names+=("$tool")
 done
 
 overall_status=0
-for idx in "${!tool_pids[@]}"; do
-  pid="${tool_pids[$idx]}"
+for idx in "${!pids[@]}"; do
+  pid="${pids[$idx]}"
   name="${tool_names[$idx]}"
   if wait "$pid"; then
     echo "tool group '$name' finished successfully"
