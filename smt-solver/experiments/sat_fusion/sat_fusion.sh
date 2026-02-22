@@ -5,14 +5,14 @@ SCRIPT_DIR=$(dirname "$(realpath "$0")")
 source "$SCRIPT_DIR/../common.sh"
 
 ORACLE="sat" # sat or unsat
-BENCHMARKS="$SCRIPT_DIR/../../benchmarks/SMT-benchmarks/core/unique_sat_1to5vars/"
+BENCHMARKS="$SCRIPT_DIR/../../benchmarks/SMT-benchmarks/core/sat/"
 TIMEOUT="30" # seconds
-SOLVER="picus" # z3 or cvc5 or picus
-# PRUNE="2"
-# PRUNE_SEED="42" # NOT USING NOW. IF YOU NEED PRUNING ADD THESE TWO ARGS TO THE CLI_COMMAND
+SOLVER="z3" # z3 or cvc5 or picus
+PRUNE="1"
+PRUNE_SEED="42" 
 CONFIG="./sat_fusion_config.txt"
-YY_SEED="${YY_SEED:-42}"
-CONTAINER_MEMORY="${CONTAINER_MEMORY:-4g}"
+YY_SEED="1233"
+CONTAINER_MEMORY="${CONTAINER_MEMORY:-64g}"
 CONTAINER_MEMORY_SWAP="${CONTAINER_MEMORY_SWAP:--1}"
 
 if [[ "${IN_PODMAN:-0}" != "1" ]]; then
@@ -76,9 +76,9 @@ fi
 
 DSL="${2:-gnark}"          # gnark|circom
 RUN_LABEL="${3:-$DSL}"     # used for output/log folder names
-TMP_DIR="${TMP_DIR:-/tmp/smt_solver/$RUN_LABEL}"
+TMP_DIR="${TMP_DIR:-/workspace/smt-solver/experiments/tmp_fusion}"
 
-CLI_COMMAND="python3.11 /workspace/smt-solver/cli.py solve --zk-dsl $DSL --solver $SOLVER --tmp-dir $TMP_DIR"
+CLI_COMMAND="python3 /workspace/smt-solver/cli.py solve --prune $PRUNE --prune-seed $PRUNE_SEED --zk-dsl $DSL --solver $SOLVER --tmp-dir $TMP_DIR"
 YY_CONFIG="$CONFIG"
 OUT_FILE="./obj/sat_fusion_${RUN_LABEL}.out"
 YY_LOG_DIR="./obj/${RUN_LABEL}/logs"

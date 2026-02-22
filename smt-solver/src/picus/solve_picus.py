@@ -10,10 +10,13 @@ class PicusResultType:
     PROPERLY_CONSTRAINED = "properly_constrained"
     UNDERCONSTRAINED = "underconstrained"
     UNKNOWN = "unknown"
+    ERROR = "error"
 
 @dataclass
 class PicusResult:
     result: PicusResultType
+    exit_code: int
+    output: str
 
 
 def solve_picus(input_path: Path) -> PicusResult:
@@ -27,11 +30,21 @@ def solve_picus(input_path: Path) -> PicusResult:
         check=False,
     )
 
+    if cmd_result.returncode != 0:
+        return PicusResult(
+            result=PicusResultType.ERROR,
+            exit_code=cmd_result.returncode,
+            output=cmd_result.stdout,
+        )
+
     result = PicusResultType.UNKNOWN
     if PROPERLY_CONSTRAINED_MSG in cmd_result.stdout:
         result = PicusResultType.PROPERLY_CONSTRAINED
     elif UNDERCONSTRAINED_MSG in cmd_result.stdout:
         result = PicusResultType.UNDERCONSTRAINED
 
-    # Placeholder: you can later infer this from output / exit code
-    return PicusResult(result=result)
+    return PicusResult(
+        result=result,
+        exit_code=cmd_result.returncode,
+        output=cmd_result.stdout,
+    )

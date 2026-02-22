@@ -274,5 +274,14 @@ def _run_picus(input_path: Path) -> None:
 		click.echo("sat")
 	elif result.result == "underconstrained":
 		click.echo("unsat")
+	elif result.result == "unknown":
+		raise click.ClickException("Picus returned unknown result")
 	else:
-		click.echo("unknown")
+		output_preview = (result.output or "").strip().splitlines()
+		if output_preview:
+			output_preview = output_preview[-1]
+		else:
+			output_preview = "<no output>"
+		raise click.ClickException(
+			f"Picus failed (exit={result.exit_code}): {output_preview}"
+		)
