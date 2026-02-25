@@ -71,6 +71,44 @@ run_yinyang_experiment() {
 
   mkdir -p ./obj "$log_dir" "$scratch_dir" "$bug_dir" "$(dirname "$out_file")"
 
+  # Warm Python/pySMT/backend startup caches once per container before yinyang's
+  # per-call timeout starts killing cold starts.
+  if [[ "${WARMUP_CLI:-1}" == "1" ]]; then
+    local warm_dir="${TMP_DIR:-/workspace/smt-solver/experiments/tmp_fusion}/warmup"
+    local warm_sat="$warm_dir/warm_sat.smt2"
+    local warm_unsat="$warm_dir/warm_unsat.smt2"
+    local warm_solver="${WARMUP_SOLVER:-z3}"
+    local warm_dsl="${DSL:-circom}"
+
+    mkdir -p "$warm_dir"
+    cat > "$warm_sat" <<'EOF'
+(set-logic QF_BV)
+(declare-fun x () Bool)
+(assert x)
+(check-sat)
+EOF
+    cat > "$warm_unsat" <<'EOF'
+(set-logic QF_BV)
+(declare-fun x () Bool)
+(assert x)
+(assert (not x))
+(check-sat)
+EOF
+
+    echo "[warmup] starting cli warmup (dsl=$warm_dsl solver=$warm_solver tmp=$warm_dir)" >&2
+    python3 /workspace/smt-solver/cli.py solve \
+      --zk-dsl "$warm_dsl" \
+      --solver "$warm_solver" \
+      --tmp-dir "${TMP_DIR:-/workspace/smt-solver/experiments/tmp_fusion}" \
+      "$warm_sat" >/dev/null 2>&1 || true
+    python3 /workspace/smt-solver/cli.py solve \
+      --zk-dsl "$warm_dsl" \
+      --solver "$warm_solver" \
+      --tmp-dir "${TMP_DIR:-/workspace/smt-solver/experiments/tmp_fusion}" \
+      "$warm_unsat" >/dev/null 2>&1 || true
+    echo "[warmup] completed" >&2
+  fi
+
   local -a cmd=(
     python3 "$yy_root/yinyang_cli.py" "$CLI_COMMAND"
     --oracle "$ORACLE"

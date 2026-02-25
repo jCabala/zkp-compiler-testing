@@ -30,18 +30,22 @@ def solve_picus(input_path: Path) -> PicusResult:
         check=False,
     )
 
-    if cmd_result.returncode != 0:
-        return PicusResult(
-            result=PicusResultType.ERROR,
-            exit_code=cmd_result.returncode,
-            output=cmd_result.stdout,
-        )
+    # Picus exit codes are semantic:
+    #   8 => safe/properly constrained
+    #   9 => unsafe/underconstrained
+    #   0 => unknown
+    # We require both exit code and expected message for strict classification.
+    has_properly_constrained_msg = PROPERLY_CONSTRAINED_MSG in cmd_result.stdout
+    has_underconstrained_msg = UNDERCONSTRAINED_MSG in cmd_result.stdout
 
-    result = PicusResultType.UNKNOWN
-    if PROPERLY_CONSTRAINED_MSG in cmd_result.stdout:
+    if cmd_result.returncode == 8 and has_properly_constrained_msg:
         result = PicusResultType.PROPERLY_CONSTRAINED
-    elif UNDERCONSTRAINED_MSG in cmd_result.stdout:
+    elif cmd_result.returncode == 9 and has_underconstrained_msg:
         result = PicusResultType.UNDERCONSTRAINED
+    elif cmd_result.returncode == 0 and not has_properly_constrained_msg and not has_underconstrained_msg:
+        result = PicusResultType.UNKNOWN
+    else:
+        result = PicusResultType.ERROR
 
     return PicusResult(
         result=result,

@@ -21,16 +21,11 @@ SOFTWARE.
 
 from __future__ import print_function
 
-import threading
-
-try:
-    import thread
-except ImportError:
-    import _thread as thread
+import signal
 
 
-def cdquit(fn_name):
-    thread.interrupt_main()  # raises KeyboardInterrupt
+class ParseTimeoutError(TimeoutError):
+    """Raised when parsing exceeds the configured timeout."""
 
 
 def exit_after(s):
@@ -40,14 +35,32 @@ def exit_after(s):
     """
 
     def outer(fn):
+        if not hasattr(signal, "SIGALRM"):
+            # Fallback for non-POSIX platforms: run without a hard parser timeout.
+            def inner_no_alarm(*args, **kwargs):
+                return fn(*args, **kwargs)
+
+            return inner_no_alarm
+
+        def _timeout_handler(signum, frame):
+            raise ParseTimeoutError("parser timed out")
+
         def inner(*args, **kwargs):
-            timer = threading.Timer(s, cdquit, args=[fn.__name__])
-            timer.start()
+            previous_handler = signal.getsignal(signal.SIGALRM)
+            # Preserve any pre-existing timer to avoid leaking alarm state.
+            previous_timer = signal.getitimer(signal.ITIMER_REAL)
+            signal.signal(signal.SIGALRM, _timeout_handler)
+            signal.setitimer(signal.ITIMER_REAL, float(s))
             try:
-                result = fn(*args, **kwargs)
+                return fn(*args, **kwargs)
             finally:
-                timer.cancel()
-            return result
+                signal.setitimer(signal.ITIMER_REAL, 0.0)
+                signal.signal(signal.SIGALRM, previous_handler)
+                signal.setitimer(
+                    signal.ITIMER_REAL,
+                    previous_timer[0],
+                    previous_timer[1],
+                )
 
         return inner
 
