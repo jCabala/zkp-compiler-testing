@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import random
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -92,6 +93,19 @@ def _next_fusion_seed_from_state(state: dict[str, Any]) -> int:
     return fusion_seed
 
 
+def _cleanup_old_batch_dirs(state_dir: Path, keep_batch_id: int | None) -> None:
+    for candidate in state_dir.glob("batch_*"):
+        if not candidate.is_dir():
+            continue
+        suffix = candidate.name.removeprefix("batch_")
+        if not suffix.isdigit():
+            continue
+        batch_id = int(suffix)
+        if keep_batch_id is not None and batch_id == keep_batch_id:
+            continue
+        shutil.rmtree(candidate, ignore_errors=True)
+
+
 def next_smt_fusion_program(
     state_root_dir: Path,
     config: SMTFusionRunConfig,
@@ -139,6 +153,9 @@ def next_smt_fusion_program(
         state["next_index"] = 0
         state["programs"] = [_program_to_json_row(program) for program in programs]
         state_path.write_text(json.dumps(state, indent=2))
+
+    active_batch_id = int(state.get("batch_id", -1))
+    _cleanup_old_batch_dirs(state_dir, active_batch_id if active_batch_id >= 0 else None)
 
     index = int(state.get("next_index", 0))
     program_rows = state.get("programs", [])
