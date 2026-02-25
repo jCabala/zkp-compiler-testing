@@ -21,7 +21,7 @@ CIRCOM_CONFIG=fyp_experiments/fully-constraint-circom/config/circom.json
 
 IMAGE_CIRCOM_DEFAULT="localhost/circom-latest:latest"
 
-SEED=2131
+SEED=43535
 VERBOSITY=3
 USE_TMP=1
 
@@ -30,8 +30,8 @@ T_SECONDS=0
 T_MINUTES=0
 T_HOURS=24
 
-CIRCOM_NUM=1
-CIRCOM_CPUS=2
+CIRCOM_NUM=2
+CIRCOM_CPUS=4
 
 TMP_DIR=/tmp/circuzz/seed-$SEED-date-$start
 OBJ_DIR=$SCRIPT_PATH/obj/seed-$SEED-date-$start
@@ -95,15 +95,9 @@ function start() {
 
     # start explorer
     if [[ $USE_TMP -eq 1 ]]; then
-<<<<<<< HEAD
-        podman run --timeout=$PODMAN_TIMEOUT --pids-limit=-1 --cpus=$4 --memory=4g -v $CIRCUZZ_ROOT/:/app -v $TMP_DIR:/tmp --rm $2 python3 cli.py explore --tool $1 -v$VERBOSITY --timeout $TOOL_TIMEOUT --working-dir $EXPLORE_WORK_DIR --report-dir $PREFIXED_EXPLORE_REP_DIR --seed $5 --config $CONFIG > $LOG_DIR_RUN/$3-explore.log 2>&1
-    else
-        podman run --timeout=$PODMAN_TIMEOUT --pids-limit=-1 --cpus=$4 --memory=4g -v $CIRCUZZ_ROOT/:/app --rm $2 python3 cli.py explore --tool $1 -v$VERBOSITY --timeout $TOOL_TIMEOUT --working-dir $EXPLORE_WORK_DIR --report-dir $PREFIXED_EXPLORE_REP_DIR --seed $5 --config $CONFIG > $LOG_DIR_RUN/$3-explore.log 2>&1
-=======
         podman run --timeout=$PODMAN_TIMEOUT --pids-limit=-1 --cpus=$4 -v $CIRCUZZ_ROOT/:/app -v $TMP_DIR:/tmp --rm $2 python3 cli.py explore --tool $1 -v$VERBOSITY --timeout $TOOL_TIMEOUT --working-dir $EXPLORE_WORK_DIR --report-dir $PREFIXED_EXPLORE_REP_DIR --seed $5 --config $CONFIG > $LOG_DIR_RUN/$3-explore.log 2>&1
     else
         podman run --timeout=$PODMAN_TIMEOUT --pids-limit=-1 --cpus=$4 -v $CIRCUZZ_ROOT/:/app --rm $2 python3 cli.py explore --tool $1 -v$VERBOSITY --timeout $TOOL_TIMEOUT --working-dir $EXPLORE_WORK_DIR --report-dir $PREFIXED_EXPLORE_REP_DIR --seed $5 --config $CONFIG > $LOG_DIR_RUN/$3-explore.log 2>&1
->>>>>>> 8829a07 (feat: Updated configs)
     fi
 }
 

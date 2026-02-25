@@ -26,6 +26,7 @@ from experiment.config import Config, OnlineTuning
 from .helper import run_metamorphic_tests
 from .utils import curve_to_prime
 from .utils import CircomCurve
+from .utils import random_circom_curve
 
 logger = get_color_logger()
 

@@ -28,7 +28,7 @@ IMAGE_CIRCOM_DEFAULT="localhost/circom-latest:latest"
 IMAGE_GNARK_DEFAULT="localhost/gnark-latest:latest"
 IMAGE_NOIR_DEFAULT="localhost/noir-latest-patched:latest"
 
-SEED=1234
+SEED=3455
 VERBOSITY=2
 USE_TMP=1
 # Timeout settings
@@ -36,9 +36,9 @@ T_SECONDS=0
 T_MINUTES=0
 T_HOURS=144
 
-CIRCOM_NUM=4
-GNARK_NUM=4
-NOIR_NUM=4
+CIRCOM_NUM=2
+GNARK_NUM=2
+NOIR_NUM=2
 
 WAIT_BETWEEN=1
 TMP_DIR="/tmp/circuzz/seed-$SEED-date-$start"
@@ -96,7 +96,7 @@ start_tool() {
   # Mount repo root so both /workspace/circuzz and /workspace/smt-solver are available.
   if [[ $USE_TMP -eq 1 ]]; then
     podman run --timeout="$PODMAN_TIMEOUT" --pids-limit=-1 \
-      -v "$REPO_ROOT":/workspace -v "$TMP_DIR":/tmp --workdir /workspace/circuzz --rm "$image" \
+      -v "$REPO_ROOT":/workspace -v "$TMP_DIR":/tmp --workdir /workspace/circuzz --rm -e GOCACHE=/tmp/go-cache "$image" \
       python3 cli.py explore --tool "$tool" -v"$VERBOSITY" --timeout "$TOOL_TIMEOUT" \
       --working-dir "$exp_work_dir" --report-dir "$prefixed_report_dir" --seed "$run_seed" --config "$config" \
       > "$log_dir_run/$run_name-explore.log" 2>&1
