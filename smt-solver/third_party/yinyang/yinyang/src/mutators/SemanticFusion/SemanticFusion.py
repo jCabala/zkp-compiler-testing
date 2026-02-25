@@ -23,6 +23,7 @@
 import os
 import random
 import copy
+import logging
 
 from yinyang.src.mutators.Mutator import Mutator
 from yinyang.src.mutators.SemanticFusion.VariableFusion import (
@@ -99,7 +100,19 @@ class SemanticFusion(Mutator):
 
         for i, mr in enumerate(_mrs):
             template, _ = parse_str(mr)
-            sort = template.commands[0].sort
+            if template is None or not getattr(template, "commands", None):
+                logging.debug(
+                    "Skipping invalid fusion MR template at index %d", i
+                )
+                continue
+
+            first_cmd = template.commands[0]
+            if not hasattr(first_cmd, "sort"):
+                logging.debug(
+                    "Skipping fusion MR template without sort at index %d", i
+                )
+                continue
+            sort = first_cmd.sort
 
             if sort not in self.templates:
                 self.templates[sort] = [template]

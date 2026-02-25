@@ -28,7 +28,7 @@ from antlr4.error.ErrorListener import ErrorListener
 
 from yinyang.src.parsing.SMTLIBv2Lexer import SMTLIBv2Lexer
 from yinyang.src.parsing.SMTLIBv2Parser import SMTLIBv2Parser
-from yinyang.src.parsing.TimeoutDecorator import exit_after
+from yinyang.src.parsing.TimeoutDecorator import exit_after, ParseTimeoutError
 from yinyang.src.parsing.AstVisitor import AstVisitor
 
 from antlr4.CommonTokenStream import CommonTokenStream
@@ -144,8 +144,12 @@ def parse(parse_fct, arg, timeout_limit, silent=True):
 
     try:
         script, globs = parse_fct(arg, timeout_limit)
+    except ParseTimeoutError:
+        if not silent:
+            print("Parser timed out.")
     except KeyboardInterrupt:
-        print("Parser timed out or was interrupted.")
+        if not silent:
+            print("Parser timed out or was interrupted.")
     except Exception as e:
         if not silent:
             print("Error generating the AST.")

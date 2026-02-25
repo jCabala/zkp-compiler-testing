@@ -10,9 +10,9 @@ BENCHMARKS="$SCRIPT_DIR/../../benchmarks/SMT-benchmarks/lia/sat/"
 SOLVER="z3" # z3 or cvc5
 DSL="gnark" # gnark or circom
 BOOL_ONLY="" # e.g. --bool-only
-TMP_DIR="${TMP_DIR:-/tmp/smt_solver}"
+TMP_DIR="${TMP_DIR:-/workspace/smt-solver/experiments/tmp_fusion}"
 
-CLI_COMMAND="python3.11 /workspace/smt-solver/cli.py solve --zk-dsl $DSL $BOOL_ONLY --solver $SOLVER --tmp-dir $TMP_DIR"
+CLI_COMMAND="python3 /workspace/smt-solver/cli.py solve --zk-dsl $DSL $BOOL_ONLY --solver $SOLVER --tmp-dir $TMP_DIR"
 OUT_FILE="./obj/fusion.out"
 
 run_in_podman_if_needed "fusion/fusion.sh"

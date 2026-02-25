@@ -6,7 +6,13 @@ as every polynomial can be modeled as a R1CS by introducing intermediates.
 This file was copied from circuzz zk pipelines methamorphic testing framework.
 """
 
-from enum import StrEnum
+try:
+    from enum import StrEnum
+except ImportError:  # Python < 3.11
+    from enum import Enum
+
+    class StrEnum(str, Enum):
+        pass
 from dataclasses import dataclass
 from dataclasses import field
 from itertools import count
