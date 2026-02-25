@@ -37,6 +37,8 @@ class CircomConfig():
     smt_fusion: "SMTFusionSettings"
     # Probability of picking BN128 curve in SMT mode (BN128 enables prove/verify path).
     _smt_bn128_probability: float
+    # In smt_pipeline mode, probability of executing prove/verify per model replay.
+    smt_prove_verify_probability: float
 
     @property
     def smt_solver_path(self) -> str | None:
@@ -85,8 +87,11 @@ class CircomConfig():
         unwrap_assertion_probability = float(value.get("unwrap_assertion_probability", 0))
         smt_fusion = SMTFusionSettings.from_dict(value)
         smt_bn128_probability = float(value.get("smt_bn128_probability", 1.0 / 7.0))
+        smt_prove_verify_probability = float(value.get("smt_prove_verify_probability", 0.1))
         if smt_bn128_probability < 0 or smt_bn128_probability > 1:
             raise ValueError("circom.smt_bn128_probability must be in [0, 1]")
+        if smt_prove_verify_probability < 0 or smt_prove_verify_probability > 1:
+            raise ValueError("circom.smt_prove_verify_probability must be in [0, 1]")
 
         return CircomConfig \
             ( boundary_input_probability = boundary_input_probability
@@ -101,4 +106,5 @@ class CircomConfig():
             , constrain_equality_assertions = constrain_equality_assertions
             , constrain_sharp_inequality_assertions = constrain_sharp_inequality_assertions
             , _smt_bn128_probability = smt_bn128_probability
+            , smt_prove_verify_probability = smt_prove_verify_probability
             )

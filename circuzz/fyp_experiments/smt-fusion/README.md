@@ -13,6 +13,11 @@ Generation is delegated to sibling repo `../smt-solver` via:
 
 Each backend replays SMT models as witness inputs and treats any stage failure as a violation.
 
+`smt_prove_verify_probability` can be set per backend in `[0,1]`:
+- `0.0`: always stop after witness generation
+- `1.0`: always run prove/verify
+- in between: run prove/verify probabilistically per replayed model
+
 ## How to run
 
 ```bash

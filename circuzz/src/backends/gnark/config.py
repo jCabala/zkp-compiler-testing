@@ -26,6 +26,8 @@ class GnarkConfig():
     go_test_timeout : str | None
     # SMT-fusion shared settings
     smt_fusion: SMTFusionSettings
+    # In smt_pipeline mode, probability of executing prove/verify per model replay.
+    smt_prove_verify_probability: float
 
     @property
     def smt_solver_path(self) -> str | None:
@@ -64,6 +66,9 @@ class GnarkConfig():
         oracle_type = OracleType.from_str(value.get("oracle_type", "circuzz"))
         generator_source = GeneratorSource.from_str(value.get("generator_source", "random_ir"))
         smt_fusion = SMTFusionSettings.from_dict(value)
+        smt_prove_verify_probability = float(value.get("smt_prove_verify_probability", 0.1))
+        if smt_prove_verify_probability < 0 or smt_prove_verify_probability > 1:
+            raise ValueError("gnark.smt_prove_verify_probability must be in [0, 1]")
 
         return GnarkConfig \
             ( bundle_size = bundle_size
@@ -73,4 +78,5 @@ class GnarkConfig():
             , oracle_type = oracle_type
             , generator_source = generator_source
             , smt_fusion = smt_fusion
+            , smt_prove_verify_probability = smt_prove_verify_probability
             )
