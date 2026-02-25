@@ -522,9 +522,9 @@ def run_smt_pipeline_tests_from_go_source(
             file_handler.write(f"        FVar_{var} *big.Int\n")
         file_handler.write("    }\n")
         file_handler.write(f"    var iterSettings [{len(models)}]setting\n")
+        skip_prover_percentage = config.gnark.smt_prove_verify_probability
         for idx, model in enumerate(models):
-            # In SMT mode we require full pipeline execution; do not skip prove/verify.
-            file_handler.write(f"    iterSettings[{idx}] = setting{{r1csId, 1.0, groth16Id")
+            file_handler.write(f"    iterSettings[{idx}] = setting{{r1csId, {skip_prover_percentage}, groth16Id")
             for _ in inputs:
                 file_handler.write(", new(big.Int)")
             file_handler.write("}\n")

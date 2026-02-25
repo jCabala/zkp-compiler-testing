@@ -1058,8 +1058,10 @@ def run_smt_pipeline_tests_from_source(
                 return result
 
         # snarkjs prove/verify in this setup is only valid for BN128 PTAU.
-        # For other curves we stop after witness stages.
-        if curve == CircomCurve.BN128:
+        # For other curves we always stop after witness stages. For BN128,
+        # prove/verify runs with configured probability.
+        should_prove_verify = rng.random() < config.circom.smt_prove_verify_probability
+        if curve == CircomCurve.BN128 and should_prove_verify:
             proof_system = rng.choice(list(ProofSystem))
             manager.prove(proof_system)
             if manager.is_stop():
