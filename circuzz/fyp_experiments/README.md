@@ -54,6 +54,21 @@ Run selected DSLs only:
 ./explore.sh circom noir
 ```
 
+## circom-artificial-bugs
+
+### Overview
+
+Runs Circom with the default circuzz setup (basic oracle + random IR generator)
+but forces the compiler binary to the artificial-bugs build from sibling
+`smt-solver`.
+
+### How to run
+
+```bash
+cd fyp_experiments/circom-artificial-bugs
+./explore.sh
+```
+
 ## Scripts
 
 This directory contains some additionall helpful scripts.

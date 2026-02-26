@@ -28,6 +28,7 @@ Both images include:
 - `fusion/`: General fusion experiment scripts.
 - `picus_fusion/`: Picus fusion experiments and configuration.
 - `sat_fusion/`: SAT fusion experiments and configuration.
+- `circom-artificial-bugs/`: SAT fusion variant for testing patched Circom compiler builds.
 
 All three scripts are thin wrappers over shared logic in `experiments/common.sh`.
 To customize a run, set env vars in the wrapper or at invocation time.
