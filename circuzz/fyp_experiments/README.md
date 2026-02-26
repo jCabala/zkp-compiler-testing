@@ -1,104 +1,37 @@
 # Experiments
 
-## circom-picus
+Each experiment has a `explore.py` and `build_podman.py` scripts. You need to buildpodman images once and then you run experiments with the exploration script. All of the ogs and intermediary data will be stored in `<experiment-name>/obj/<run-name>`.
 
-### Overview
+## Current experiemtns
 
-`picus` is a tool allowing to detect underconstraint inputs. This experiments tries to use it as a metamorphic oracle instead of normal `circuzz` oracles. It also uses the `quadratic` generator.
+Here I list experimetns that are still running.
 
-### How to run
+### smt-fusion
 
-```bash
-cd fyp_experiments/circom-picus
-chmod +x ./experiments.sh
+Uses the `smt-solver` code to generate programs together with models for the variables that should satisfy the witness generation by construction. Then it runs the circuzz oracle on this program and expects all stages to pass. For witness generation it uses the generated models. Currently supports: `circom`, `gnark` and `noir` (in `noir` we don't support the prove and verify steps).
 
-./experiment.sh
-```
-
-The report together with logs will be stored under `circom-picus/obj` directory.
-You can modify the duration of the experiment in the `expderiments.sh` file.
-The logs will contain all of the generated circuits.
-
-## quadratic-circom
-
-### Overview
-
-Using normal `circuzz` oracles but with the `quadratic` generator.
-
-### How to run
-
-```bash
-cd fyp_experiments/quadratic-circuzz
-./build_podman.sh # Build the images
-./explore.sh
-```
-
-## smt-fusion
-
-### Overview
-
-Runs `smt_pipeline` oracle mode for Circom/Gnark/Noir using sibling `smt-solver`
-(`fuse-smt-to-dsl --format circuzz`) and model-replay based stage checks.
-
-### How to run
-
-```bash
-cd fyp_experiments/smt-fusion
-./build_podman.sh
-./explore.sh
-```
-
-Run selected DSLs only:
-
-```bash
-./explore.sh circom noir
-```
-
-## circom-artificial-bugs
-
-### Overview
+### circom-artificial-bugs
 
 Runs Circom with the default circuzz setup (basic oracle + random IR generator)
 but forces the compiler binary to the artificial-bugs build from sibling
 `smt-solver`.
 
-### How to run
+### mina
 
-```bash
-cd fyp_experiments/circom-artificial-bugs
-./explore.sh
-```
+Runs circuzz on the new `mina` backend.
 
-## Scripts
+## Legacy experiments
 
-This directory contains some additionall helpful scripts.
+Here I list experiments that I run extensively already and am not planning to run anymore.
 
-### generate-quadratic-circom.py
+### fully-constrained-circom
 
-Generates couple circom programs using the quadratic generator.
+Origianl `circom` genrator was just adding asserts to programs. This experiment uses a new generator that tries to constrain as much as it can.
 
-# Changelog
+### circom-picus & `gnark-picus1
 
-1. Added a picus oracle to circom. It can be enabled using `circom: {oracle: "picus"}` in config file.
+`picus` is a tool allowing to detect underconstraint inputs. This experiments tries to use it as a metamorphic oracle instead of normal `circuzz` oracles.
 
-2. Developed a `circom-picus` experiment
+### quadratic-circom
 
-3. Created [quadratic ir generator](../src/circuzz/ir/generators/quadratic.py). Can be enabled in the config by using `{generation: {generator: "quadratic"}}`
-
-4. Added a `cosntrain-equallity-assertions` flag to circom config (`circom: {constrain_equallity_assertions: true}`) that whenever we have a assertion with expression where the op is eq it (e.g `assert(a == 2)`), it will translate it into constraints (`a === 2`). For good performance you need to ensure the cosntraints will remain quadratic (e.g quadratic ir generator)
-
-5. Added `constrain-sharp-inequallity-assertions` flag that uses `LessThan` and `GreaterThan` from circomlib to constrain circuits.
-
-6. Added `quadratic_generator_inequality_assertion_probability` field in the `generator` config. It is used by quadratic generator to assert how often to use `<` and `>` over `===`.
-
-7. Added a picus oracle to gnark and implemented `gnark-picus` experiments
-
-8. Added `Mina` backend
-
-9. Created a backend for circom that unwraps asssertions and constrains everything (apart from arithmetic `and` and `or`)
-
-10. Added zokrates backend
-
-11. Setup fully-constrained-circom experiments
-
-12. Added the "smt-fusion" oracle that checks the satysfying models
+Using normal `circuzz` oracles but with the `quadratic` generator (generates programs that with cosntraitns of form `A * B = C` )
