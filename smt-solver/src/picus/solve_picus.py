@@ -5,6 +5,7 @@ import subprocess
 
 PROPERLY_CONSTRAINED_MSG = "The circuit is properly constrained"
 UNDERCONSTRAINED_MSG = "The circuit is underconstrained"
+PICUS_CIRCOM_OPT_LEVEL = "2"
 
 class PicusResultType:
     PROPERLY_CONSTRAINED = "properly_constrained"
@@ -23,7 +24,7 @@ def solve_picus(input_path: Path) -> PicusResult:
     picus_script = Path("~/Picus/run-picus").expanduser()
 
     cmd_result = subprocess.run(
-        [str(picus_script), str(input_path)],
+        [str(picus_script), "--opt-level", PICUS_CIRCOM_OPT_LEVEL, str(input_path)],
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
