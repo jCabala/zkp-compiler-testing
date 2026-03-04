@@ -61,6 +61,7 @@ if [[ "${IN_PODMAN:-0}" != "1" ]]; then
       -e YY_SEED \
       -e BENCHMARKS="$benchmarks_container" \
       -e TMP_DIR \
+      -e GOCACHE=/workspace/smt-solver/experiments/obj/go-cache \
       -e IMAGE_CIRCOM -e IMAGE_GNARK \
       "$image" \
       bash -lc "./sat_fusion.sh --in-container $dsl $run_label" &

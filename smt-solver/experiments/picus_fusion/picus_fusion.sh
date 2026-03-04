@@ -6,13 +6,14 @@ source "$SCRIPT_DIR/../common.sh"
 
 ORACLE="sat" # sat or unsat
 BENCHMARKS="$SCRIPT_DIR/../../benchmarks/SMT-benchmarks/core/unique_sat_1to5vars/"
-TIMEOUT="30" # seconds
+TIMEOUT="30"       # seconds (circom)
+TIMEOUT_GNARK="120" # seconds — go run compilation alone needs ~15-25s
 
 FUSION_REWRITE_POLICY="all"
 FUSION_SIDE_POLICY="one"
 SOLVER="picus"
 CONFIG="./picus_fusion_config.txt"
-YY_SEED="9855"
+YY_SEED="5959"
 CONTAINER_MEMORY="${CONTAINER_MEMORY:-64g}"
 CONTAINER_MEMORY_SWAP="${CONTAINER_MEMORY_SWAP:--1}"
 
@@ -53,6 +54,7 @@ if [[ "${IN_PODMAN:-0}" != "1" ]]; then
       -e IN_PODMAN=1 \
       -e YY_SEED \
       -e TMP_DIR \
+      -e GOCACHE=/workspace/smt-solver/experiments/obj/go-cache \
       -e IMAGE_CIRCOM -e IMAGE_GNARK \
       "$image" \
       bash -lc "./picus_fusion.sh --in-container $dsl $run_label" &

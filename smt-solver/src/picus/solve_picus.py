@@ -23,8 +23,13 @@ class PicusResult:
 def solve_picus(input_path: Path) -> PicusResult:
     picus_script = Path("~/Picus/run-picus").expanduser()
 
+    cmd = [str(picus_script)]
+    if input_path.suffix == ".circom":
+        cmd += ["--opt-level", PICUS_CIRCOM_OPT_LEVEL]
+    cmd.append(str(input_path))
+
     cmd_result = subprocess.run(
-        [str(picus_script), "--opt-level", PICUS_CIRCOM_OPT_LEVEL, str(input_path)],
+        cmd,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
