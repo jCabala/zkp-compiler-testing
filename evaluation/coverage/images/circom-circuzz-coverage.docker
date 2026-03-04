@@ -1,0 +1,24 @@
+FROM circuzz/circom-base
+
+USER root
+
+# llvm-tools for coverage report generation (llvm-profdata, llvm-cov)
+RUN rustup component add llvm-tools-preview
+
+# --- Rebuild circom with coverage instrumentation ---
+ENV RUSTFLAGS="-C instrument-coverage"
+ENV CARGO_INCREMENTAL=0
+RUN cd /circuzz/circom && \
+    cargo install --path circom --debug
+
+# --debug preserves debug symbols for accurate source-line mapping.
+# Source tree at /circuzz/circom is kept for llvm-cov.
+
+RUN mkdir -p /coverage/profraw
+
+# Every circom invocation writes a unique .profraw file.
+# %p = PID, %m = binary signature hash.
+ENV LLVM_PROFILE_FILE="/coverage/profraw/circom-%p-%m.profraw"
+
+WORKDIR /workspace/evaluation/coverage/circuzz
+CMD ["bash"]
