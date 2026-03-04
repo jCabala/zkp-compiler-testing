@@ -1,7 +1,33 @@
+import os
+import subprocess
 from pathlib import Path
 from random import Random
 from uuid import uuid4
 import click
+
+_GO_CACHE_CLEAN_INTERVAL = 1000
+_GO_CACHE_COUNTER_FILE = ".go_run_count"
+
+def _maybe_clean_go_cache() -> None:
+    """Periodically run `go clean -cache` to prevent unbounded GOCACHE growth.
+
+    Each `go run` on a unique circuit adds a cache entry that is never reused.
+    Because cli.py is a short-lived subprocess per circuit, state is persisted
+    in a counter file inside GOCACHE so it survives across invocations.
+    """
+    gocache = os.environ.get("GOCACHE")
+    if not gocache:
+        return
+    counter_path = Path(gocache) / _GO_CACHE_COUNTER_FILE
+    try:
+        count = int(counter_path.read_text()) if counter_path.exists() else 0
+        count += 1
+        counter_path.write_text(str(count))
+        if count % _GO_CACHE_CLEAN_INTERVAL == 0:
+            subprocess.run(["go", "clean", "-cache"], capture_output=True)
+            counter_path.write_text("0")
+    except OSError:
+        pass  # non-fatal: cache grows a bit more until next successful clean
 from src.smt_lib.simplify import simplify_formula
 from src.smt_lib.smt_lib_parser import parse_smtlib2_core
 from src.smt_lib.zk_ir import Circuit
@@ -82,6 +108,7 @@ def solve_gnark_command(gnark_path: Path, with_model: bool, with_logs: bool, sol
 
 	_log(f"Compiling GNARK file: {gnark_path}...", with_logs=with_logs)
 	r1cs_sr1cs_str = get_r1cs_sr1cs(gnark_path)
+	_maybe_clean_go_cache()
 	
 	if solver == "picus":
 		from src.picus.solve_picus import solve_picus
