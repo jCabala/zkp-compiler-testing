@@ -1,0 +1,41 @@
+FROM localhost/smt-exp-circom:latest
+
+USER root
+
+# --- Rust toolchain (needed to rebuild circom with coverage) ---
+RUN apt-get update && \
+    apt-get -y install \
+        build-essential \
+        nlohmann-json3-dev \
+        libgmp3-dev \
+        nasm && \
+    rm -rf /var/lib/apt/lists/*
+
+# Remove stale rustup state from base image to avoid cross-device link errors.
+RUN rm -rf /root/.rustup /root/.cargo
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+    bash -s -- -y --profile minimal --default-toolchain=stable
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# llvm-tools for coverage report generation (llvm-profdata, llvm-cov)
+RUN rustup component add llvm-tools-preview
+
+# --- Clone circom source and rebuild with coverage instrumentation ---
+RUN git clone https://github.com/iden3/circom.git /circuzz/circom
+
+ENV RUSTFLAGS="-C instrument-coverage"
+ENV CARGO_INCREMENTAL=0
+RUN cd /circuzz/circom && \
+    cargo install --path circom --debug
+
+# --debug preserves debug symbols for accurate source-line mapping.
+# Source tree at /circuzz/circom is kept for llvm-cov.
+
+RUN mkdir -p /coverage/profraw
+
+# Every circom invocation writes a unique .profraw file.
+# %p = PID, %m = binary signature hash.
+ENV LLVM_PROFILE_FILE="/coverage/profraw/circom-%p-%m.profraw"
+
+WORKDIR /workspace/evaluation/coverage/smt-solver
+CMD ["bash"]
