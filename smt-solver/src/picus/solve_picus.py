@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Dict, Optional
+import json
 import subprocess
+import tempfile
 
 
 PROPERLY_CONSTRAINED_MSG = "The circuit is properly constrained"
@@ -20,27 +23,51 @@ class PicusResult:
     output: str
 
 
-def solve_picus(input_path: Path) -> PicusResult:
+def _write_precondition_json(hints: Dict[int, int]) -> Path:
+    """Write a Picus precondition JSON file from wire_index -> value hints."""
+    entries = []
+    for wire_idx, value in hints.items():
+        entry = ["hint", ["rassert", ["req", ["rvar", wire_idx], ["rint", value]]]]
+        entries.append(entry)
+
+    tmp = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", prefix="picus-hints-", delete=False
+    )
+    json.dump(entries, tmp)
+    tmp.close()
+    return Path(tmp.name)
+
+
+def solve_picus(input_path: Path, hints: Optional[Dict[int, int]] = None) -> PicusResult:
     picus_script = Path("~/Picus/run-picus").expanduser()
 
     cmd = [str(picus_script)]
     if input_path.suffix == ".circom":
         cmd += ["--opt-level", PICUS_CIRCOM_OPT_LEVEL]
+
+    precondition_path = None
+    if hints:
+        precondition_path = _write_precondition_json(hints)
+        cmd += ["--precondition", str(precondition_path)]
+
     cmd.append(str(input_path))
 
-    cmd_result = subprocess.run(
-        cmd,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        check=False,
-    )
+    try:
+        cmd_result = subprocess.run(
+            cmd,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=False,
+        )
+    finally:
+        if precondition_path and precondition_path.exists():
+            precondition_path.unlink()
 
     # Picus exit codes are semantic:
     #   8 => safe/properly constrained
     #   9 => unsafe/underconstrained
     #   0 => unknown
-    # We require both exit code and expected message for strict classification.
     has_properly_constrained_msg = PROPERLY_CONSTRAINED_MSG in cmd_result.stdout
     has_underconstrained_msg = UNDERCONSTRAINED_MSG in cmd_result.stdout
 

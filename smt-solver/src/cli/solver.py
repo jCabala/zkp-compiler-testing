@@ -28,10 +28,11 @@ def _maybe_clean_go_cache() -> None:
             counter_path.write_text("0")
     except OSError:
         pass  # non-fatal: cache grows a bit more until next successful clean
+
 from src.smt_lib.simplify import simplify_formula
 from src.smt_lib.smt_lib_parser import parse_smtlib2_core
 from src.smt_lib.zk_ir import Circuit
-from src.smt_lib.prune import prune_formula
+from src.smt_lib.prune import prune_formula, run_smt_solver
 from src.r1cs.solve import solve_r1cs
 from src.r1cs.optimize import optimize_r1cs
 from src.backends.circom.ir2circom import IR2CircomVisitorConstrainAssertions
@@ -65,14 +66,21 @@ def solve_circom_command(circom_path: Path, bool_vars: tuple, with_model: bool, 
 	elif o2:
 		opt_level = OptFlag.O2
 	
+	# Resolve hints from context (set by the solve command when --with-hints is used)
+	hint_model = _get_hint_model_from_ctx()
+	wire_hints = {}
+	if hint_model:
+		wire_hints = _resolve_hints_for_circom(circom_path, hint_model, opt_level, with_logs)
+		_log(f"Resolved {len(wire_hints)} hint wire assignments", with_logs)
+
 	if solver == "picus":
 		from src.picus.solve_picus import solve_picus
 		_log("Solving R1CS using Picus...", with_logs)
-		_run_picus(circom_path)
+		_run_picus(circom_path, hints=wire_hints or None)
 		return
 
 	_log(f"Compiling Circom file: {circom_path}...", with_logs)
-	
+
 	# If bool_vars specified, use get_r1cs_with_sym to resolve signal names
 	if bool_vars:
 		bool_signal_names = list(bool_vars)
@@ -85,6 +93,10 @@ def solve_circom_command(circom_path: Path, bool_vars: tuple, with_model: bool, 
 
 	_log("Parsing R1CS JSON...", with_logs)
 	r1cs = parse_r1cs_json(r1cs_json_str, bool_wire_indices=bool_wire_indices)
+
+	# Inject hints into R1CS
+	if wire_hints:
+		r1cs.hints = wire_hints
 
 	_log("Optimizing R1CS...", with_logs)
 	r1cs = optimize_r1cs(r1cs, with_logs=with_logs)
@@ -109,7 +121,14 @@ def solve_gnark_command(gnark_path: Path, with_model: bool, with_logs: bool, sol
 	_log(f"Compiling GNARK file: {gnark_path}...", with_logs=with_logs)
 	r1cs_sr1cs_str = get_r1cs_sr1cs(gnark_path)
 	_maybe_clean_go_cache()
-	
+
+	# Resolve hints from context
+	hint_model = _get_hint_model_from_ctx()
+	wire_hints = {}
+	if hint_model:
+		wire_hints = _resolve_hints_for_gnark(r1cs_sr1cs_str, hint_model)
+		_log(f"Resolved {len(wire_hints)} hint wire assignments", with_logs=with_logs)
+
 	if solver == "picus":
 		from src.picus.solve_picus import solve_picus
 		_log("Solving R1CS using Picus...", with_logs)
@@ -117,7 +136,7 @@ def solve_gnark_command(gnark_path: Path, with_model: bool, with_logs: bool, sol
 		tmp_sr1cs_path = tmp_dir / f"temp-{uuid4()}.sr1cs"
 		try:
 			tmp_sr1cs_path.write_text(r1cs_sr1cs_str)
-			_run_picus(tmp_sr1cs_path)
+			_run_picus(tmp_sr1cs_path, hints=wire_hints or None)
 		finally:
 			if tmp_sr1cs_path.exists():
 				tmp_sr1cs_path.unlink()
@@ -125,10 +144,14 @@ def solve_gnark_command(gnark_path: Path, with_model: bool, with_logs: bool, sol
 
 	_log("Parsing R1CS SR1CS...", with_logs)
 	r1cs = parse_sr1cs(r1cs_sr1cs_str)
-	
+
+	# Inject hints into R1CS
+	if wire_hints:
+		r1cs.hints = wire_hints
+
 	_log("Optimizing R1CS...", with_logs)
 	r1cs = optimize_r1cs(r1cs, with_logs=with_logs)
-	
+
 	_log("Solving R1CS using a SMT solver...", with_logs)
 	solution = solve_r1cs(r1cs, backend=solver, with_logs=with_logs)
 	_log_smt_results(solution, with_model)
@@ -145,8 +168,9 @@ class ZKDSL:
 @click.option("--solver", type=click.Choice(["z3", "cvc5", "picus"]), default="z3", help="Choose the SMT solver backend.")
 @click.option('--prune', type=int, default=None, help="Prune formula to k variables before solving.")
 @click.option('--prune-seed', type=int, default=None, help="Random seed for pruning (for reproducibility).")
+@click.option('--with-hints', is_flag=True, help="Solve the SMT query first and inject model values as hints to speed up the oracle.")
 
-def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int):
+def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, with_hints: bool):
 	"""
 	Solve an SMT-LIB file using a SMT solver.
 	SMT_LIB_PATH: Path to the .smt2 file
@@ -169,6 +193,17 @@ def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solve
 			with_logs,
 		)
 	
+	# Solve SMT query to get model for hints (before any transformation)
+	hint_model = None
+	if with_hints:
+		hint_solver = "z3" if solver == "picus" else solver
+		result, model = run_smt_solver(file_content, solver=hint_solver)
+		if result == "sat" and model:
+			hint_model = model
+			_log(f"Hint model obtained: {len(hint_model)} variables", with_logs=with_logs)
+		else:
+			_log(f"No hints available (result: {result})", with_logs=with_logs)
+
 	file_content = simplify_formula(file_content)
 	dsl_code, bool_vars = _parse_smtlib2(file_content, dsl=zk_dsl, solver=solver)
 
@@ -185,9 +220,12 @@ def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solve
 	dsl_path = tmp_dir / f"temp-{uuid}.{_dsl_extension(zk_dsl)}"
 	dsl_path.write_text(dsl_code)
 
-	# Now use the previously defined command to solve the Circom file
+	# Store hint_model in click context for sub-commands to access
 	try:
 		ctx = click.get_current_context()
+		if hint_model:
+			ctx.ensure_object(dict)
+			ctx.obj["hint_model"] = hint_model
 		if zk_dsl == ZKDSL.CIRCOM:
 			ctx.invoke(solve_circom_command, circom_path=dsl_path, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver, bool_vars=tuple(bool_vars))
 		elif zk_dsl == ZKDSL.GNARK:
@@ -292,10 +330,66 @@ def _dsl_extension(zk_dsl: ZKDSL) -> str:
 	else:
 		raise ValueError(f"Unsupported ZK DSL: {zk_dsl}")
 	
-def _run_picus(input_path: Path) -> None:
+def _get_hint_model_from_ctx() -> dict | None:
+	"""Retrieve hint_model stored in click context by the solve command."""
+	ctx = click.get_current_context(silent=True)
+	if ctx and ctx.obj and isinstance(ctx.obj, dict):
+		return ctx.obj.get("hint_model")
+	return None
+
+def _resolve_hints_for_circom(circom_path: Path, hint_model: dict, opt_flag, with_logs: bool) -> dict[int, int]:
+	"""Map SMT variable names to Circom wire indices using the .sym file."""
+	from src.backends.circom.sym_parser import parse_sym_file
+	import tempfile, subprocess
+
+	circuit_name = circom_path.stem
+	with tempfile.TemporaryDirectory() as temp_dir:
+		temp_dir_path = Path(temp_dir)
+		p = subprocess.run(
+			["circom", str(circom_path), "--sym", opt_flag, "-o", str(temp_dir_path)],
+			text=True, capture_output=True, check=False,
+		)
+		if p.returncode != 0:
+			_log(f"Failed to compile for sym file: {p.stderr}", with_logs)
+			return {}
+
+		sym_path = temp_dir_path / f"{circuit_name}.sym"
+		if not sym_path.exists():
+			return {}
+
+		signal_to_wire = parse_sym_file(sym_path)
+
+	hints = {}
+	for var_name, value in hint_model.items():
+		signal_name = f"main.{var_name}"
+		if signal_name in signal_to_wire:
+			int_val = int(value) if isinstance(value, bool) else value
+			hints[signal_to_wire[signal_name]] = int_val
+	return hints
+
+def _resolve_hints_for_gnark(sr1cs_str: str, hint_model: dict) -> dict[int, int]:
+	"""Map SMT variable names to Gnark wire indices using SR1CS labels."""
+	import re
+	label_re = re.compile(r'^\s*\(label\s+(\d+)\s+(.+?)\s*\)\s*$')
+	name_to_wire = {}
+	for line in sr1cs_str.splitlines():
+		m = label_re.match(line)
+		if m:
+			wire_idx = int(m.group(1))
+			name = m.group(2).strip().strip('"')
+			name_to_wire[name] = wire_idx
+
+	hints = {}
+	for var_name, value in hint_model.items():
+		if var_name in name_to_wire:
+			int_val = int(value) if isinstance(value, bool) else value
+			hints[name_to_wire[var_name]] = int_val
+	return hints
+
+def _run_picus(input_path: Path, hints: dict[int, int] | None = None) -> None:
 	from src.picus.solve_picus import solve_picus
 
-	result = solve_picus(input_path)
+	result = solve_picus(input_path, hints=hints or None)
 
 	if result.result == "properly_constrained":
 		click.echo("sat")

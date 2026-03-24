@@ -84,3 +84,6 @@ class R1CS:
     # Common pattern: when v1 = v2 + v3 where v1, v2 are boolean,
     # then v3 can only be -1, 0, or 1 (represented as p-1, 0, 1 in finite field)
     ternary_wire_indices: Set[int] = field(default_factory=set)
+
+    # Hint values: wire_index -> constant value (from a known satisfying assignment)
+    hints: Dict[int, int] = field(default_factory=dict)

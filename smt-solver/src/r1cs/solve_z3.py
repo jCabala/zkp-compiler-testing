@@ -32,6 +32,15 @@ def solve_r1cs_z3(r1cs, with_logs: bool = False) -> SMTResult:
 
     var_map[0] = 1  # constant-one wire
 
+    # Inject hint values as extra constraints
+    for wire_idx, value in r1cs.hints.items():
+        if wire_idx in var_map:
+            if isinstance(var_map[wire_idx], bool):
+                # Bool variable: convert int to bool
+                solver.add(var_map[wire_idx] == bool(value))
+            else:
+                solver.add(var_map[wire_idx] == value)
+
     for constraint in r1cs.constraints:
         A = sum(t.coeff * var_map[t.variable.index] for t in constraint.A.terms)
         B = sum(t.coeff * var_map[t.variable.index] for t in constraint.B.terms)
