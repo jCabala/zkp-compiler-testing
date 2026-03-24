@@ -60,6 +60,11 @@ def solve_r1cs_cvc5(r1cs, with_logs: bool = False) -> SMTResult:
     # Constant-one wire in the field
     var_map[0] = ff_val(1)
 
+    # Inject hint values as extra constraints
+    for wire_idx, value in r1cs.hints.items():
+        if wire_idx in var_map and wire_idx != 0:
+            solver.add(var_map[wire_idx] == ff_val(value))
+
     def lincomb(lc):
         # Σ (coeff_i * v_i) in F_p
         acc = ff_val(0)
