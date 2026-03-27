@@ -39,12 +39,17 @@ def run_solve(smt_file: Path, solver: str, dsl: str, with_hints: bool) -> dict:
             cwd=str(REPO_ROOT / "smt-solver"),
         )
         elapsed = time.monotonic() - start
+        if result.returncode != 0:
+            print(f"\nERROR: command failed (exit {result.returncode})")
+            print(f"  cmd: {' '.join(cmd)}")
+            print(f"  stderr: {result.stderr.strip()}")
+            sys.exit(1)
         output = result.stdout.strip().split("\n")[-1] if result.stdout.strip() else ""
         return {
             "time": elapsed,
             "result": output,
             "exit_code": result.returncode,
-            "error": result.stderr.strip() if result.returncode != 0 else "",
+            "error": "",
         }
     except subprocess.TimeoutExpired:
         return {
