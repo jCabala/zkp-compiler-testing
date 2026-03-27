@@ -55,7 +55,7 @@ def solve_circom_command(circom_path: Path, bool_vars: tuple, with_model: bool, 
 	Compile a Circom circuit, export its R1CS representation, and use SMT solver to find a solution.
 	CIRCOM_PATH: Path to the .circom file`
 	"""
-	from src.backends.circom.r1cs import get_r1cs_json, get_r1cs_with_sym, parse_r1cs_json, OptFlag
+	from src.backends.circom.r1cs import get_r1cs_json, get_r1cs_with_sym, parse_r1cs_json, compile_to_r1cs, OptFlag
 
 	if sum([o0, o1, o2]) > 1:
 		raise click.UsageError("Please provide at most one optimization flag among -o0, -o1, -o2.")
@@ -73,13 +73,15 @@ def solve_circom_command(circom_path: Path, bool_vars: tuple, with_model: bool, 
 		wire_hints = _resolve_hints_for_circom(circom_path, hint_model, opt_level, with_logs)
 		_log(f"Resolved {len(wire_hints)} hint wire assignments", with_logs)
 
-	if solver == "picus":
-		from src.picus.solve_picus import solve_picus
-		_log("Solving R1CS using Picus...", with_logs)
-		_run_picus(circom_path, hints=wire_hints or None)
-		return
-
 	_log(f"Compiling Circom file: {circom_path}...", with_logs)
+
+	if solver == "picus":
+		import tempfile
+		with tempfile.TemporaryDirectory() as picus_tmp:
+			r1cs_path = compile_to_r1cs(circom_path, Path(picus_tmp), opt_flag=opt_level)
+			_log("Solving R1CS using Picus...", with_logs)
+			_run_picus(r1cs_path, hints=wire_hints or None)
+		return
 
 	# If bool_vars specified, use get_r1cs_with_sym to resolve signal names
 	if bool_vars:

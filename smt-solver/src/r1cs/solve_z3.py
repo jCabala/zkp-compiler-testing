@@ -2,7 +2,7 @@ from src.r1cs.ir import SMTResult
 from typing import Any
 
 def solve_r1cs_z3(r1cs, with_logs: bool = False) -> SMTResult:
-    from z3 import Solver, Int, Bool, Or, sat
+    from z3 import Solver, Int, Bool, Or, sat, is_bool
     solver = Solver()
 
     # Create variables - Bool for boolean wires, Int for others
@@ -34,12 +34,12 @@ def solve_r1cs_z3(r1cs, with_logs: bool = False) -> SMTResult:
 
     # Inject hint values as extra constraints
     for wire_idx, value in r1cs.hints.items():
-        if wire_idx in var_map:
-            if isinstance(var_map[wire_idx], bool):
-                # Bool variable: convert int to bool
-                solver.add(var_map[wire_idx] == bool(value))
-            else:
-                solver.add(var_map[wire_idx] == value)
+        if wire_idx == 0 or wire_idx not in var_map:
+            continue
+        if is_bool(var_map[wire_idx]):
+            solver.add(var_map[wire_idx] == bool(value))
+        else:
+            solver.add(var_map[wire_idx] == value)
 
     for constraint in r1cs.constraints:
         A = sum(t.coeff * var_map[t.variable.index] for t in constraint.A.terms)

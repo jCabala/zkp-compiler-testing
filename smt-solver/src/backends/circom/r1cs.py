@@ -6,6 +6,8 @@ import json
 from src.r1cs.ir import R1CS, Variable, Constraint, LinearCombination, Term
 from src.backends.circom.sym_parser import resolve_bool_wires
 
+_CIRCOMLIB = Path(__file__).resolve().parents[3] / "experiments" / "circomlib"
+
 # --------- Translation ---------
 
 def _run(cmd: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -24,13 +26,24 @@ class OptFlag(str):
     O1 = "--O1"
     O2 = "--O2"
 
+def compile_to_r1cs(circuit_path: Path, out_dir: Path, opt_flag: OptFlag = OptFlag.O0) -> Path:
+    """Compile a .circom file to a .r1cs binary in out_dir and return the path."""
+    p = _run(["circom", str(circuit_path), "--r1cs", opt_flag, "-l", str(_CIRCOMLIB), "-o", str(out_dir)])
+    if p.returncode != 0:
+        raise RuntimeError(f"Circom compilation failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
+    r1cs_path = out_dir / f"{circuit_path.stem}.r1cs"
+    if not r1cs_path.exists():
+        raise RuntimeError(f"Expected R1CS file not found at {r1cs_path}")
+    return r1cs_path
+
+
 def get_r1cs_json(circuit_path: Path, opt_flag: OptFlag = OptFlag.O0) -> str:
     circuit_name = circuit_path.stem
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir_path = Path(temp_dir)
 
         # Compile
-        p = _run(["circom", str(circuit_path), "--r1cs", opt_flag, "-o", str(temp_dir_path)])
+        p = _run(["circom", str(circuit_path), "--r1cs", opt_flag, "-l", str(_CIRCOMLIB), "-o", str(temp_dir_path)])
         if p.returncode != 0:
             raise RuntimeError(f"Circom compilation failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
 
@@ -64,7 +77,7 @@ def get_r1cs_with_sym(circuit_path: Path, opt_flag: OptFlag = OptFlag.O0, bool_s
         temp_dir_path = Path(temp_dir)
 
         # Compile with --sym flag
-        p = _run(["circom", str(circuit_path), "--r1cs", "--sym", opt_flag, "-o", str(temp_dir_path)])
+        p = _run(["circom", str(circuit_path), "--r1cs", "--sym", opt_flag, "-l", str(_CIRCOMLIB), "-o", str(temp_dir_path)])
         if p.returncode != 0:
             raise RuntimeError(f"Circom compilation failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
 
