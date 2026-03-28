@@ -18,7 +18,8 @@ from src.cli.solver_cli.gnark import solve_gnark, smtlib2_to_gnark
 @click.option('--prune', type=int, default=None, help="Prune formula to k variables before solving.")
 @click.option('--prune-seed', type=int, default=None, help="Random seed for pruning (for reproducibility).")
 @click.option('--with-hints', is_flag=True, help="Solve the SMT query first and inject model values as hints to speed up the oracle.")
-def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, with_hints: bool):
+@click.option('--no-simplify', is_flag=True, help="Skip Z3 formula simplification before solving.")
+def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, with_hints: bool, no_simplify: bool):
 	"""
 	Solve an SMT-LIB file using a SMT solver.
 	SMT_LIB_PATH: Path to the .smt2 file
@@ -49,7 +50,8 @@ def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solve
 		else:
 			log(f"No hints available (result: {result})", with_logs=with_logs)
 
-	file_content = simplify_formula(file_content)
+	if not no_simplify:
+		file_content = simplify_formula(file_content)
 	def _parse_smtlib2(smtlib2: str, dsl: str, solver: str = "z3") -> tuple[str, list[str]]:
 		"""Convert SMT-LIB v2 to the target DSL. Returns (code, bool_vars)."""
 		if dsl == ZKDSL.CIRCOM:
