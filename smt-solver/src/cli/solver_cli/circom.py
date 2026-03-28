@@ -1,0 +1,112 @@
+from pathlib import Path
+from random import Random
+from src.smt_lib.smt_lib_parser import parse_smtlib2_core
+from src.smt_lib.zk_ir import Circuit
+from src.backends.circom.ir2circom import IR2CircomVisitorConstrainAssertions
+from src.backends.circom.emitter import EmitVisitor as CircomEmitter
+from src.r1cs.solve import solve_r1cs
+from src.r1cs.optimization.optimize import optimize_r1cs
+from src.cli.solver_cli.common import log, log_smt_results, get_hint_model_from_ctx, run_picus
+
+
+def smtlib2_to_circom(smtlib2: str, solver: str = "z3") -> tuple[str, list[str]]:
+	"""Parse SMT-LIB v2 and convert to Circom code. Returns (code, bool_var_names)."""
+	circuit_ir: Circuit = parse_smtlib2_core(smtlib2, solver=solver)
+
+	from src.smt_lib.zk_ir import VariableType
+	bool_vars = [f"main.{var.name}" for var in circuit_ir.inputs if var.variable_type == VariableType.BOOLEAN]
+
+	rng = Random(0)
+	ir2circom_visitor = IR2CircomVisitorConstrainAssertions(constraint_assignment_probability=1, rng=rng)
+	circom_ir = ir2circom_visitor.visit_circuit(circuit_ir)
+
+	emitter = CircomEmitter()
+	circom_code = emitter.emit(circom_ir)
+
+	return circom_code, bool_vars
+
+
+def resolve_hints_for_circom(circom_path: Path, hint_model: dict, opt_flag, with_logs: bool) -> dict[int, int]:
+	"""Map SMT variable names to Circom wire indices using the .sym file."""
+	from src.backends.circom.sym_parser import parse_sym_file
+	import tempfile, subprocess
+
+	circuit_name = circom_path.stem
+	with tempfile.TemporaryDirectory() as temp_dir:
+		temp_dir_path = Path(temp_dir)
+		p = subprocess.run(
+			["circom", str(circom_path), "--sym", opt_flag, "-o", str(temp_dir_path)],
+			text=True, capture_output=True, check=False,
+		)
+		if p.returncode != 0:
+			log(f"Failed to compile for sym file: {p.stderr}", with_logs)
+			return {}
+
+		sym_path = temp_dir_path / f"{circuit_name}.sym"
+		if not sym_path.exists():
+			return {}
+
+		signal_to_wire = parse_sym_file(sym_path)
+
+	hints = {}
+	for var_name, value in hint_model.items():
+		signal_name = f"main.{var_name}"
+		if signal_name in signal_to_wire:
+			int_val = int(value) if isinstance(value, bool) else value
+			hints[signal_to_wire[signal_name]] = int_val
+	return hints
+
+
+def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_logs: bool, solver: str, o0: bool, o1: bool, o2: bool):
+	"""Compile a Circom circuit, export its R1CS, and solve with an SMT solver."""
+	from src.backends.circom.r1cs import get_r1cs_json, get_r1cs_with_sym, parse_r1cs_json, compile_to_r1cs, OptFlag
+
+	if sum([o0, o1, o2]) > 1:
+		raise ValueError("Please provide at most one optimization flag among -o0, -o1, -o2.")
+
+	opt_level = OptFlag.O0
+	if o1:
+		opt_level = OptFlag.O1
+	elif o2:
+		opt_level = OptFlag.O2
+
+	# Resolve hints from context (set by the solve command when --with-hints is used)
+	hint_model = get_hint_model_from_ctx()
+	wire_hints = {}
+	if hint_model:
+		wire_hints = resolve_hints_for_circom(circom_path, hint_model, opt_level, with_logs)
+		log(f"Resolved {len(wire_hints)} hint wire assignments", with_logs)
+
+	log(f"Compiling Circom file: {circom_path}...", with_logs)
+
+	if solver == "picus":
+		import tempfile
+		with tempfile.TemporaryDirectory() as picus_tmp:
+			r1cs_path = compile_to_r1cs(circom_path, Path(picus_tmp), opt_flag=opt_level)
+			log("Solving R1CS using Picus...", with_logs)
+			run_picus(r1cs_path, hints=wire_hints or None)
+		return
+
+	# If bool_vars specified, use get_r1cs_with_sym to resolve signal names
+	if bool_vars:
+		bool_signal_names = list(bool_vars)
+		log(f"Boolean signals: {', '.join(bool_signal_names)}", with_logs)
+		r1cs_json_str, bool_wire_indices = get_r1cs_with_sym(circom_path, opt_flag=opt_level, bool_signal_names=bool_signal_names)
+		log(f"Resolved to wire indices: {bool_wire_indices}", with_logs)
+	else:
+		r1cs_json_str = get_r1cs_json(circom_path, opt_flag=opt_level)
+		bool_wire_indices = set()
+
+	log("Parsing R1CS JSON...", with_logs)
+	r1cs = parse_r1cs_json(r1cs_json_str, bool_wire_indices=bool_wire_indices)
+
+	# Inject hints into R1CS
+	if wire_hints:
+		r1cs.hints = wire_hints
+
+	log("Optimizing R1CS...", with_logs)
+	r1cs = optimize_r1cs(r1cs, with_logs=with_logs)
+
+	log("Solving R1CS using a SMT solver...", with_logs)
+	solution = solve_r1cs(r1cs, backend=solver, with_logs=with_logs)
+	log_smt_results(solution, with_model)
