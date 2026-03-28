@@ -182,24 +182,21 @@ def solve(smt_lib_path: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solve
 	file_content = smt_lib_path.read_text()
 	
 	# Apply pruning if requested
-	# Pruning needs an actual SMT solver (z3/cvc5) to determine SAT/UNSAT and extract models.
-	# Picus is an external tool, not a pySMT backend, so fall back to z3 for pruning.
+	# Pruning and hints use pysmt in-process — always use z3 to avoid cvc5 Cython conflicts.
 	if prune is not None:
-		prune_solver = "z3" if solver == "picus" else solver
 		file_content = _apply_pruning(
 			file_content,
 			prune,
-			prune_solver,
+			"z3",
 			prune_seed,
 			smt_lib_path,
 			with_logs,
 		)
-	
+
 	# Solve SMT query to get model for hints (before any transformation)
 	hint_model = None
 	if with_hints:
-		hint_solver = "z3" if solver == "picus" else solver
-		result, model = run_smt_solver(file_content, solver=hint_solver)
+		result, model = run_smt_solver(file_content, solver="z3")
 		if result == "sat" and model:
 			hint_model = model
 			_log(f"Hint model obtained: {len(hint_model)} variables", with_logs=with_logs)
