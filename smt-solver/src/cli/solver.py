@@ -34,7 +34,7 @@ from src.smt_lib.smt_lib_parser import parse_smtlib2_core
 from src.smt_lib.zk_ir import Circuit
 from src.smt_lib.prune import prune_formula, run_smt_solver
 from src.r1cs.solve import solve_r1cs
-from src.r1cs.optimize import optimize_r1cs
+from src.r1cs.optimization.optimize import optimize_r1cs
 from src.backends.circom.ir2circom import IR2CircomVisitorConstrainAssertions
 from src.backends.circom.emitter import EmitVisitor as CircomEmitter
 from src.backends.gnark.emitter import EmitVisitor as GnarkEmitter
