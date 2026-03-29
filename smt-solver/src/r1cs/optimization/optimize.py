@@ -9,8 +9,8 @@ Uses polynomial normalization for clean, symmetric pattern detection.
 
 from typing import Set
 from src.r1cs.ir import R1CS
-from src.r1cs.normalize import normalize_constraint
-from src.r1cs.patterns import (
+from src.r1cs.optimization.normalize import normalize_constraint
+from src.r1cs.optimization.patterns import (
     detect_bool_assignment,
     detect_bool_constraint,
     detect_bool_multiplication,

@@ -1,0 +1,5 @@
+(declare-fun scr1_x1 () Bool)
+(declare-fun scr2_x2 () Bool)
+(declare-fun scr1_x1_scr2_x2_fused () Bool)
+(assert (or scr1_x1 scr2_x2))
+(check-sat)

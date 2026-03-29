@@ -30,7 +30,7 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent.parent
 SMT_SOLVER_DIR = REPO_ROOT / "smt-solver"
-PROFILING_CIRCOM = REPO_ROOT / "third_party" / "circom-profiling" / "target" / "release" / "circom"
+PROFILING_CIRCOM = REPO_ROOT / "evaluation" / "simplification" / "third_party" / "circom-profiling" / "target" / "release" / "circom"
 DEFAULT_BENCHMARKS = SMT_SOLVER_DIR / "benchmarks" / "SMT-benchmarks" / "core" / "sat"
 CIRCOMLIB_DIR = SMT_SOLVER_DIR / "experiments" / "circomlib"
 

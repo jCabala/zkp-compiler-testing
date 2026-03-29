@@ -6,7 +6,7 @@ This eliminates symmetry issues in R1CS constraints.
 """
 
 from typing import Set, Tuple
-from src.r1cs.normalize import NormalizedPoly
+from src.r1cs.optimization.normalize import NormalizedPoly
 
 
 def detect_bool_assignment(poly: NormalizedPoly, bool_wires: Set[int]) -> Set[int]:
