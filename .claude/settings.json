@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest tests/ -v --co)",
+      "Bash(python -m pytest tests/smt_lib/test_smt_lib_parser.py -v)",
+      "Bash(python -m pytest tests/smt_lib/ -v)",
+      "Bash(python -m pytest tests/smt_lib/test_simplify.py -v)",
+      "Bash(python -m pytest tests/smt_lib/test_utils.py -v)",
+      "Bash(python -m pytest tests/r1cs/test_solving.py -v)",
+      "Bash(python -m pytest tests/ -v --ignore=tests/cli)"
+    ]
+  }
+}

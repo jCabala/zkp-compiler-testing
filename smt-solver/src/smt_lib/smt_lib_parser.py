@@ -70,11 +70,12 @@ def parse_smtlib2_core(smtlib2: str, solver: str = "z3") -> Circuit:
     Fused variables (XOR) are detected by the '_fused' name suffix.
     """
 
-    if solver == "cvc5":
-        # ------------------------------------------------------------------
-        # THIS IMPORT NEEDS TO STAY TO AVOID PROBLEMS BETWEEN PYSMT AND CVC5
-        import cvc5.pythonic
-        # ------------------------------------------------------------------
+    # The below "hack" should no longer be needed as we run cvc5 in a separate process, but lets keep it here as a reference just in case of future issues between cvc5 and pySMT.
+    # if solver == "cvc5":
+    #     # ------------------------------------------------------------------
+    #     # THIS IMPORT NEEDS TO STAY TO AVOID PROBLEMS BETWEEN PYSMT AND CVC5
+    #     import cvc5.pythonic
+    #     # ------------------------------------------------------------------
 
     from pysmt.smtlib.parser import SmtLibParser
     from pysmt.fnode import FNode
