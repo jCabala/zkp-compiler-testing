@@ -102,7 +102,7 @@ fi
 #   PRUNE="$PRUNE_CIRCOM"
 # fi
 
-CLI_COMMAND="python3 /workspace/smt-solver/cli.py solve --zk-dsl $DSL --solver $SOLVER --tmp-dir $TMP_DIR $WITH_HINTS"
+CLI_COMMAND="python3 /workspace/smt-solver/cli.py solve --config /workspace/smt-solver/experiments/sat_fusion/solve_config.json --zk-dsl $DSL --tmp-dir $TMP_DIR $WITH_HINTS"
 YY_CONFIG="$CONFIG"
 OUT_FILE="./obj/sat_fusion_${RUN_LABEL}.out"
 YY_LOG_DIR="./obj/${RUN_LABEL}/logs"

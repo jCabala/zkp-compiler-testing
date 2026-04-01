@@ -1,0 +1,6 @@
+{
+  "solver": "picus",
+  "zk_dsl": "circom",
+  "with_hints": false,
+  "no_simplify": false
+}

@@ -1,0 +1,5 @@
+{
+  "solver": "z3",
+  "with_hints": false,
+  "no_simplify": false
+}
