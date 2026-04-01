@@ -37,7 +37,7 @@ def compile_to_r1cs(circuit_path: Path, out_dir: Path, opt_flag: OptFlag = OptFl
     return r1cs_path
 
 
-def get_r1cs_json(circuit_path: Path, opt_flag: OptFlag = OptFlag.O0) -> str:
+def get_r1cs_json(circuit_path: Path, opt_flag: OptFlag = OptFlag.O2) -> str:
     circuit_name = circuit_path.stem
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir_path = Path(temp_dir)

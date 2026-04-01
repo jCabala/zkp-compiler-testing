@@ -29,13 +29,14 @@ def smtlib2_to_circom(smtlib2: str, solver: str = "z3") -> tuple[str, list[str]]
 def resolve_hints_for_circom(circom_path: Path, hint_model: dict, opt_flag, with_logs: bool) -> dict[int, int]:
 	"""Map SMT variable names to Circom wire indices using the .sym file."""
 	from src.backends.circom.sym_parser import parse_sym_file
+	from src.backends.circom.r1cs import _CIRCOMLIB
 	import tempfile, subprocess
 
 	circuit_name = circom_path.stem
 	with tempfile.TemporaryDirectory() as temp_dir:
 		temp_dir_path = Path(temp_dir)
 		p = subprocess.run(
-			["circom", str(circom_path), "--sym", opt_flag, "-o", str(temp_dir_path)],
+			["circom", str(circom_path), "--sym", opt_flag, "-l", str(_CIRCOMLIB), "-o", str(temp_dir_path)],
 			text=True, capture_output=True, check=False,
 		)
 		if p.returncode != 0:

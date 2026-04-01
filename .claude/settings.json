@@ -7,7 +7,12 @@
       "Bash(python -m pytest tests/smt_lib/test_simplify.py -v)",
       "Bash(python -m pytest tests/smt_lib/test_utils.py -v)",
       "Bash(python -m pytest tests/r1cs/test_solving.py -v)",
-      "Bash(python -m pytest tests/ -v --ignore=tests/cli)"
+      "Bash(python -m pytest tests/ -v --ignore=tests/cli)",
+      "Bash(find /home/jcabala/fyp/new_repos/zkp_testing -type f \\\\\\(-name *.json -o -name *.csv -o -name *.log -o -name *results* -o -name *benchmark* -o -name *stats* -o -name *output* \\\\\\))",
+      "Bash(find /home/jcabala/fyp/new_repos/zkp_testing/evaluation/simplification -maxdepth 3 -type f \\\\\\(-name *.json -o -name *.csv -o -name *.txt \\\\\\) ! -path */target/* ! -path */.git/*)",
+      "Bash(find /home/jcabala/fyp/new_repos/zkp_testing -type f -name *.py -path */evaluation/* ! -path */target/*)",
+      "Bash(python3 -c \":*)",
+      "Bash(python cli.py smt-to-dsl ../evaluation/simplification/benchmarks-multi-round /tmp/cascade-circom2 --dsl circom --max-out 1)"
     ]
   }
 }

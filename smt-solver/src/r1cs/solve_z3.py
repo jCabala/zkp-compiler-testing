@@ -42,9 +42,19 @@ def solve_r1cs_z3(r1cs, with_logs: bool = False) -> SMTResult:
             solver.add(var_map[wire_idx] == value)
 
     for constraint in r1cs.constraints:
-        A = sum(t.coeff * var_map[t.variable.index] for t in constraint.A.terms)
-        B = sum(t.coeff * var_map[t.variable.index] for t in constraint.B.terms)
-        C = sum(t.coeff * var_map[t.variable.index] for t in constraint.C.terms)
+        # Skip boolean constraints (a * (1-a) = 0) for Bool-typed wires — redundant
+        terms_A = constraint.A.terms
+        terms_B = constraint.B.terms
+        terms_C = constraint.C.terms
+        if (not terms_C and len(terms_A) == 2 and len(terms_B) == 1):
+            b_wire = terms_B[0].variable.index
+            a_wires = {t.variable.index for t in terms_A}
+            if b_wire in r1cs.bool_wire_indices and 0 in a_wires and b_wire in a_wires:
+                continue
+
+        A = sum(t.coeff * var_map[t.variable.index] for t in terms_A)
+        B = sum(t.coeff * var_map[t.variable.index] for t in terms_B)
+        C = sum(t.coeff * var_map[t.variable.index] for t in terms_C)
         solver.add((A * B) % p == (C % p))
 
     if with_logs:
