@@ -19,9 +19,9 @@ from src.cli.solver_cli.gnark import solve_gnark, smtlib2_to_gnark
 @click.option("--solver", type=click.Choice(["z3", "cvc5", "picus"]), default=None, help="Choose the SMT solver backend.")
 @click.option('--prune', type=int, default=None, help="Prune formula to k variables before solving.")
 @click.option('--prune-seed', type=int, default=None, help="Random seed for pruning (for reproducibility).")
-@click.option('--with-hints', is_flag=True, default=None, help="Solve the SMT query first and inject model values as hints to speed up the oracle.")
+@click.option('--without-hints', is_flag=True, default=None, help="Disable injection of hint model values (hints are enabled by default).")
 @click.option('--no-simplify', is_flag=True, default=None, help="Skip Z3 formula simplification before solving.")
-def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, with_hints: bool, no_simplify: bool):
+def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, without_hints: bool, no_simplify: bool):
 	"""
 	Solve an SMT-LIB file using a SMT solver.
 	SMT_LIB_PATH: Path to the .smt2 file
@@ -40,9 +40,10 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 	zk_dsl     = _opt(zk_dsl,     "zk_dsl",      ZKDSL.CIRCOM)
 	solver     = _opt(solver,     "solver",      "z3")
 	prune      = _opt(prune,      "prune",       None)
-	prune_seed = _opt(prune_seed, "prune_seed",  None)
-	with_hints = _opt(with_hints, "with_hints",  False)
-	no_simplify= _opt(no_simplify,"no_simplify", False)
+	prune_seed    = _opt(prune_seed,    "prune_seed",    None)
+	without_hints = _opt(without_hints, "without_hints", False)
+	no_simplify   = _opt(no_simplify,   "no_simplify",   False)
+	with_hints = not without_hints
 
 	if isinstance(tmp_dir, str):
 		tmp_dir = Path(tmp_dir)

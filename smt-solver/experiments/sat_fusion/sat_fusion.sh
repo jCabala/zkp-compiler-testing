@@ -14,7 +14,7 @@ SOLVER="z3" # z3 or cvc5 or picus
 # PRUNE_SEED="5675" 
 CONFIG="./sat_fusion_config.txt"
 YY_SEED="7586"
-WITH_HINTS="" # e.g. --with-hints
+WITHOUT_HINTS="" # e.g. --without-hints (hints are on by default)
 CONTAINER_MEMORY="${CONTAINER_MEMORY:-64g}"
 CONTAINER_MEMORY_SWAP="${CONTAINER_MEMORY_SWAP:--1}"
 
@@ -102,7 +102,7 @@ fi
 #   PRUNE="$PRUNE_CIRCOM"
 # fi
 
-CLI_COMMAND="python3 /workspace/smt-solver/cli.py solve --config /workspace/smt-solver/experiments/sat_fusion/solve_config.json --zk-dsl $DSL --tmp-dir $TMP_DIR $WITH_HINTS"
+CLI_COMMAND="python3 /workspace/smt-solver/cli.py solve --config /workspace/smt-solver/experiments/sat_fusion/solve_config.json --zk-dsl $DSL --tmp-dir $TMP_DIR $WITHOUT_HINTS"
 YY_CONFIG="$CONFIG"
 OUT_FILE="./obj/sat_fusion_${RUN_LABEL}.out"
 YY_LOG_DIR="./obj/${RUN_LABEL}/logs"
