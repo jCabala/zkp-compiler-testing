@@ -14,6 +14,8 @@ def log(message: str, with_logs: bool):
 
 
 def solution_to_str(solution) -> str:
+	if solution.unknown:
+		return "unknown"
 	return "sat" if solution.satisfiable else "unsat"
 
 
@@ -73,10 +75,10 @@ def apply_pruning(
 
 
 
-def run_picus(input_path: Path, hints: dict[int, int] | None = None) -> str:
+def run_picus(input_path: Path, hints: dict[int, int] | None = None, solving_timeout: int | None = None) -> str:
 	from src.picus.solve_picus import solve_picus
 
-	result = solve_picus(input_path, hints=hints or None)
+	result = solve_picus(input_path, hints=hints or None, solving_timeout=solving_timeout)
 
 	if result.result == "properly_constrained":
 		return "sat"

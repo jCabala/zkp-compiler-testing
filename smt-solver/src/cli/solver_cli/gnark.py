@@ -65,7 +65,7 @@ def resolve_hints_for_gnark(sr1cs_str: str, hint_model: dict) -> dict[int, int]:
 	return hints
 
 
-def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str, tmp_dir: Path, hint_model: dict | None = None) -> str:
+def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str, tmp_dir: Path, hint_model: dict | None = None, solving_timeout: int | None = None) -> str:
 	"""Compile a GNARK (Go) circuit, export its R1CS, and solve with an SMT solver. Returns 'sat' or 'unsat'."""
 	from src.backends.gnark.r1cs import get_r1cs_sr1cs, parse_sr1cs
 
@@ -84,7 +84,7 @@ def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str
 		tmp_sr1cs_path = tmp_dir / f"temp-{uuid4()}.sr1cs"
 		try:
 			tmp_sr1cs_path.write_text(r1cs_sr1cs_str)
-			return run_picus(tmp_sr1cs_path, hints=wire_hints or None)
+			return run_picus(tmp_sr1cs_path, hints=wire_hints or None, solving_timeout=solving_timeout)
 		finally:
 			if tmp_sr1cs_path.exists():
 				tmp_sr1cs_path.unlink()
@@ -99,5 +99,5 @@ def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str
 	r1cs = optimize_r1cs(r1cs, with_logs=with_logs)
 
 	log("Solving R1CS using a SMT solver...", with_logs)
-	solution = solve_r1cs(r1cs, backend=solver, with_logs=with_logs)
+	solution = solve_r1cs(r1cs, backend=solver, with_logs=with_logs, solving_timeout=solving_timeout)
 	return solution_to_str(solution)

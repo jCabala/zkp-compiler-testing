@@ -13,6 +13,7 @@ import json
 class SMTResult:
     satisfiable: bool
     model: Dict[str, int]
+    unknown: bool = False
 
 # --------- IR ---------
 

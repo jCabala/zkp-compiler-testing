@@ -58,7 +58,7 @@ def resolve_hints_for_circom(circom_path: Path, hint_model: dict, opt_flag, with
 	return hints
 
 
-def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_logs: bool, solver: str, o0: bool, o1: bool, o2: bool, hint_model: dict | None = None) -> str:
+def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_logs: bool, solver: str, o0: bool, o1: bool, o2: bool, hint_model: dict | None = None, solving_timeout: int | None = None) -> str:
 	"""Compile a Circom circuit, export its R1CS, and solve with an SMT solver. Returns 'sat' or 'unsat'."""
 	from src.backends.circom.r1cs import get_r1cs_json, get_r1cs_with_sym, parse_r1cs_json, compile_to_r1cs, OptFlag
 
@@ -83,7 +83,7 @@ def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_log
 		with tempfile.TemporaryDirectory() as picus_tmp:
 			r1cs_path = compile_to_r1cs(circom_path, Path(picus_tmp), opt_flag=opt_level)
 			log("Solving R1CS using Picus...", with_logs)
-			return run_picus(r1cs_path, hints=wire_hints or None)
+			return run_picus(r1cs_path, hints=wire_hints or None, solving_timeout=solving_timeout)
 
 	# If bool_vars specified, use get_r1cs_with_sym to resolve signal names
 	if bool_vars:
@@ -105,5 +105,5 @@ def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_log
 	r1cs = optimize_r1cs(r1cs, with_logs=with_logs)
 
 	log("Solving R1CS using a SMT solver...", with_logs)
-	solution = solve_r1cs(r1cs, backend=solver, with_logs=with_logs)
+	solution = solve_r1cs(r1cs, backend=solver, with_logs=with_logs, solving_timeout=solving_timeout)
 	return solution_to_str(solution)

@@ -22,7 +22,8 @@ from src.cli.solver_cli.gnark import solve_gnark, smtlib2_to_gnark
 @click.option('--without-hints', is_flag=True, default=None, help="Disable injection of hint model values (hints are enabled by default).")
 @click.option('--hint-models', type=int, default=None, help="Number of distinct hint models to try (default 1). Returns sat only if all models return sat.")
 @click.option('--no-simplify', is_flag=True, default=None, help="Skip Z3 formula simplification before solving.")
-def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, without_hints: bool, hint_models: int, no_simplify: bool):
+@click.option('--solving-timeout', type=int, default=None, help="Timeout in seconds for the SMT solving step. Returns 'unknown' if exceeded.")
+def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, without_hints: bool, hint_models: int, no_simplify: bool, solving_timeout: int):
 	"""
 	Solve an SMT-LIB file using a SMT solver.
 	SMT_LIB_PATH: Path to the .smt2 file
@@ -44,7 +45,8 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 	prune_seed    = _opt(prune_seed,    "prune_seed",    None)
 	without_hints = _opt(without_hints, "without_hints", False)
 	hint_models   = _opt(hint_models,   "hint_models",   5)
-	no_simplify   = _opt(no_simplify,   "no_simplify",   False)
+	no_simplify      = _opt(no_simplify,      "no_simplify",      False)
+	solving_timeout  = _opt(solving_timeout,  "solving_timeout",  None)
 	with_hints = not without_hints
 
 	if isinstance(tmp_dir, str):
@@ -103,9 +105,9 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 
 	def _run_oracle(hint_model: dict | None) -> str:
 		if zk_dsl == ZKDSL.CIRCOM:
-			return solve_circom(circom_path=dsl_path, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver, bool_vars=tuple(bool_vars), hint_model=hint_model)
+			return solve_circom(circom_path=dsl_path, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver, bool_vars=tuple(bool_vars), hint_model=hint_model, solving_timeout=solving_timeout)
 		elif zk_dsl == ZKDSL.GNARK:
-			return solve_gnark(gnark_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model)
+			return solve_gnark(gnark_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout)
 		else:
 			raise ValueError(f"Unsupported ZK DSL: {zk_dsl}")
 
@@ -117,8 +119,13 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 			log(f"Oracle run {i + 1}/{len(runs)}", with_logs=with_logs)
 			results.append(_run_oracle(hint_model))
 
-		# sat only if every run returned sat
-		final = "sat" if all(r == "sat" for r in results) else "unsat"
+		# sat only if every run returned sat; unknown if any timed out
+		if any(r == "unknown" for r in results):
+			final = "unknown"
+		elif all(r == "sat" for r in results):
+			final = "sat"
+		else:
+			final = "unsat"
 		click.echo(final)
 	finally:
 		if dsl_path.exists():

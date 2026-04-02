@@ -38,7 +38,7 @@ def _write_precondition_json(hints: Dict[int, int]) -> Path:
     return Path(tmp.name)
 
 
-def solve_picus(input_path: Path, hints: Optional[Dict[int, int]] = None) -> PicusResult:
+def solve_picus(input_path: Path, hints: Optional[Dict[int, int]] = None, solving_timeout: Optional[int] = None) -> PicusResult:
     picus_script = Path("~/Picus/run-picus").expanduser()
 
     cmd = [str(picus_script)]
@@ -59,7 +59,10 @@ def solve_picus(input_path: Path, hints: Optional[Dict[int, int]] = None) -> Pic
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             check=False,
+            timeout=solving_timeout,
         )
+    except subprocess.TimeoutExpired:
+        return PicusResult(result=PicusResultType.UNKNOWN, exit_code=-1, output="")
     finally:
         if precondition_path and precondition_path.exists():
             precondition_path.unlink()

@@ -21,20 +21,20 @@ from src.smt_lib.prune import run_smt_solver_models
 # xor forces both variables to be fully assigned in every model
 FORMULA_2_MODELS = """\
 (set-logic QF_BV)
-(declare-fun x () Bool)
-(declare-fun y () Bool)
-(assert (xor x y))
+(declare-fun ph_x () Bool)
+(declare-fun ph_y () Bool)
+(assert (xor ph_x ph_y))
 (check-sat)
 (get-model)
 """
 
-# Formula with exactly 1 satisfying assignment: x=T, y=F
+# Formula with exactly 1 satisfying assignment: ph_x=T, ph_y=F
 FORMULA_1_MODEL = """\
 (set-logic QF_BV)
-(declare-fun x () Bool)
-(declare-fun y () Bool)
-(assert x)
-(assert (not y))
+(declare-fun ph_x () Bool)
+(declare-fun ph_y () Bool)
+(assert ph_x)
+(assert (not ph_y))
 (check-sat)
 (get-model)
 """
@@ -65,8 +65,8 @@ class TestRunSMTSolverModels:
     def test_single_model_formula(self):
         _, models = run_smt_solver_models(FORMULA_1_MODEL, max_models=5)
         assert len(models) == 1
-        assert models[0]["x"] is True
-        assert models[0]["y"] is False
+        assert models[0]["ph_x"] is True
+        assert models[0]["ph_y"] is False
 
     def test_result_is_sat_when_models_found(self):
         result, models = run_smt_solver_models(FORMULA_2_MODELS, max_models=1)
