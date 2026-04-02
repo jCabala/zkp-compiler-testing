@@ -9,7 +9,7 @@ from src.backends.gnark.ir2gnark import IR2GnarkVisitor
 from src.backends.gnark.emitter import EmitVisitor as GnarkEmitter
 from src.r1cs.solve import solve_r1cs
 from src.r1cs.optimization.optimize import optimize_r1cs
-from src.cli.solver_cli.common import log, log_smt_results, get_hint_model_from_ctx, run_picus
+from src.cli.solver_cli.common import log, solution_to_str, run_picus
 
 _GO_CACHE_CLEAN_INTERVAL = 1000
 _GO_CACHE_COUNTER_FILE = ".go_run_count"
@@ -65,16 +65,14 @@ def resolve_hints_for_gnark(sr1cs_str: str, hint_model: dict) -> dict[int, int]:
 	return hints
 
 
-def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str, tmp_dir: Path):
-	"""Compile a GNARK (Go) circuit, export its R1CS, and solve with an SMT solver."""
+def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str, tmp_dir: Path, hint_model: dict | None = None) -> str:
+	"""Compile a GNARK (Go) circuit, export its R1CS, and solve with an SMT solver. Returns 'sat' or 'unsat'."""
 	from src.backends.gnark.r1cs import get_r1cs_sr1cs, parse_sr1cs
 
 	log(f"Compiling GNARK file: {gnark_path}...", with_logs=with_logs)
 	r1cs_sr1cs_str = get_r1cs_sr1cs(gnark_path)
 	maybe_clean_go_cache()
 
-	# Resolve hints from context
-	hint_model = get_hint_model_from_ctx()
 	wire_hints = {}
 	if hint_model:
 		wire_hints = resolve_hints_for_gnark(r1cs_sr1cs_str, hint_model)
@@ -86,16 +84,14 @@ def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str
 		tmp_sr1cs_path = tmp_dir / f"temp-{uuid4()}.sr1cs"
 		try:
 			tmp_sr1cs_path.write_text(r1cs_sr1cs_str)
-			run_picus(tmp_sr1cs_path, hints=wire_hints or None)
+			return run_picus(tmp_sr1cs_path, hints=wire_hints or None)
 		finally:
 			if tmp_sr1cs_path.exists():
 				tmp_sr1cs_path.unlink()
-		return
 
 	log("Parsing R1CS SR1CS...", with_logs)
 	r1cs = parse_sr1cs(r1cs_sr1cs_str)
 
-	# Inject hints into R1CS
 	if wire_hints:
 		r1cs.hints = wire_hints
 
@@ -104,4 +100,4 @@ def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str
 
 	log("Solving R1CS using a SMT solver...", with_logs)
 	solution = solve_r1cs(r1cs, backend=solver, with_logs=with_logs)
-	log_smt_results(solution, with_model)
+	return solution_to_str(solution)

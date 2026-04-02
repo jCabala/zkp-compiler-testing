@@ -13,12 +13,12 @@ def log(message: str, with_logs: bool):
 		click.echo(message)
 
 
-def log_smt_results(solution, with_model: bool):
-	if solution.satisfiable:
-		click.echo("sat")
-	else:
-		click.echo("unsat")
+def solution_to_str(solution) -> str:
+	return "sat" if solution.satisfiable else "unsat"
 
+
+def log_smt_results(solution, with_model: bool):
+	click.echo(solution_to_str(solution))
 	if solution.satisfiable and with_model:
 		click.echo("Model:")
 		for var, value in solution.model.items():
@@ -73,15 +73,15 @@ def apply_pruning(
 
 
 
-def run_picus(input_path: Path, hints: dict[int, int] | None = None) -> None:
+def run_picus(input_path: Path, hints: dict[int, int] | None = None) -> str:
 	from src.picus.solve_picus import solve_picus
 
 	result = solve_picus(input_path, hints=hints or None)
 
 	if result.result == "properly_constrained":
-		click.echo("sat")
+		return "sat"
 	elif result.result == "underconstrained":
-		click.echo("unsat")
+		return "unsat"
 	elif result.result == "unknown":
 		raise click.ClickException("Picus returned unknown result")
 	else:
