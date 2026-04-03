@@ -6,8 +6,8 @@ source "$SCRIPT_DIR/../common.sh"
 
 ORACLE="sat" # sat or unsat
 BENCHMARKS="$SCRIPT_DIR/../../benchmarks/SMT-benchmarks/core/unique_sat_1to5vars/"
-TIMEOUT="30"       # seconds (circom)
-TIMEOUT_GNARK="120" # seconds — go run compilation alone needs ~15-25s
+TIMEOUT="60"       # seconds (yinyang per-call timeout, circom)
+TIMEOUT_GNARK="60" # seconds (yinyang per-call timeout, gnark)
 
 FUSION_REWRITE_POLICY="all"
 FUSION_SIDE_POLICY="one"
@@ -80,7 +80,7 @@ fi
 
 DSL="${2:-gnark}"          # gnark|circom
 RUN_LABEL="${3:-$DSL}"     # used for output/log folder names
-TMP_DIR="${TMP_DIR:-/workspace/smt-solver/experiments/tmp_fusion}"
+TMP_DIR="${TMP_DIR:-/workspace/smt-solver/experiments/tmp_fusion}/$DSL"
 
 CLI_COMMAND="python3 /workspace/smt-solver/cli.py solve --config /workspace/smt-solver/experiments/picus_fusion/solve_config.json --zk-dsl $DSL --tmp-dir $TMP_DIR $WITHOUT_HINTS"
 YY_CONFIG="$CONFIG"

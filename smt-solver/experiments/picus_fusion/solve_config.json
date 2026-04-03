@@ -1,6 +1,7 @@
 {
   "solver": "picus",
   "zk_dsl": "circom",
-  "without_hints": true,
-  "no_simplify": false
+  "without_hints": false,
+  "no_simplify": true,
+  "solving_timeout": 30
 }

@@ -2,7 +2,9 @@ import os
 import re
 import subprocess
 from pathlib import Path
+from random import random
 from uuid import uuid4
+from src.cli.solver_cli.adaptive_hints import HINT_PROBABILITY
 from src.smt_lib.smt_lib_parser import parse_smtlib2_core
 from src.smt_lib.zk_ir import Circuit
 from src.backends.gnark.ir2gnark import IR2GnarkVisitor
@@ -65,7 +67,7 @@ def resolve_hints_for_gnark(sr1cs_str: str, hint_model: dict) -> dict[int, int]:
 	return hints
 
 
-def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str, tmp_dir: Path, hint_model: dict | None = None, solving_timeout: int | None = None) -> str:
+def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str, tmp_dir: Path, hint_model: dict | None = None, solving_timeout: int | None = None, hint_probability: float = HINT_PROBABILITY) -> str:
 	"""Compile a GNARK (Go) circuit, export its R1CS, and solve with an SMT solver. Returns 'sat' or 'unsat'."""
 	from src.backends.gnark.r1cs import get_r1cs_sr1cs, parse_sr1cs
 
@@ -76,7 +78,8 @@ def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str
 	wire_hints = {}
 	if hint_model:
 		wire_hints = resolve_hints_for_gnark(r1cs_sr1cs_str, hint_model)
-		log(f"Resolved {len(wire_hints)} hint wire assignments", with_logs=with_logs)
+		wire_hints = {k: v for k, v in wire_hints.items() if random() < hint_probability}
+		log(f"Resolved {len(wire_hints)} hint wire assignments (after probabilistic filtering)", with_logs=with_logs)
 
 	if solver == "picus":
 		log("Solving R1CS using Picus...", with_logs)

@@ -1,5 +1,6 @@
 from pathlib import Path
-from random import Random
+from random import Random, random
+from src.cli.solver_cli.adaptive_hints import HINT_PROBABILITY
 from src.smt_lib.smt_lib_parser import parse_smtlib2_core
 from src.smt_lib.zk_ir import Circuit
 from src.backends.circom.ir2circom import IR2CircomVisitorConstrainAssertions
@@ -58,7 +59,7 @@ def resolve_hints_for_circom(circom_path: Path, hint_model: dict, opt_flag, with
 	return hints
 
 
-def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_logs: bool, solver: str, o0: bool, o1: bool, o2: bool, hint_model: dict | None = None, solving_timeout: int | None = None) -> str:
+def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_logs: bool, solver: str, o0: bool, o1: bool, o2: bool, hint_model: dict | None = None, solving_timeout: int | None = None, hint_probability: float = HINT_PROBABILITY) -> str:
 	"""Compile a Circom circuit, export its R1CS, and solve with an SMT solver. Returns 'sat' or 'unsat'."""
 	from src.backends.circom.r1cs import get_r1cs_json, get_r1cs_with_sym, parse_r1cs_json, compile_to_r1cs, OptFlag
 
@@ -74,7 +75,8 @@ def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_log
 	wire_hints = {}
 	if hint_model:
 		wire_hints = resolve_hints_for_circom(circom_path, hint_model, opt_level, with_logs)
-		log(f"Resolved {len(wire_hints)} hint wire assignments", with_logs)
+		wire_hints = {k: v for k, v in wire_hints.items() if random() < hint_probability}
+		log(f"Resolved {len(wire_hints)} hint wire assignments (after probabilistic filtering)", with_logs)
 
 	log(f"Compiling Circom file: {circom_path}...", with_logs)
 

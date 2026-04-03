@@ -100,7 +100,6 @@ class TestProgressiveHintsAggregation:
                 "solve", str(SAT_FILE),
                 "--zk-dsl", "circom",
                 "--solver", "z3",
-                f"--hint-models", str(len(oracle_results)),
             ])
 
         assert result.exit_code == 0, f"Command failed:\n{result.output}"
@@ -130,7 +129,6 @@ class TestProgressiveHintsAggregation:
                 "solve", str(SAT_FILE),
                 "--zk-dsl", "circom",
                 "--solver", "z3",
-                "--hint-models", "5",
             ])
         assert result.exit_code == 0
         assert result.output.strip().splitlines()[-1] == "sat"

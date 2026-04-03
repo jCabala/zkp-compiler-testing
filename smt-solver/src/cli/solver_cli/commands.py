@@ -1,14 +1,17 @@
 from pathlib import Path
 from uuid import uuid4
+from time import monotonic
 import json
 import click
+
 from src.smt_lib.simplify import simplify_formula
-from src.smt_lib.prune import run_smt_solver, run_smt_solver_models
+from src.smt_lib.prune import run_smt_solver_models
 from src.cli.solver_cli.common import (
 	ZKDSL, log, dsl_extension, apply_pruning,
 )
 from src.cli.solver_cli.circom import solve_circom, smtlib2_to_circom
 from src.cli.solver_cli.gnark import solve_gnark, smtlib2_to_gnark
+from src.cli.solver_cli.adaptive_hints import load_state, save_state, record_run, HINT_MODELS
 
 @click.command()
 @click.argument('smt_lib_path', type=click.Path(exists=True, path_type=Path))
@@ -20,10 +23,9 @@ from src.cli.solver_cli.gnark import solve_gnark, smtlib2_to_gnark
 @click.option('--prune', type=int, default=None, help="Prune formula to k variables before solving.")
 @click.option('--prune-seed', type=int, default=None, help="Random seed for pruning (for reproducibility).")
 @click.option('--without-hints', is_flag=True, default=None, help="Disable injection of hint model values (hints are enabled by default).")
-@click.option('--hint-models', type=int, default=None, help="Number of distinct hint models to try (default 1). Returns sat only if all models return sat.")
 @click.option('--no-simplify', is_flag=True, default=None, help="Skip Z3 formula simplification before solving.")
 @click.option('--solving-timeout', type=int, default=None, help="Timeout in seconds for the SMT solving step. Returns 'unknown' if exceeded.")
-def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, without_hints: bool, hint_models: int, no_simplify: bool, solving_timeout: int):
+def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, without_hints: bool, no_simplify: bool, solving_timeout: int):
 	"""
 	Solve an SMT-LIB file using a SMT solver.
 	SMT_LIB_PATH: Path to the .smt2 file
@@ -44,7 +46,6 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 	prune      = _opt(prune,      "prune",       None)
 	prune_seed    = _opt(prune_seed,    "prune_seed",    None)
 	without_hints = _opt(without_hints, "without_hints", False)
-	hint_models   = _opt(hint_models,   "hint_models",   5)
 	no_simplify      = _opt(no_simplify,      "no_simplify",      False)
 	solving_timeout  = _opt(solving_timeout,  "solving_timeout",  None)
 	with_hints = not without_hints
@@ -68,10 +69,14 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 			with_logs,
 		)
 
+	# Load adaptive hints state and use current parameters
+	adaptive_state = load_state(tmp_dir)
+	log(f"Adaptive hints: models={adaptive_state.hint_models}, probability={adaptive_state.hint_probability}", with_logs=with_logs)
+
 	# Collect hint models (before any transformation)
 	hint_model_list: list[dict] = []
 	if with_hints:
-		_, models = run_smt_solver_models(file_content, solver="z3", max_models=hint_models)
+		_, models = run_smt_solver_models(file_content, solver="z3", max_models=adaptive_state.hint_models)
 		hint_model_list = models
 		log(f"Obtained {len(hint_model_list)} hint model(s)", with_logs=with_logs)
 		if not hint_model_list:
@@ -105,9 +110,9 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 
 	def _run_oracle(hint_model: dict | None) -> str:
 		if zk_dsl == ZKDSL.CIRCOM:
-			return solve_circom(circom_path=dsl_path, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver, bool_vars=tuple(bool_vars), hint_model=hint_model, solving_timeout=solving_timeout)
+			return solve_circom(circom_path=dsl_path, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver, bool_vars=tuple(bool_vars), hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability)
 		elif zk_dsl == ZKDSL.GNARK:
-			return solve_gnark(gnark_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout)
+			return solve_gnark(gnark_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability)
 		else:
 			raise ValueError(f"Unsupported ZK DSL: {zk_dsl}")
 
@@ -117,7 +122,12 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 		results = []
 		for i, hint_model in enumerate(runs):
 			log(f"Oracle run {i + 1}/{len(runs)}", with_logs=with_logs)
+			t0 = monotonic()
 			results.append(_run_oracle(hint_model))
+			elapsed = monotonic() - t0
+			adaptive_state = record_run(adaptive_state, elapsed, solving_timeout)
+
+		save_state(tmp_dir, adaptive_state)
 
 		# sat only if every run returned sat; unknown if any timed out
 		if any(r == "unknown" for r in results):
