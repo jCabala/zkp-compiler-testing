@@ -11,11 +11,12 @@ def solve_r1cs(
     r1cs: R1CS,
     backend: BackendName = "cvc5",
     with_logs: bool = True,
+    solving_timeout: int | None = None,
 ) -> SMTResult:
     if with_logs:
         print(f"Solving R1CS using {backend}...")
     if backend == "z3":
-        return solve_r1cs_z3(r1cs, with_logs=with_logs)
+        return solve_r1cs_z3(r1cs, with_logs=with_logs, solving_timeout=solving_timeout)
     if backend == "cvc5":
-        return solve_cvc5_subprocess(r1cs, with_logs=with_logs)
+        return solve_cvc5_subprocess(r1cs, with_logs=with_logs, solving_timeout=solving_timeout)
     raise ValueError(f"Unknown backend: {backend!r}")

@@ -1,0 +1,6 @@
+{
+  "solver": "z3",
+  "without_hints": false,
+  "no_simplify": true,
+  "solving_timeout": 30
+}

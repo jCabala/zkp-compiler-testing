@@ -14,20 +14,28 @@ import cvc5.pythonic  # must be first — before pysmt or any Cython extension
 import pickle, sys
 sys.path.insert(0, sys.argv[1])  # repo smt-solver dir
 from src.r1cs.solve_cvc5 import solve_r1cs_cvc5
+solving_timeout = int(sys.argv[2]) if len(sys.argv) > 2 else None
 r1cs = pickle.loads(sys.stdin.buffer.read())
-result = solve_r1cs_cvc5(r1cs)
+result = solve_r1cs_cvc5(r1cs, solving_timeout=solving_timeout)
 sys.stdout.buffer.write(pickle.dumps(result))
 """
 
-def solve_cvc5_subprocess(r1cs: R1CS, with_logs: bool) -> SMTResult:
+def solve_cvc5_subprocess(r1cs: R1CS, with_logs: bool, solving_timeout: int | None = None) -> SMTResult:
     """Run cvc5 in a fresh subprocess to avoid Cython/pysmt state conflicts."""
     smt_solver_dir = str(Path(__file__).resolve().parents[2])
+    cmd = [sys.executable, "-c", _CVC5_WORKER, smt_solver_dir]
+    if solving_timeout is not None:
+        cmd.append(str(solving_timeout))
     print()
-    proc = subprocess.run(
-        [sys.executable, "-c", _CVC5_WORKER, smt_solver_dir],
-        input=pickle.dumps(r1cs),
-        capture_output=True,
-    )
+    try:
+        proc = subprocess.run(
+            cmd,
+            input=pickle.dumps(r1cs),
+            capture_output=True,
+            timeout=solving_timeout + 10 if solving_timeout is not None else None,
+        )
+    except subprocess.TimeoutExpired:
+        return SMTResult(False, {}, unknown=True)
     if proc.returncode != 0:
         stderr = proc.stderr.decode("utf-8", errors="replace")
         raise RuntimeError(f"cvc5 subprocess failed:\n{stderr}")
@@ -55,7 +63,7 @@ def _safe_int(x: Any) -> int:
         raise TypeError(f"Cannot convert model value to int: {x!r} (type={type(x)})")
 
 
-def solve_r1cs_cvc5(r1cs, with_logs: bool = False) -> SMTResult:
+def solve_r1cs_cvc5(r1cs, with_logs: bool = False, solving_timeout: int | None = None) -> SMTResult:
     # impirts inside to avaoid cvc vc z3 conflicts
     import cvc5.pythonic as cv
 
@@ -65,6 +73,8 @@ def solve_r1cs_cvc5(r1cs, with_logs: bool = False) -> SMTResult:
     # Prefer a field logic. If your build complains about the logic name,
     # you can fall back to `Solver()` without specifying one.
     solver = cv.SolverFor("QF_FF")
+    if solving_timeout is not None:
+        solver.set("tlimit", solving_timeout * 1000)  # cvc5 uses milliseconds
     # Helper: finite-field constant (reduces mod p automatically)
     def ff_val(n: int):
         return cv.FiniteFieldVal(int(n) % p, F)
@@ -118,6 +128,8 @@ def solve_r1cs_cvc5(r1cs, with_logs: bool = False) -> SMTResult:
         print(solver.assertions())
 
     res = solver.check()
+    if res == cv.unknown:
+        return SMTResult(False, {}, unknown=True)
     if res == cv.sat:
         m = solver.model()
         if with_logs:

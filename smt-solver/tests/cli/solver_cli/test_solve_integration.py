@@ -31,8 +31,8 @@ def _assert_solve(smt_path, dsl, solver, with_hints, expected):
         "--zk-dsl", dsl,
         "--solver", solver,
     ]
-    if with_hints:
-        args.append("--with-hints")
+    if not with_hints:
+        args.append("--without-hints")
     result = CliRunner().invoke(cli, args)
     assert result.exit_code == 0, f"Command failed:\n{result.output}"
     last_line = result.output.strip().splitlines()[-1]
@@ -76,7 +76,9 @@ def test_picus_sat_formulas(smt_file, dsl, with_hints):
 def test_picus_unsat_formulas(smt_file, dsl):
     """Underconstrained formulas should produce 'unsat' output with picus.
 
-    No with_hints variant: hints pin free variables, making picus
-    sometimes see the circuit as properly constrained.
+    Always run without hints: hints pin free variables, which can make picus
+    see an underconstrained circuit as properly constrained, producing a false
+    'sat' result.
     """
+    # with_hints=False is intentional and must not be changed — see docstring
     _assert_solve(smt_file, dsl, "picus", False, "unsat")

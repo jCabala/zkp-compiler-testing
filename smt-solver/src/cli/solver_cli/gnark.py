@@ -2,14 +2,16 @@ import os
 import re
 import subprocess
 from pathlib import Path
+from random import random
 from uuid import uuid4
+from src.cli.solver_cli.adaptive_hints import HINT_PROBABILITY
 from src.smt_lib.smt_lib_parser import parse_smtlib2_core
 from src.smt_lib.zk_ir import Circuit
 from src.backends.gnark.ir2gnark import IR2GnarkVisitor
 from src.backends.gnark.emitter import EmitVisitor as GnarkEmitter
 from src.r1cs.solve import solve_r1cs
 from src.r1cs.optimization.optimize import optimize_r1cs
-from src.cli.solver_cli.common import log, log_smt_results, get_hint_model_from_ctx, run_picus
+from src.cli.solver_cli.common import log, solution_to_str, run_picus
 
 _GO_CACHE_CLEAN_INTERVAL = 1000
 _GO_CACHE_COUNTER_FILE = ".go_run_count"
@@ -65,20 +67,19 @@ def resolve_hints_for_gnark(sr1cs_str: str, hint_model: dict) -> dict[int, int]:
 	return hints
 
 
-def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str, tmp_dir: Path):
-	"""Compile a GNARK (Go) circuit, export its R1CS, and solve with an SMT solver."""
+def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str, tmp_dir: Path, hint_model: dict | None = None, solving_timeout: int | None = None, hint_probability: float = HINT_PROBABILITY) -> str:
+	"""Compile a GNARK (Go) circuit, export its R1CS, and solve with an SMT solver. Returns 'sat' or 'unsat'."""
 	from src.backends.gnark.r1cs import get_r1cs_sr1cs, parse_sr1cs
 
 	log(f"Compiling GNARK file: {gnark_path}...", with_logs=with_logs)
 	r1cs_sr1cs_str = get_r1cs_sr1cs(gnark_path)
 	maybe_clean_go_cache()
 
-	# Resolve hints from context
-	hint_model = get_hint_model_from_ctx()
 	wire_hints = {}
 	if hint_model:
 		wire_hints = resolve_hints_for_gnark(r1cs_sr1cs_str, hint_model)
-		log(f"Resolved {len(wire_hints)} hint wire assignments", with_logs=with_logs)
+		wire_hints = {k: v for k, v in wire_hints.items() if random() < hint_probability}
+		log(f"Resolved {len(wire_hints)} hint wire assignments (after probabilistic filtering)", with_logs=with_logs)
 
 	if solver == "picus":
 		log("Solving R1CS using Picus...", with_logs)
@@ -86,16 +87,14 @@ def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str
 		tmp_sr1cs_path = tmp_dir / f"temp-{uuid4()}.sr1cs"
 		try:
 			tmp_sr1cs_path.write_text(r1cs_sr1cs_str)
-			run_picus(tmp_sr1cs_path, hints=wire_hints or None)
+			return run_picus(tmp_sr1cs_path, hints=wire_hints or None, solving_timeout=solving_timeout)
 		finally:
 			if tmp_sr1cs_path.exists():
 				tmp_sr1cs_path.unlink()
-		return
 
 	log("Parsing R1CS SR1CS...", with_logs)
 	r1cs = parse_sr1cs(r1cs_sr1cs_str)
 
-	# Inject hints into R1CS
 	if wire_hints:
 		r1cs.hints = wire_hints
 
@@ -103,5 +102,5 @@ def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str
 	r1cs = optimize_r1cs(r1cs, with_logs=with_logs)
 
 	log("Solving R1CS using a SMT solver...", with_logs)
-	solution = solve_r1cs(r1cs, backend=solver, with_logs=with_logs)
-	log_smt_results(solution, with_model)
+	solution = solve_r1cs(r1cs, backend=solver, with_logs=with_logs, solving_timeout=solving_timeout)
+	return solution_to_str(solution)

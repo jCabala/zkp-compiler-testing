@@ -6,15 +6,15 @@ source "$SCRIPT_DIR/../common.sh"
 
 ORACLE="sat" # sat or unsat
 BENCHMARKS="$SCRIPT_DIR/../../benchmarks/SMT-benchmarks/core/unique_sat_1to5vars/"
-TIMEOUT="30"       # seconds (circom)
-TIMEOUT_GNARK="120" # seconds — go run compilation alone needs ~15-25s
+TIMEOUT="60"       # seconds (yinyang per-call timeout, circom)
+TIMEOUT_GNARK="60" # seconds (yinyang per-call timeout, gnark)
 
 FUSION_REWRITE_POLICY="all"
 FUSION_SIDE_POLICY="one"
 SOLVER="picus"
 CONFIG="./picus_fusion_config.txt"
 YY_SEED="5959"
-WITH_HINTS="" # e.g. --with-hints
+WITHOUT_HINTS="" # e.g. --without-hints (hints are on by default)
 CONTAINER_MEMORY="${CONTAINER_MEMORY:-64g}"
 CONTAINER_MEMORY_SWAP="${CONTAINER_MEMORY_SWAP:--1}"
 
@@ -80,9 +80,9 @@ fi
 
 DSL="${2:-gnark}"          # gnark|circom
 RUN_LABEL="${3:-$DSL}"     # used for output/log folder names
-TMP_DIR="${TMP_DIR:-/workspace/smt-solver/experiments/tmp_fusion}"
+TMP_DIR="${TMP_DIR:-/workspace/smt-solver/experiments/tmp_fusion}/$DSL"
 
-CLI_COMMAND="python3 /workspace/smt-solver/cli.py solve --zk-dsl $DSL --solver $SOLVER --tmp-dir $TMP_DIR $WITH_HINTS"
+CLI_COMMAND="python3 /workspace/smt-solver/cli.py solve --config /workspace/smt-solver/experiments/picus_fusion/solve_config.json --zk-dsl $DSL --tmp-dir $TMP_DIR $WITHOUT_HINTS"
 YY_CONFIG="$CONFIG"
 OUT_FILE="./obj/picus_fusion_${RUN_LABEL}.out"
 YY_LOG_DIR="./obj/${RUN_LABEL}/logs"

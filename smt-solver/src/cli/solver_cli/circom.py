@@ -1,12 +1,13 @@
 from pathlib import Path
-from random import Random
+from random import Random, random
+from src.cli.solver_cli.adaptive_hints import HINT_PROBABILITY
 from src.smt_lib.smt_lib_parser import parse_smtlib2_core
 from src.smt_lib.zk_ir import Circuit
 from src.backends.circom.ir2circom import IR2CircomVisitorConstrainAssertions
 from src.backends.circom.emitter import EmitVisitor as CircomEmitter
 from src.r1cs.solve import solve_r1cs
 from src.r1cs.optimization.optimize import optimize_r1cs
-from src.cli.solver_cli.common import log, log_smt_results, get_hint_model_from_ctx, run_picus
+from src.cli.solver_cli.common import log, solution_to_str, run_picus
 
 
 def smtlib2_to_circom(smtlib2: str, solver: str = "z3") -> tuple[str, list[str]]:
@@ -58,8 +59,8 @@ def resolve_hints_for_circom(circom_path: Path, hint_model: dict, opt_flag, with
 	return hints
 
 
-def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_logs: bool, solver: str, o0: bool, o1: bool, o2: bool):
-	"""Compile a Circom circuit, export its R1CS, and solve with an SMT solver."""
+def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_logs: bool, solver: str, o0: bool, o1: bool, o2: bool, hint_model: dict | None = None, solving_timeout: int | None = None, hint_probability: float = HINT_PROBABILITY) -> str:
+	"""Compile a Circom circuit, export its R1CS, and solve with an SMT solver. Returns 'sat' or 'unsat'."""
 	from src.backends.circom.r1cs import get_r1cs_json, get_r1cs_with_sym, parse_r1cs_json, compile_to_r1cs, OptFlag
 
 	if sum([o0, o1, o2]) > 1:
@@ -71,12 +72,11 @@ def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_log
 	elif o2:
 		opt_level = OptFlag.O2
 
-	# Resolve hints from context (set by the solve command when --with-hints is used)
-	hint_model = get_hint_model_from_ctx()
 	wire_hints = {}
 	if hint_model:
 		wire_hints = resolve_hints_for_circom(circom_path, hint_model, opt_level, with_logs)
-		log(f"Resolved {len(wire_hints)} hint wire assignments", with_logs)
+		wire_hints = {k: v for k, v in wire_hints.items() if random() < hint_probability}
+		log(f"Resolved {len(wire_hints)} hint wire assignments (after probabilistic filtering)", with_logs)
 
 	log(f"Compiling Circom file: {circom_path}...", with_logs)
 
@@ -85,8 +85,7 @@ def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_log
 		with tempfile.TemporaryDirectory() as picus_tmp:
 			r1cs_path = compile_to_r1cs(circom_path, Path(picus_tmp), opt_flag=opt_level)
 			log("Solving R1CS using Picus...", with_logs)
-			run_picus(r1cs_path, hints=wire_hints or None)
-		return
+			return run_picus(r1cs_path, hints=wire_hints or None, solving_timeout=solving_timeout)
 
 	# If bool_vars specified, use get_r1cs_with_sym to resolve signal names
 	if bool_vars:
@@ -101,7 +100,6 @@ def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_log
 	log("Parsing R1CS JSON...", with_logs)
 	r1cs = parse_r1cs_json(r1cs_json_str, bool_wire_indices=bool_wire_indices)
 
-	# Inject hints into R1CS
 	if wire_hints:
 		r1cs.hints = wire_hints
 
@@ -109,5 +107,5 @@ def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_log
 	r1cs = optimize_r1cs(r1cs, with_logs=with_logs)
 
 	log("Solving R1CS using a SMT solver...", with_logs)
-	solution = solve_r1cs(r1cs, backend=solver, with_logs=with_logs)
-	log_smt_results(solution, with_model)
+	solution = solve_r1cs(r1cs, backend=solver, with_logs=with_logs, solving_timeout=solving_timeout)
+	return solution_to_str(solution)

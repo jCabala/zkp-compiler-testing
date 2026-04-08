@@ -7,14 +7,14 @@ source "$SCRIPT_DIR/../common.sh"
 ORACLE="sat" # sat or unsat
 BENCHMARKS_CIRCOM="$SCRIPT_DIR/../../benchmarks/SMT-benchmarks/core/unique_sat_1to5vars/"
 BENCHMARKS_GNARK="$SCRIPT_DIR/../../benchmarks/SMT-benchmarks/core/unique_sat_2vars_2000/"
-TIMEOUT="30" # seconds
+TIMEOUT="60" # seconds (yinyang per-call timeout)
 SOLVER="z3" # z3 or cvc5 or picus
 # PRUNE_CIRCOM="7" # If want to use add to command
 # PRUNE_GNARK="4"
 # PRUNE_SEED="5675" 
 CONFIG="./sat_fusion_config.txt"
 YY_SEED="7586"
-WITH_HINTS="" # e.g. --with-hints
+WITHOUT_HINTS="" # e.g. --without-hints (hints are on by default)
 CONTAINER_MEMORY="${CONTAINER_MEMORY:-64g}"
 CONTAINER_MEMORY_SWAP="${CONTAINER_MEMORY_SWAP:--1}"
 
@@ -87,7 +87,7 @@ fi
 
 DSL="${2:-gnark}"          # gnark|circom
 RUN_LABEL="${3:-$DSL}"     # used for output/log folder names
-TMP_DIR="${TMP_DIR:-/workspace/smt-solver/experiments/tmp_fusion}"
+TMP_DIR="${TMP_DIR:-/workspace/smt-solver/experiments/tmp_fusion}/$DSL"
 # If BENCHMARKS was not explicitly provided, pick a default by DSL.
 if [[ -z "${BENCHMARKS:-}" ]]; then
   if [[ "$DSL" == "gnark" ]]; then
@@ -102,7 +102,7 @@ fi
 #   PRUNE="$PRUNE_CIRCOM"
 # fi
 
-CLI_COMMAND="python3 /workspace/smt-solver/cli.py solve --zk-dsl $DSL --solver $SOLVER --tmp-dir $TMP_DIR $WITH_HINTS"
+CLI_COMMAND="python3 /workspace/smt-solver/cli.py solve --config /workspace/smt-solver/experiments/sat_fusion/solve_config.json --zk-dsl $DSL --tmp-dir $TMP_DIR $WITHOUT_HINTS"
 YY_CONFIG="$CONFIG"
 OUT_FILE="./obj/sat_fusion_${RUN_LABEL}.out"
 YY_LOG_DIR="./obj/${RUN_LABEL}/logs"

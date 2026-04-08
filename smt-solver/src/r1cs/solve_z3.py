@@ -1,9 +1,11 @@
 from src.r1cs.ir import SMTResult
 from typing import Any
 
-def solve_r1cs_z3(r1cs, with_logs: bool = False) -> SMTResult:
-    from z3 import Solver, Int, Bool, Or, sat, is_bool
+def solve_r1cs_z3(r1cs, with_logs: bool = False, solving_timeout: int | None = None) -> SMTResult:
+    from z3 import Solver, Int, Bool, Or, sat, unknown as z3_unknown, is_bool
     solver = Solver()
+    if solving_timeout is not None:
+        solver.set("timeout", solving_timeout * 1000)  # z3 uses milliseconds
 
     # Create variables - Bool for boolean wires, Int for others
     var_map = {}
@@ -70,5 +72,7 @@ def solve_r1cs_z3(r1cs, with_logs: bool = False) -> SMTResult:
         m = solver.model()
         solution = {d.name(): m[d] for d in m.decls()}
         return SMTResult(True, solution)
+    if ret == z3_unknown:
+        return SMTResult(False, {}, unknown=True)
 
     return SMTResult(False, {})
