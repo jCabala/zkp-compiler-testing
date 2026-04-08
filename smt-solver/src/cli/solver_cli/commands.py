@@ -12,6 +12,7 @@ from src.cli.solver_cli.common import (
 from src.cli.solver_cli.circom import solve_circom, smtlib2_to_circom
 from src.cli.solver_cli.gnark import solve_gnark, smtlib2_to_gnark
 from src.cli.solver_cli.adaptive_hints import load_state, save_state, record_run, HINT_MODELS
+from src.cli.solver_cli.not_chain import augment_smt2, compute_chain_hints
 
 @click.command()
 @click.argument('smt_lib_path', type=click.Path(exists=True, path_type=Path))
@@ -25,7 +26,9 @@ from src.cli.solver_cli.adaptive_hints import load_state, save_state, record_run
 @click.option('--without-hints', is_flag=True, default=None, help="Disable injection of hint model values (hints are enabled by default).")
 @click.option('--no-simplify', is_flag=True, default=None, help="Skip Z3 formula simplification before solving.")
 @click.option('--solving-timeout', type=int, default=None, help="Timeout in seconds for the SMT solving step. Returns 'unknown' if exceeded.")
-def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, without_hints: bool, no_simplify: bool, solving_timeout: int):
+@click.option('--not-chain-length', type=int, default=None, help="Length of each injected NOT chain (triggers P4 at >=350). Default: 400.")
+@click.option('--max-not-chain-count', type=int, default=None, help="Upper bound on number of NOT chains to inject; actual count sampled from [0, max]. Default: 0 (disabled).")
+def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, without_hints: bool, no_simplify: bool, solving_timeout: int, not_chain_length: int, max_not_chain_count: int):
 	"""
 	Solve an SMT-LIB file using a SMT solver.
 	SMT_LIB_PATH: Path to the .smt2 file
@@ -46,8 +49,10 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 	prune      = _opt(prune,      "prune",       None)
 	prune_seed    = _opt(prune_seed,    "prune_seed",    None)
 	without_hints = _opt(without_hints, "without_hints", False)
-	no_simplify      = _opt(no_simplify,      "no_simplify",      False)
-	solving_timeout  = _opt(solving_timeout,  "solving_timeout",  None)
+	no_simplify       = _opt(no_simplify,       "no_simplify",       False)
+	solving_timeout   = _opt(solving_timeout,   "solving_timeout",   None)
+	not_chain_length      = _opt(not_chain_length,      "not_chain_length",      400)
+	max_not_chain_count   = _opt(max_not_chain_count,   "max_not_chain_count",   0)
 	with_hints = not without_hints
 
 	if isinstance(tmp_dir, str):
@@ -73,7 +78,9 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 	adaptive_state = load_state(tmp_dir)
 	log(f"Adaptive hints: models={adaptive_state.hint_models}, probability={adaptive_state.hint_probability}", with_logs=with_logs)
 
-	# Collect hint models (before any transformation)
+	# Collect hint models from the original formula (before NOT chain injection).
+	# _ahint_ variables must not appear in these models — they must not count
+	# toward progressive hint statistics or oracle run count.
 	hint_model_list: list[dict] = []
 	if with_hints:
 		_, models = run_smt_solver_models(file_content, solver="z3", max_models=adaptive_state.hint_models)
@@ -81,6 +88,12 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 		log(f"Obtained {len(hint_model_list)} hint model(s)", with_logs=with_logs)
 		if not hint_model_list:
 			log("No hints available (formula unsat or no model returned)", with_logs=with_logs)
+
+	# Inject NOT chains after collecting hint models so chain vars don't pollute them.
+	not_chains = []
+	if max_not_chain_count:
+		file_content, not_chains = augment_smt2(file_content, not_chain_length, max_not_chain_count)
+		log(f"Injected {len(not_chains)} NOT chain(s): length={not_chain_length}, anchors={[a for a, _ in not_chains]}", with_logs=with_logs)
 
 	if not no_simplify:
 		file_content = simplify_formula(file_content)
@@ -109,10 +122,14 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 	dsl_path.write_text(dsl_code)
 
 	def _run_oracle(hint_model: dict | None) -> str:
+		always_hints = None
+		if not_chains and hint_model:
+			always_hints = compute_chain_hints(hint_model, not_chains, not_chain_length) or None
+
 		if zk_dsl == ZKDSL.CIRCOM:
-			return solve_circom(circom_path=dsl_path, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver, bool_vars=tuple(bool_vars), hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability)
+			return solve_circom(circom_path=dsl_path, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver, bool_vars=tuple(bool_vars), hint_model=hint_model, always_hint_model=always_hints, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability)
 		elif zk_dsl == ZKDSL.GNARK:
-			return solve_gnark(gnark_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability)
+			return solve_gnark(gnark_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, always_hint_model=always_hints, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability)
 		else:
 			raise ValueError(f"Unsupported ZK DSL: {zk_dsl}")
 

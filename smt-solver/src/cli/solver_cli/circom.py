@@ -27,8 +27,22 @@ def smtlib2_to_circom(smtlib2: str, solver: str = "z3") -> tuple[str, list[str]]
 	return circom_code, bool_vars
 
 
-def resolve_hints_for_circom(circom_path: Path, hint_model: dict, opt_flag, with_logs: bool) -> dict[int, int]:
-	"""Map SMT variable names to Circom wire indices using the .sym file."""
+def resolve_hints_for_circom(
+	circom_path: Path,
+	hint_model: dict,
+	opt_flag,
+	with_logs: bool,
+	always_hint_model: dict | None = None,
+) -> tuple[dict[int, int], dict[int, int]]:
+	"""
+	Map SMT variable names to Circom wire indices using the .sym file.
+
+	Compiles the circuit once and resolves both hint_model and always_hint_model.
+
+	Returns:
+		(regular_hints, always_hints)
+		Caller applies probabilistic filtering to regular_hints only.
+	"""
 	from src.backends.circom.sym_parser import parse_sym_file
 	from src.backends.circom.r1cs import _CIRCOMLIB
 	import tempfile, subprocess
@@ -42,24 +56,27 @@ def resolve_hints_for_circom(circom_path: Path, hint_model: dict, opt_flag, with
 		)
 		if p.returncode != 0:
 			log(f"Failed to compile for sym file: {p.stderr}", with_logs)
-			return {}
+			return {}, {}
 
 		sym_path = temp_dir_path / f"{circuit_name}.sym"
 		if not sym_path.exists():
-			return {}
+			return {}, {}
 
 		signal_to_wire = parse_sym_file(sym_path)
 
-	hints = {}
-	for var_name, value in hint_model.items():
-		signal_name = f"main.{var_name}"
-		if signal_name in signal_to_wire:
-			int_val = int(value) if isinstance(value, bool) else value
-			hints[signal_to_wire[signal_name]] = int_val
-	return hints
+	def _resolve(model: dict) -> dict[int, int]:
+		result = {}
+		for var_name, value in model.items():
+			signal_name = f"main.{var_name}"
+			if signal_name in signal_to_wire:
+				int_val = int(value) if isinstance(value, bool) else value
+				result[signal_to_wire[signal_name]] = int_val
+		return result
+
+	return _resolve(hint_model), _resolve(always_hint_model or {})
 
 
-def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_logs: bool, solver: str, o0: bool, o1: bool, o2: bool, hint_model: dict | None = None, solving_timeout: int | None = None, hint_probability: float = HINT_PROBABILITY) -> str:
+def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_logs: bool, solver: str, o0: bool, o1: bool, o2: bool, hint_model: dict | None = None, always_hint_model: dict | None = None, solving_timeout: int | None = None, hint_probability: float = HINT_PROBABILITY) -> str:
 	"""Compile a Circom circuit, export its R1CS, and solve with an SMT solver. Returns 'sat' or 'unsat'."""
 	from src.backends.circom.r1cs import get_r1cs_json, get_r1cs_with_sym, parse_r1cs_json, compile_to_r1cs, OptFlag
 
@@ -73,10 +90,11 @@ def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_log
 		opt_level = OptFlag.O2
 
 	wire_hints = {}
-	if hint_model:
-		wire_hints = resolve_hints_for_circom(circom_path, hint_model, opt_level, with_logs)
-		wire_hints = {k: v for k, v in wire_hints.items() if random() < hint_probability}
-		log(f"Resolved {len(wire_hints)} hint wire assignments (after probabilistic filtering)", with_logs)
+	if hint_model or always_hint_model:
+		regular, always = resolve_hints_for_circom(circom_path, hint_model or {}, opt_level, with_logs, always_hint_model)
+		wire_hints = {k: v for k, v in regular.items() if random() < hint_probability}
+		wire_hints.update(always)  # always hints bypass probability filter
+		log(f"Resolved {len(wire_hints)} hint wire assignments ({len(always)} always, {len(wire_hints) - len(always)} probabilistic)", with_logs)
 
 	log(f"Compiling Circom file: {circom_path}...", with_logs)
 

@@ -48,8 +48,18 @@ def smtlib2_to_gnark(smtlib2: str, solver: str = "z3") -> str:
 	return emitter.emit(gnark_ir)
 
 
-def resolve_hints_for_gnark(sr1cs_str: str, hint_model: dict) -> dict[int, int]:
-	"""Map SMT variable names to Gnark wire indices using SR1CS labels."""
+def resolve_hints_for_gnark(
+	sr1cs_str: str,
+	hint_model: dict,
+	always_hint_model: dict | None = None,
+) -> tuple[dict[int, int], dict[int, int]]:
+	"""
+	Map SMT variable names to Gnark wire indices using SR1CS labels.
+
+	Returns:
+		(regular_hints, always_hints)
+		Caller applies probabilistic filtering to regular_hints only.
+	"""
 	label_re = re.compile(r'^\s*\(label\s+(\d+)\s+(.+?)\s*\)\s*$')
 	name_to_wire = {}
 	for line in sr1cs_str.splitlines():
@@ -59,15 +69,18 @@ def resolve_hints_for_gnark(sr1cs_str: str, hint_model: dict) -> dict[int, int]:
 			name = m.group(2).strip().strip('"')
 			name_to_wire[name] = wire_idx
 
-	hints = {}
-	for var_name, value in hint_model.items():
-		if var_name in name_to_wire:
-			int_val = int(value) if isinstance(value, bool) else value
-			hints[name_to_wire[var_name]] = int_val
-	return hints
+	def _resolve(model: dict) -> dict[int, int]:
+		result = {}
+		for var_name, value in model.items():
+			if var_name in name_to_wire:
+				int_val = int(value) if isinstance(value, bool) else value
+				result[name_to_wire[var_name]] = int_val
+		return result
+
+	return _resolve(hint_model), _resolve(always_hint_model or {})
 
 
-def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str, tmp_dir: Path, hint_model: dict | None = None, solving_timeout: int | None = None, hint_probability: float = HINT_PROBABILITY) -> str:
+def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str, tmp_dir: Path, hint_model: dict | None = None, always_hint_model: dict | None = None, solving_timeout: int | None = None, hint_probability: float = HINT_PROBABILITY) -> str:
 	"""Compile a GNARK (Go) circuit, export its R1CS, and solve with an SMT solver. Returns 'sat' or 'unsat'."""
 	from src.backends.gnark.r1cs import get_r1cs_sr1cs, parse_sr1cs
 
@@ -76,10 +89,11 @@ def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str
 	maybe_clean_go_cache()
 
 	wire_hints = {}
-	if hint_model:
-		wire_hints = resolve_hints_for_gnark(r1cs_sr1cs_str, hint_model)
-		wire_hints = {k: v for k, v in wire_hints.items() if random() < hint_probability}
-		log(f"Resolved {len(wire_hints)} hint wire assignments (after probabilistic filtering)", with_logs=with_logs)
+	if hint_model or always_hint_model:
+		regular, always = resolve_hints_for_gnark(r1cs_sr1cs_str, hint_model or {}, always_hint_model)
+		wire_hints = {k: v for k, v in regular.items() if random() < hint_probability}
+		wire_hints.update(always)  # always hints bypass probability filter
+		log(f"Resolved {len(wire_hints)} hint wire assignments ({len(always)} always, {len(wire_hints) - len(always)} probabilistic)", with_logs=with_logs)
 
 	if solver == "picus":
 		log("Solving R1CS using Picus...", with_logs)
