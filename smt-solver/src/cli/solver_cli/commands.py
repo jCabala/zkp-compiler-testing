@@ -12,7 +12,7 @@ from src.cli.solver_cli.common import (
 from src.cli.solver_cli.circom import solve_circom, smtlib2_to_circom
 from src.cli.solver_cli.gnark import solve_gnark, smtlib2_to_gnark
 from src.cli.solver_cli.adaptive_hints import load_state, save_state, record_run, HINT_MODELS
-from src.cli.solver_cli.not_chain import augment_smt2, compute_chain_hints
+from src.cli.solver_cli.not_chain import augment_smt2
 
 @click.command()
 @click.argument('smt_lib_path', type=click.Path(exists=True, path_type=Path))
@@ -28,7 +28,8 @@ from src.cli.solver_cli.not_chain import augment_smt2, compute_chain_hints
 @click.option('--solving-timeout', type=int, default=None, help="Timeout in seconds for the SMT solving step. Returns 'unknown' if exceeded.")
 @click.option('--not-chain-length', type=int, default=None, help="Length of each injected NOT chain (triggers P4 at >=350). Default: 400.")
 @click.option('--max-not-chain-count', type=int, default=None, help="Upper bound on number of NOT chains to inject; actual count sampled from [0, max]. Default: 0 (disabled).")
-def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, without_hints: bool, no_simplify: bool, solving_timeout: int, not_chain_length: int, max_not_chain_count: int):
+@click.option('--compiler', default=None, help="Custom compiler binary to use (circom binary for circom DSL, go binary for gnark DSL).")
+def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, without_hints: bool, no_simplify: bool, solving_timeout: int, not_chain_length: int, max_not_chain_count: int, compiler: str):
 	"""
 	Solve an SMT-LIB file using a SMT solver.
 	SMT_LIB_PATH: Path to the .smt2 file
@@ -53,6 +54,7 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 	solving_timeout   = _opt(solving_timeout,   "solving_timeout",   None)
 	not_chain_length      = _opt(not_chain_length,      "not_chain_length",      400)
 	max_not_chain_count   = _opt(max_not_chain_count,   "max_not_chain_count",   0)
+	compiler              = _opt(compiler,              "compiler",              None)
 	with_hints = not without_hints
 
 	if isinstance(tmp_dir, str):
@@ -122,14 +124,10 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 	dsl_path.write_text(dsl_code)
 
 	def _run_oracle(hint_model: dict | None) -> str:
-		always_hints = None
-		if not_chains and hint_model:
-			always_hints = compute_chain_hints(hint_model, not_chains, not_chain_length) or None
-
 		if zk_dsl == ZKDSL.CIRCOM:
-			return solve_circom(circom_path=dsl_path, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver, bool_vars=tuple(bool_vars), hint_model=hint_model, always_hint_model=always_hints, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability)
+			return solve_circom(circom_path=dsl_path, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver, bool_vars=tuple(bool_vars), hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "circom")
 		elif zk_dsl == ZKDSL.GNARK:
-			return solve_gnark(gnark_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, always_hint_model=always_hints, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability)
+			return solve_gnark(gnark_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "go")
 		else:
 			raise ValueError(f"Unsupported ZK DSL: {zk_dsl}")
 

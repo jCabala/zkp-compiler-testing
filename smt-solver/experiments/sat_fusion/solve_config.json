@@ -2,5 +2,7 @@
   "solver": "z3",
   "without_hints": false,
   "no_simplify": true,
-  "solving_timeout": 30
+  "solving_timeout": 30,
+  "not_chain_length": 400,
+  "max_not_chain_count": 5
 }

@@ -8,14 +8,13 @@ Test groups:
 """
 
 import re
-import time
 import random
 import pytest
 from src.cli.solver_cli.not_chain import (
     augment_smt2,
-    compute_chain_hints,
-    ALWAYS_HINT_PREFIX,
+    REMOVABLE_PREFIX,
 )
+ALWAYS_HINT_PREFIX = REMOVABLE_PREFIX  # alias for test readability
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -108,83 +107,10 @@ class TestAugmentSmt2:
 
 
 # ---------------------------------------------------------------------------
-# 2. compute_chain_hints
-# ---------------------------------------------------------------------------
-
-class TestComputeChainHints:
-
-    def test_anchor_true_first_link_is_false(self):
-        chains = [("x1", 1)]
-        hints = compute_chain_hints({"x1": True}, chains, chain_length=1)
-        assert hints[f"{ALWAYS_HINT_PREFIX}1_1"] is False
-
-    def test_anchor_false_first_link_is_true(self):
-        chains = [("x1", 1)]
-        hints = compute_chain_hints({"x1": False}, chains, chain_length=1)
-        assert hints[f"{ALWAYS_HINT_PREFIX}1_1"] is True
-
-    def test_values_alternate(self):
-        chains = [("x1", 1)]
-        hints = compute_chain_hints({"x1": True}, chains, chain_length=6)
-        expected = [False, True, False, True, False, True]
-        for i, exp in enumerate(expected, start=1):
-            assert hints[f"{ALWAYS_HINT_PREFIX}1_{i}"] is exp
-
-    def test_missing_anchor_skipped(self):
-        chains = [("x1", 1), ("x2", 2)]
-        hints = compute_chain_hints({"x1": True}, chains, chain_length=3)
-        # x2 anchor missing — chain 2 should not appear
-        assert all(k.startswith(f"{ALWAYS_HINT_PREFIX}1_") for k in hints)
-        assert not any(k.startswith(f"{ALWAYS_HINT_PREFIX}2_") for k in hints)
-
-    def test_multiple_chains_independent(self):
-        chains = [("x1", 1), ("x2", 2)]
-        hints = compute_chain_hints({"x1": True, "x2": False}, chains, chain_length=4)
-        # chain 1: anchor=True → False, True, False, True
-        assert hints[f"{ALWAYS_HINT_PREFIX}1_1"] is False
-        assert hints[f"{ALWAYS_HINT_PREFIX}1_2"] is True
-        # chain 2: anchor=False → True, False, True, False
-        assert hints[f"{ALWAYS_HINT_PREFIX}2_1"] is True
-        assert hints[f"{ALWAYS_HINT_PREFIX}2_2"] is False
-
-    def test_empty_chains_returns_empty(self):
-        hints = compute_chain_hints({"x1": True}, [], chain_length=10)
-        assert hints == {}
-
-
-# ---------------------------------------------------------------------------
-# 3. Long chain — correctness and speed
+# 2. Long chain — correctness and speed
 # ---------------------------------------------------------------------------
 
 class TestLongChain:
-
-    def test_1000_link_chain_hint_count(self):
-        chains = [("x1", 1)]
-        hints = compute_chain_hints({"x1": True}, chains, chain_length=LONG_CHAIN_LENGTH)
-        assert len(hints) == LONG_CHAIN_LENGTH
-
-    def test_1000_link_chain_all_keys_present(self):
-        chains = [("x1", 1)]
-        hints = compute_chain_hints({"x1": False}, chains, chain_length=LONG_CHAIN_LENGTH)
-        for i in range(1, LONG_CHAIN_LENGTH + 1):
-            assert f"{ALWAYS_HINT_PREFIX}1_{i}" in hints
-
-    def test_1000_link_chain_values_alternate_correctly(self):
-        chains = [("x1", 1)]
-        hints = compute_chain_hints({"x1": True}, chains, chain_length=LONG_CHAIN_LENGTH)
-        for i in range(1, LONG_CHAIN_LENGTH + 1):
-            expected = (i % 2 == 1)  # True anchor → first link False, so odd links False
-            # anchor=True → link 1 = False (odd=False), link 2 = True (even=True)
-            expected = not (i % 2 == 1)
-            assert hints[f"{ALWAYS_HINT_PREFIX}1_{i}"] is expected
-
-    def test_1000_link_chain_computed_fast(self):
-        """Hint computation for a 1000-link chain should be near-instant."""
-        chains = [("x1", 1)]
-        t0 = time.monotonic()
-        compute_chain_hints({"x1": True}, chains, chain_length=LONG_CHAIN_LENGTH)
-        elapsed = time.monotonic() - t0
-        assert elapsed < 0.05  # 50ms is very generous for a simple loop
 
     def test_augment_1000_link_chain_injected_correctly(self):
         rng = random.Random(99)

@@ -5,20 +5,22 @@ Injects one or more chains of NOT constraints, each anchored to a distinct
 randomly chosen variable, enlarging linear clusters in the compiled R1CS to
 trigger P4 (Circom simplification threshold: 350 constraints).
 
-Introduced variables use the `_ahint_` prefix — the hint resolution layer
-recognises this prefix and always injects these values without probabilistic
-filtering (see resolve_hints_for_circom / resolve_hints_for_gnark).
+Introduced variables use the `_removable_` prefix — the solver layer detects
+this prefix in the sym/sr1cs file and eliminates all constraints involving
+these wires before building the SMT query. Since the NOT chain is fully
+determined by the circuit, dropping its constraints is safe and keeps the
+query smaller.
 
-Variable naming: _ahint_{chain_idx}_{link_idx}
-  e.g. chain 1: _ahint_1_1, _ahint_1_2, ..., _ahint_1_N
-       chain 2: _ahint_2_1, _ahint_2_2, ..., _ahint_2_N
+Variable naming: _removable_{chain_idx}_{link_idx}
+  e.g. chain 1: _removable_1_1, _removable_1_2, ..., _removable_1_N
+       chain 2: _removable_2_1, _removable_2_2, ..., _removable_2_N
 """
 
 import re
 import random as _random_mod
 from typing import Optional
 
-ALWAYS_HINT_PREFIX = "_ahint_"
+REMOVABLE_PREFIX = "_removable_"
 
 # List of (anchor_var, chain_idx) pairs — returned by augment_smt2.
 ChainList = list[tuple[str, int]]
@@ -63,7 +65,7 @@ def augment_smt2(
 
     for chain_idx, anchor in enumerate(anchors, start=1):
         def _var(i: int, ci: int = chain_idx) -> str:
-            return f"{ALWAYS_HINT_PREFIX}{ci}_{i}"
+            return f"{REMOVABLE_PREFIX}{ci}_{i}"
 
         declarations = "\n".join(
             f"(declare-fun {_var(i)} () Bool)" for i in range(1, chain_length + 1)
@@ -81,21 +83,3 @@ def augment_smt2(
 
     augmented = smt2.replace("(check-sat)", "".join(injections) + "(check-sat)", 1)
     return augmented, chains
-
-
-def compute_chain_hints(hint_model: dict, chains: ChainList, chain_length: int) -> dict[str, bool]:
-    """
-    Compute all _ahint_ variable values from the hint model.
-
-    For each chain, derives _ahint_{ci}_1 .. _ahint_{ci}_N from the anchor's value.
-    Chains whose anchor is absent from the hint model are skipped.
-    """
-    hints: dict[str, bool] = {}
-    for anchor, chain_idx in chains:
-        if anchor not in hint_model:
-            continue
-        current = not bool(hint_model[anchor])
-        for i in range(1, chain_length + 1):
-            hints[f"{ALWAYS_HINT_PREFIX}{chain_idx}_{i}"] = current
-            current = not current
-    return hints

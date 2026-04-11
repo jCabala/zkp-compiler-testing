@@ -17,7 +17,7 @@ def _run(cmd: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProc
         check=False,
     )
 
-def get_r1cs_sr1cs(circuit_path: Path) -> str:
+def get_r1cs_sr1cs(circuit_path: Path, compiler: str = "go") -> str:
     """
     Runs the generated Go circuit and returns the produced .sr1cs text.
 
@@ -31,7 +31,7 @@ def get_r1cs_sr1cs(circuit_path: Path) -> str:
         temp_dir_path = Path(temp_dir)
         sr1cs_path = temp_dir_path / f"{circuit_name}.sr1cs"
 
-        p = _run(["go", "run", str(circuit_path), str(sr1cs_path)])
+        p = _run([compiler, "run", str(circuit_path), str(sr1cs_path)])
         if p.returncode != 0:
             raise RuntimeError(f"Gnark compilation/dump failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
 

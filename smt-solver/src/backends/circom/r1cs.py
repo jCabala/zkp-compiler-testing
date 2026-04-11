@@ -26,9 +26,9 @@ class OptFlag(str):
     O1 = "--O1"
     O2 = "--O2"
 
-def compile_to_r1cs(circuit_path: Path, out_dir: Path, opt_flag: OptFlag = OptFlag.O0) -> Path:
+def compile_to_r1cs(circuit_path: Path, out_dir: Path, opt_flag: OptFlag = OptFlag.O0, compiler: str = "circom") -> Path:
     """Compile a .circom file to a .r1cs binary in out_dir and return the path."""
-    p = _run(["circom", str(circuit_path), "--r1cs", opt_flag, "-l", str(_CIRCOMLIB), "-o", str(out_dir)])
+    p = _run([compiler, str(circuit_path), "--r1cs", opt_flag, "-l", str(_CIRCOMLIB), "-o", str(out_dir)])
     if p.returncode != 0:
         raise RuntimeError(f"Circom compilation failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
     r1cs_path = out_dir / f"{circuit_path.stem}.r1cs"
@@ -37,13 +37,13 @@ def compile_to_r1cs(circuit_path: Path, out_dir: Path, opt_flag: OptFlag = OptFl
     return r1cs_path
 
 
-def get_r1cs_json(circuit_path: Path, opt_flag: OptFlag = OptFlag.O2) -> str:
+def get_r1cs_json(circuit_path: Path, opt_flag: OptFlag = OptFlag.O2, compiler: str = "circom") -> str:
     circuit_name = circuit_path.stem
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir_path = Path(temp_dir)
 
         # Compile
-        p = _run(["circom", str(circuit_path), "--r1cs", opt_flag, "-l", str(_CIRCOMLIB), "-o", str(temp_dir_path)])
+        p = _run([compiler, str(circuit_path), "--r1cs", opt_flag, "-l", str(_CIRCOMLIB), "-o", str(temp_dir_path)])
         if p.returncode != 0:
             raise RuntimeError(f"Circom compilation failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
 
@@ -60,7 +60,12 @@ def get_r1cs_json(circuit_path: Path, opt_flag: OptFlag = OptFlag.O2) -> str:
         return r1cs_json_path.read_text()
 
 
-def get_r1cs_with_sym(circuit_path: Path, opt_flag: OptFlag = OptFlag.O0, bool_signal_names: List[str] = None) -> Tuple[str, Set[int]]:
+def get_r1cs_with_sym(
+    circuit_path: Path,
+    opt_flag: OptFlag = OptFlag.O0,
+    bool_signal_names: List[str] = None,
+    compiler: str = "circom",
+) -> Tuple[str, Set[int], Set[int], Set[int]]:
     """
     Compile a Circom circuit to R1CS with symbol information.
     
@@ -70,14 +75,15 @@ def get_r1cs_with_sym(circuit_path: Path, opt_flag: OptFlag = OptFlag.O0, bool_s
         bool_signal_names: List of signal names to treat as boolean (e.g., ["main.flag", "main.arr[0]"])
         
     Returns:
-        Tuple of (r1cs_json_string, bool_wire_indices)
+        Tuple of (r1cs_json_string, bool_wire_indices, removable_wire_indices,
+        original_input_wire_indices)
     """
     circuit_name = circuit_path.stem
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir_path = Path(temp_dir)
 
         # Compile with --sym flag
-        p = _run(["circom", str(circuit_path), "--r1cs", "--sym", opt_flag, "-l", str(_CIRCOMLIB), "-o", str(temp_dir_path)])
+        p = _run([compiler, str(circuit_path), "--r1cs", "--sym", opt_flag, "-l", str(_CIRCOMLIB), "-o", str(temp_dir_path)])
         if p.returncode != 0:
             raise RuntimeError(f"Circom compilation failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
 
@@ -101,8 +107,13 @@ def get_r1cs_with_sym(circuit_path: Path, opt_flag: OptFlag = OptFlag.O0, bool_s
         bool_wire_indices: Set[int] = set()
         if bool_signal_names:
             bool_wire_indices = resolve_bool_wires(sym_path, bool_signal_names)
-        
-        return r1cs_json_str, bool_wire_indices
+
+        # Find removable wire indices (_removable_ prefix)
+        from src.backends.circom.sym_parser import find_original_input_wires, find_removable_wires
+        removable_wire_indices = find_removable_wires(sym_path)
+        original_input_wire_indices = find_original_input_wires(sym_path)
+
+        return r1cs_json_str, bool_wire_indices, removable_wire_indices, original_input_wire_indices
 
 
 def parse_r1cs_json(json_str: str, bool_wire_indices: Set[int] = None) -> R1CS:
