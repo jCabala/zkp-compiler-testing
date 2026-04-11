@@ -11,6 +11,7 @@ Example:
     4,4,0,main.flag
 """
 
+import re
 from pathlib import Path
 from typing import Dict, Set
 
@@ -48,6 +49,25 @@ def parse_sym_file(sym_path: Path) -> Dict[str, int]:
                 continue
     
     return signal_to_wire
+
+
+def find_removable_wires(sym_path: Path, prefix: str = "_removable_") -> Set[int]:
+    """Return wire indices for all signals whose name contains prefix."""
+    signal_to_wire = parse_sym_file(sym_path)
+    return {wire for name, wire in signal_to_wire.items() if prefix in name}
+
+
+def find_original_input_wires(sym_path: Path, pattern: str = r"^main\.x\d+$") -> Set[int]:
+    """
+    Return wire indices for original SMT input variables.
+
+    For the NOT-chain use case, these are the original xN variables emitted as
+    top-level Circom inputs. Synthetic _removable_ chain inputs are excluded by
+    the pattern.
+    """
+    signal_to_wire = parse_sym_file(sym_path)
+    regex = re.compile(pattern)
+    return {wire for name, wire in signal_to_wire.items() if regex.match(name)}
 
 
 def resolve_bool_wires(sym_path: Path, signal_names: list[str]) -> Set[int]:

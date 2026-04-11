@@ -11,6 +11,7 @@ from src.backends.gnark.ir2gnark import IR2GnarkVisitor
 from src.backends.gnark.emitter import EmitVisitor as GnarkEmitter
 from src.r1cs.solve import solve_r1cs
 from src.r1cs.optimization.optimize import optimize_r1cs
+from src.r1cs.optimization.eliminate import eliminate_wires
 from src.cli.solver_cli.common import log, solution_to_str, run_picus
 
 _GO_CACHE_CLEAN_INTERVAL = 1000
@@ -67,12 +68,38 @@ def resolve_hints_for_gnark(sr1cs_str: str, hint_model: dict) -> dict[int, int]:
 	return hints
 
 
-def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str, tmp_dir: Path, hint_model: dict | None = None, solving_timeout: int | None = None, hint_probability: float = HINT_PROBABILITY) -> str:
+def find_removable_wires_gnark(sr1cs_str: str, prefix: str = "_removable_") -> set[int]:
+	"""Return wire indices for all labels containing prefix."""
+	label_re = re.compile(r'^\s*\(label\s+(\d+)\s+(.+?)\s*\)\s*$')
+	removable = set()
+	for line in sr1cs_str.splitlines():
+		m = label_re.match(line)
+		if m and prefix in m.group(2):
+			removable.add(int(m.group(1)))
+	return removable
+
+
+def find_original_wires_gnark(sr1cs_str: str, pattern: str = r"^x\d+$") -> set[int]:
+	"""Return wire indices for original SMT variables that must remain protected."""
+	label_re = re.compile(r'^\s*\(label\s+(\d+)\s+(.+?)\s*\)\s*$')
+	regex = re.compile(pattern)
+	protected = set()
+	for line in sr1cs_str.splitlines():
+		m = label_re.match(line)
+		if not m:
+			continue
+		name = m.group(2).strip().strip('"')
+		if regex.match(name):
+			protected.add(int(m.group(1)))
+	return protected
+
+
+def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str, tmp_dir: Path, hint_model: dict | None = None, solving_timeout: int | None = None, hint_probability: float = HINT_PROBABILITY, compiler: str = "go") -> str:
 	"""Compile a GNARK (Go) circuit, export its R1CS, and solve with an SMT solver. Returns 'sat' or 'unsat'."""
 	from src.backends.gnark.r1cs import get_r1cs_sr1cs, parse_sr1cs
 
 	log(f"Compiling GNARK file: {gnark_path}...", with_logs=with_logs)
-	r1cs_sr1cs_str = get_r1cs_sr1cs(gnark_path)
+	r1cs_sr1cs_str = get_r1cs_sr1cs(gnark_path, compiler=compiler)
 	maybe_clean_go_cache()
 
 	wire_hints = {}
@@ -94,6 +121,13 @@ def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str
 
 	log("Parsing R1CS SR1CS...", with_logs)
 	r1cs = parse_sr1cs(r1cs_sr1cs_str)
+
+	removable_wire_indices = find_removable_wires_gnark(r1cs_sr1cs_str)
+	protected_wire_indices = find_original_wires_gnark(r1cs_sr1cs_str)
+	if removable_wire_indices:
+		before = r1cs.nConstraints
+		r1cs = eliminate_wires(r1cs, removable_wire_indices, protected_wire_indices)
+		log(f"Eliminated {before - r1cs.nConstraints} removable constraints ({r1cs.nConstraints} remaining)", with_logs=with_logs)
 
 	if wire_hints:
 		r1cs.hints = wire_hints

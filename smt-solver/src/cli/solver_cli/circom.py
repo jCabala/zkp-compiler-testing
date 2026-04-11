@@ -7,6 +7,7 @@ from src.backends.circom.ir2circom import IR2CircomVisitorConstrainAssertions
 from src.backends.circom.emitter import EmitVisitor as CircomEmitter
 from src.r1cs.solve import solve_r1cs
 from src.r1cs.optimization.optimize import optimize_r1cs
+from src.r1cs.optimization.eliminate import eliminate_wires
 from src.cli.solver_cli.common import log, solution_to_str, run_picus
 
 
@@ -27,7 +28,13 @@ def smtlib2_to_circom(smtlib2: str, solver: str = "z3") -> tuple[str, list[str]]
 	return circom_code, bool_vars
 
 
-def resolve_hints_for_circom(circom_path: Path, hint_model: dict, opt_flag, with_logs: bool) -> dict[int, int]:
+def resolve_hints_for_circom(
+	circom_path: Path,
+	hint_model: dict,
+	opt_flag,
+	with_logs: bool,
+	compiler: str = "circom",
+) -> dict[int, int]:
 	"""Map SMT variable names to Circom wire indices using the .sym file."""
 	from src.backends.circom.sym_parser import parse_sym_file
 	from src.backends.circom.r1cs import _CIRCOMLIB
@@ -37,7 +44,7 @@ def resolve_hints_for_circom(circom_path: Path, hint_model: dict, opt_flag, with
 	with tempfile.TemporaryDirectory() as temp_dir:
 		temp_dir_path = Path(temp_dir)
 		p = subprocess.run(
-			["circom", str(circom_path), "--sym", opt_flag, "-l", str(_CIRCOMLIB), "-o", str(temp_dir_path)],
+			[compiler, str(circom_path), "--sym", opt_flag, "-l", str(_CIRCOMLIB), "-o", str(temp_dir_path)],
 			text=True, capture_output=True, check=False,
 		)
 		if p.returncode != 0:
@@ -59,7 +66,7 @@ def resolve_hints_for_circom(circom_path: Path, hint_model: dict, opt_flag, with
 	return hints
 
 
-def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_logs: bool, solver: str, o0: bool, o1: bool, o2: bool, hint_model: dict | None = None, solving_timeout: int | None = None, hint_probability: float = HINT_PROBABILITY) -> str:
+def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_logs: bool, solver: str, o0: bool, o1: bool, o2: bool, hint_model: dict | None = None, solving_timeout: int | None = None, hint_probability: float = HINT_PROBABILITY, compiler: str = "circom") -> str:
 	"""Compile a Circom circuit, export its R1CS, and solve with an SMT solver. Returns 'sat' or 'unsat'."""
 	from src.backends.circom.r1cs import get_r1cs_json, get_r1cs_with_sym, parse_r1cs_json, compile_to_r1cs, OptFlag
 
@@ -74,7 +81,7 @@ def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_log
 
 	wire_hints = {}
 	if hint_model:
-		wire_hints = resolve_hints_for_circom(circom_path, hint_model, opt_level, with_logs)
+		wire_hints = resolve_hints_for_circom(circom_path, hint_model, opt_level, with_logs, compiler)
 		wire_hints = {k: v for k, v in wire_hints.items() if random() < hint_probability}
 		log(f"Resolved {len(wire_hints)} hint wire assignments (after probabilistic filtering)", with_logs)
 
@@ -83,22 +90,27 @@ def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_log
 	if solver == "picus":
 		import tempfile
 		with tempfile.TemporaryDirectory() as picus_tmp:
-			r1cs_path = compile_to_r1cs(circom_path, Path(picus_tmp), opt_flag=opt_level)
+			r1cs_path = compile_to_r1cs(circom_path, Path(picus_tmp), opt_flag=opt_level, compiler=compiler)
 			log("Solving R1CS using Picus...", with_logs)
 			return run_picus(r1cs_path, hints=wire_hints or None, solving_timeout=solving_timeout)
 
-	# If bool_vars specified, use get_r1cs_with_sym to resolve signal names
-	if bool_vars:
-		bool_signal_names = list(bool_vars)
+	# Always use get_r1cs_with_sym to detect _removable_ wires in sym file
+	bool_signal_names = list(bool_vars) if bool_vars else []
+	if bool_signal_names:
 		log(f"Boolean signals: {', '.join(bool_signal_names)}", with_logs)
-		r1cs_json_str, bool_wire_indices = get_r1cs_with_sym(circom_path, opt_flag=opt_level, bool_signal_names=bool_signal_names)
+	r1cs_json_str, bool_wire_indices, removable_wire_indices, protected_wire_indices = get_r1cs_with_sym(
+		circom_path, opt_flag=opt_level, bool_signal_names=bool_signal_names, compiler=compiler
+	)
+	if bool_wire_indices:
 		log(f"Resolved to wire indices: {bool_wire_indices}", with_logs)
-	else:
-		r1cs_json_str = get_r1cs_json(circom_path, opt_flag=opt_level)
-		bool_wire_indices = set()
 
 	log("Parsing R1CS JSON...", with_logs)
 	r1cs = parse_r1cs_json(r1cs_json_str, bool_wire_indices=bool_wire_indices)
+
+	if removable_wire_indices:
+		before = r1cs.nConstraints
+		r1cs = eliminate_wires(r1cs, removable_wire_indices, protected_wire_indices)
+		log(f"Eliminated {before - r1cs.nConstraints} removable constraints ({r1cs.nConstraints} remaining)", with_logs)
 
 	if wire_hints:
 		r1cs.hints = wire_hints
