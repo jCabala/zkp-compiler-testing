@@ -1,0 +1,127 @@
+[
+  {
+    "file": "unique1_0001.smt2",
+    "baseline": {
+      "status": "ok",
+      "total_rounds": 1,
+      "final_linear": 0,
+      "final_quadratic": 2,
+      "duration_ms": 2,
+      "clusters_p3": 2,
+      "clusters_p4": 0,
+      "max_cluster": 1,
+      "p4_triggered": false
+    },
+    "augmented": {
+      "status": "ok",
+      "total_rounds": 1,
+      "final_linear": 0,
+      "final_quadratic": 1602,
+      "duration_ms": 85,
+      "clusters_p3": 401,
+      "clusters_p4": 1,
+      "max_cluster": 801,
+      "p4_triggered": true
+    }
+  },
+  {
+    "file": "unique1_0002.smt2",
+    "baseline": {
+      "status": "ok",
+      "total_rounds": 1,
+      "final_linear": 0,
+      "final_quadratic": 2,
+      "duration_ms": 2,
+      "clusters_p3": 2,
+      "clusters_p4": 0,
+      "max_cluster": 1,
+      "p4_triggered": false
+    },
+    "augmented": {
+      "status": "ok",
+      "total_rounds": 1,
+      "final_linear": 0,
+      "final_quadratic": 1602,
+      "duration_ms": 84,
+      "clusters_p3": 401,
+      "clusters_p4": 1,
+      "max_cluster": 801,
+      "p4_triggered": true
+    }
+  },
+  {
+    "file": "unique1_0003.smt2",
+    "baseline": {
+      "status": "ok",
+      "total_rounds": 1,
+      "final_linear": 0,
+      "final_quadratic": 2,
+      "duration_ms": 2,
+      "clusters_p3": 1,
+      "clusters_p4": 0,
+      "max_cluster": 1,
+      "p4_triggered": false
+    },
+    "augmented": {
+      "status": "ok",
+      "total_rounds": 1,
+      "final_linear": 0,
+      "final_quadratic": 2,
+      "duration_ms": 2,
+      "clusters_p3": 1,
+      "clusters_p4": 0,
+      "max_cluster": 1,
+      "p4_triggered": false
+    }
+  },
+  {
+    "file": "unique1_0004.smt2",
+    "baseline": {
+      "status": "ok",
+      "total_rounds": 1,
+      "final_linear": 0,
+      "final_quadratic": 2,
+      "duration_ms": 2,
+      "clusters_p3": 1,
+      "clusters_p4": 0,
+      "max_cluster": 1,
+      "p4_triggered": false
+    },
+    "augmented": {
+      "status": "ok",
+      "total_rounds": 1,
+      "final_linear": 0,
+      "final_quadratic": 1602,
+      "duration_ms": 86,
+      "clusters_p3": 401,
+      "clusters_p4": 1,
+      "max_cluster": 800,
+      "p4_triggered": true
+    }
+  },
+  {
+    "file": "unique1_0005.smt2",
+    "baseline": {
+      "status": "ok",
+      "total_rounds": 1,
+      "final_linear": 0,
+      "final_quadratic": 2,
+      "duration_ms": 3,
+      "clusters_p3": 2,
+      "clusters_p4": 0,
+      "max_cluster": 1,
+      "p4_triggered": false
+    },
+    "augmented": {
+      "status": "ok",
+      "total_rounds": 1,
+      "final_linear": 0,
+      "final_quadratic": 1602,
+      "duration_ms": 76,
+      "clusters_p3": 401,
+      "clusters_p4": 1,
+      "max_cluster": 801,
+      "p4_triggered": true
+    }
+  }
+]
