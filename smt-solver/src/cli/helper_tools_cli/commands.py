@@ -7,7 +7,6 @@ from src.smt_lib import cnf_string_to_smt2
 from src.smt_lib.prune import prune_formula
 from src.cli.helper_tools_cli.generate_proof import generate_proof, ProofGenerationError
 from src.cli.helper_tools_cli.unique_sat_benchmark import generate_unique_sat_benchmarks
-from src.cli.helper_tools_cli.sudoku import sudoku17_to_smtlib2
 from src.cli.helper_tools_cli.translate_dsl import translate_smtlib2_folder
 
 
@@ -170,21 +169,6 @@ def generate_unique_sat_benchmark_command(out_folder: Path, count: int, nvars: i
 	"""Generate a benchmark of uniquely satisfiable SMT-LIB2 formulas."""
 	try:
 		generate_unique_sat_benchmarks(out_folder, count, nvars, seed, log=click.echo)
-	except Exception as e:
-		click.echo(f"✗ Error: {e}", err=True)
-		raise click.Abort()
-
-
-# --------------------------- Sudoku17 to SMT-LIB2 Command ----------------------------------
-@click.command(name="sudoku17-to-smtlib2")
-@click.argument("sudoku_file", type=click.Path(exists=True, dir_okay=False, path_type=Path))
-@click.argument("out_folder", type=click.Path(path_type=Path))
-@click.option("--start", type=int, default=1, show_default=True, help="1-based puzzle index to start from.")
-@click.option("--max-out", type=int, default=None, help="Maximum number of puzzles to convert.")
-def sudoku17_to_smtlib2_command(sudoku_file: Path, out_folder: Path, start: int, max_out: int | None):
-	"""Convert Royle sudoku17 text file into SMT-LIB2 files."""
-	try:
-		sudoku17_to_smtlib2(sudoku_file, out_folder, start, max_out, log=click.echo)
 	except Exception as e:
 		click.echo(f"✗ Error: {e}", err=True)
 		raise click.Abort()

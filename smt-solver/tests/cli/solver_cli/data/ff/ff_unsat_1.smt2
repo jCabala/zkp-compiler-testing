@@ -1,0 +1,6 @@
+(set-logic QF_FF)
+(define-sort F () (_ FiniteField 101))
+(declare-fun x () F)
+(assert (= x (as ff1 F)))
+(assert (= x (as ff2 F)))
+(check-sat)

@@ -18,6 +18,10 @@ SAT_FILES = sorted((DATA_DIR / "sat").glob("*.smt2"))
 UNSAT_FILES = sorted((DATA_DIR / "unsat").glob("*.smt2"))
 PICUS_SAT_FILES = sorted((DATA_DIR / "picus_sat").glob("*.smt2"))
 PICUS_UNSAT_FILES = sorted((DATA_DIR / "picus_unsat").glob("*.smt2"))
+FF_SAT_FILES = sorted((DATA_DIR / "ff").glob("ff_sat_*.smt2"))
+FF_UNSAT_FILES = sorted((DATA_DIR / "ff").glob("ff_unsat_*.smt2"))
+FF_PICUS_SAT_FILES = sorted((DATA_DIR / "ff").glob("ff_picus_sat_*.smt2"))
+FF_PICUS_UNSAT_FILES = sorted((DATA_DIR / "ff").glob("ff_picus_unsat_*.smt2"))
 
 DSLS = ["circom", "gnark"]
 SMT_SOLVERS = ["z3", "cvc5"]
@@ -82,3 +86,34 @@ def test_picus_unsat_formulas(smt_file, dsl):
     """
     # with_hints=False is intentional and must not be changed — see docstring
     _assert_solve(smt_file, dsl, "picus", False, "unsat")
+
+
+# ---------------------- QF_FF tests ----------------------
+
+@pytest.mark.parametrize("dsl", DSLS)
+@pytest.mark.parametrize("solver", ["cvc5"])
+@pytest.mark.parametrize("with_hints", HINTS, ids=["no-hints", "with-hints"])
+@pytest.mark.parametrize("smt_file", FF_SAT_FILES, ids=[f.stem for f in FF_SAT_FILES])
+def test_ff_sat_formulas(smt_file, dsl, solver, with_hints):
+	_assert_solve(smt_file, dsl, solver, with_hints, "sat")
+
+
+@pytest.mark.parametrize("dsl", DSLS)
+@pytest.mark.parametrize("solver", ["cvc5"])
+@pytest.mark.parametrize("with_hints", HINTS, ids=["no-hints", "with-hints"])
+@pytest.mark.parametrize("smt_file", FF_UNSAT_FILES, ids=[f.stem for f in FF_UNSAT_FILES])
+def test_ff_unsat_formulas(smt_file, dsl, solver, with_hints):
+	_assert_solve(smt_file, dsl, solver, with_hints, "unsat")
+
+
+@pytest.mark.parametrize("dsl", DSLS)
+@pytest.mark.parametrize("with_hints", HINTS, ids=["no-hints", "with-hints"])
+@pytest.mark.parametrize("smt_file", FF_PICUS_SAT_FILES, ids=[f.stem for f in FF_PICUS_SAT_FILES])
+def test_ff_picus_sat_formulas(smt_file, dsl, with_hints):
+	_assert_solve(smt_file, dsl, "picus", with_hints, "sat")
+
+
+@pytest.mark.parametrize("dsl", DSLS)
+@pytest.mark.parametrize("smt_file", FF_PICUS_UNSAT_FILES, ids=[f.stem for f in FF_PICUS_UNSAT_FILES])
+def test_ff_picus_unsat_formulas(smt_file, dsl):
+	_assert_solve(smt_file, dsl, "picus", False, "unsat")

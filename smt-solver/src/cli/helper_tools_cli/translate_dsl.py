@@ -4,7 +4,7 @@ from pathlib import Path
 from src.smt_lib.zk_ir import Circuit
 from src.backends.circom.emitter import EmitVisitor as CircomEmitter
 from src.backends.circom.ir2circom import IR2CircomVisitorConstrainAssertions
-from src.smt_lib.smt_lib_parser import parse_smtlib2_core
+from src.smt_lib.smt_lib_parser import parse_smtlib2
 from src.backends.gnark.ir2gnark import IR2GnarkVisitor
 from src.backends.gnark.emitter import EmitVisitor as GnarkEmitter
 from src.backends.noir.ir2noir import IR2NoirVisitor
@@ -62,7 +62,7 @@ def translate_smtlib2_to_dsl(smtlib2: str, dsl: str, output_format: str = "stand
 
 	Returns (source_code, file_extension).
 	"""
-	circuit_ir: Circuit = parse_smtlib2_core(smtlib2)
+	circuit_ir: Circuit = parse_smtlib2(smtlib2)
 
 	if dsl == "circom":
 		rng = Random(0)
