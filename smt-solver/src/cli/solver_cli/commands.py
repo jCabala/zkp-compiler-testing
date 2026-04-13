@@ -6,6 +6,7 @@ import click
 
 from src.smt_lib.simplify import simplify_formula
 from src.smt_lib.prune import run_smt_solver_models
+from src.smt_lib.ff_hints import run_ff_hint_models_subprocess
 from src.cli.solver_cli.common import (
 	ZKDSL, log, dsl_extension, apply_pruning,
 )
@@ -29,7 +30,8 @@ from src.cli.solver_cli.not_chain import augment_smt2
 @click.option('--not-chain-length', type=int, default=None, help="Length of each injected NOT chain (triggers P4 at >=350). Default: 400.")
 @click.option('--max-not-chain-count', type=int, default=None, help="Upper bound on number of NOT chains to inject; actual count sampled from [0, max]. Default: 0 (disabled).")
 @click.option('--compiler', default=None, help="Custom compiler binary to use (circom binary for circom DSL, go binary for gnark DSL).")
-def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, without_hints: bool, no_simplify: bool, solving_timeout: int, not_chain_length: int, max_not_chain_count: int, compiler: str):
+@click.option('--dump-r1cs', type=click.Path(path_type=Path), default=None, help="Write the final R1CS (after optional elimination/optimization) to this path.")
+def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, without_hints: bool, no_simplify: bool, solving_timeout: int, not_chain_length: int, max_not_chain_count: int, compiler: str, dump_r1cs: Path | None):
 	"""
 	Solve an SMT-LIB file using a SMT solver.
 	SMT_LIB_PATH: Path to the .smt2 file
@@ -55,6 +57,7 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 	not_chain_length      = _opt(not_chain_length,      "not_chain_length",      400)
 	max_not_chain_count   = _opt(max_not_chain_count,   "max_not_chain_count",   0)
 	compiler              = _opt(compiler,              "compiler",              None)
+	dump_r1cs             = _opt(dump_r1cs,             "dump_r1cs",             None)
 	with_hints = not without_hints
 
 	if isinstance(tmp_dir, str):
@@ -63,10 +66,13 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 	log(f"Using ZK DSL: {zk_dsl}", with_logs=with_logs)
 	log(f"Solving SMT-LIB file: {smt_lib_path}...", with_logs=with_logs)
 	file_content = smt_lib_path.read_text()
+	is_qf_ff = "(set-logic QF_FF" in file_content
 
 	# Apply pruning if requested
 	# Pruning and hints use pysmt in-process — always use z3 to avoid cvc5 Cython conflicts.
 	if prune is not None:
+		if is_qf_ff:
+			raise ValueError("Pruning is not supported for QF_FF inputs.")
 		file_content = apply_pruning(
 			file_content,
 			prune,
@@ -85,7 +91,14 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 	# toward progressive hint statistics or oracle run count.
 	hint_model_list: list[dict] = []
 	if with_hints:
-		_, models = run_smt_solver_models(file_content, solver="z3", max_models=adaptive_state.hint_models)
+		if is_qf_ff:
+			models = run_ff_hint_models_subprocess(
+				file_content,
+				max_models=adaptive_state.hint_models,
+				solving_timeout=solving_timeout,
+			)
+		else:
+			_, models = run_smt_solver_models(file_content, solver="z3", max_models=adaptive_state.hint_models)
 		hint_model_list = models
 		log(f"Obtained {len(hint_model_list)} hint model(s)", with_logs=with_logs)
 		if not hint_model_list:
@@ -98,7 +111,10 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 		log(f"Injected {len(not_chains)} NOT chain(s): length={not_chain_length}, anchors={[a for a, _ in not_chains]}", with_logs=with_logs)
 
 	if not no_simplify:
-		file_content = simplify_formula(file_content)
+		if is_qf_ff:
+			log("Skipping simplification for QF_FF input", with_logs=with_logs)
+		else:
+			file_content = simplify_formula(file_content)
 
 	def _parse_smtlib2(smtlib2: str, dsl: str, solver: str = "z3") -> tuple[str, list[str]]:
 		"""Convert SMT-LIB v2 to the target DSL. Returns (code, bool_vars)."""
@@ -125,9 +141,9 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 
 	def _run_oracle(hint_model: dict | None) -> str:
 		if zk_dsl == ZKDSL.CIRCOM:
-			return solve_circom(circom_path=dsl_path, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver, bool_vars=tuple(bool_vars), hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "circom")
+			return solve_circom(circom_path=dsl_path, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver, bool_vars=tuple(bool_vars), hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "circom", dump_r1cs=dump_r1cs)
 		elif zk_dsl == ZKDSL.GNARK:
-			return solve_gnark(gnark_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "go")
+			return solve_gnark(gnark_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "go", dump_r1cs=dump_r1cs)
 		else:
 			raise ValueError(f"Unsupported ZK DSL: {zk_dsl}")
 

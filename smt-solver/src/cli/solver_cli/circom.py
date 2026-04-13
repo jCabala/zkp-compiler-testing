@@ -1,7 +1,7 @@
 from pathlib import Path
 from random import Random, random
 from src.cli.solver_cli.adaptive_hints import HINT_PROBABILITY
-from src.smt_lib.smt_lib_parser import parse_smtlib2_core
+from src.smt_lib.smt_lib_parser import parse_smtlib2
 from src.smt_lib.zk_ir import Circuit
 from src.backends.circom.ir2circom import IR2CircomVisitorConstrainAssertions
 from src.backends.circom.emitter import EmitVisitor as CircomEmitter
@@ -13,7 +13,7 @@ from src.cli.solver_cli.common import log, solution_to_str, run_picus
 
 def smtlib2_to_circom(smtlib2: str, solver: str = "z3") -> tuple[str, list[str]]:
 	"""Parse SMT-LIB v2 and convert to Circom code. Returns (code, bool_var_names)."""
-	circuit_ir: Circuit = parse_smtlib2_core(smtlib2, solver=solver)
+	circuit_ir: Circuit = parse_smtlib2(smtlib2, solver=solver)
 
 	from src.smt_lib.zk_ir import VariableType
 	bool_vars = [f"main.{var.name}" for var in circuit_ir.inputs if var.variable_type == VariableType.BOOLEAN]
@@ -103,7 +103,7 @@ def build_r1cs_from_circom(
 	return r1cs
 
 
-def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_logs: bool, solver: str, o0: bool, o1: bool, o2: bool, hint_model: dict | None = None, solving_timeout: int | None = None, hint_probability: float = HINT_PROBABILITY, compiler: str = "circom") -> str:
+def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_logs: bool, solver: str, o0: bool, o1: bool, o2: bool, hint_model: dict | None = None, solving_timeout: int | None = None, hint_probability: float = HINT_PROBABILITY, compiler: str = "circom", dump_r1cs: Path | None = None) -> str:
 	"""Compile a Circom circuit, export its R1CS, and solve with an SMT solver. Returns 'sat' or 'unsat'."""
 	from src.backends.circom.r1cs import compile_to_r1cs, OptFlag
 
@@ -143,6 +143,10 @@ def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_log
 
 	if wire_hints:
 		r1cs.hints = wire_hints
+
+	if dump_r1cs is not None:
+		from src.r1cs.dump import dump_r1cs as _dump_r1cs
+		dump_r1cs.write_text(_dump_r1cs(r1cs))
 
 	log("Solving R1CS using a SMT solver...", with_logs)
 	solution = solve_r1cs(r1cs, backend=solver, with_logs=with_logs, solving_timeout=solving_timeout)

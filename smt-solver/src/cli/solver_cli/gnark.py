@@ -5,7 +5,7 @@ from pathlib import Path
 from random import random
 from uuid import uuid4
 from src.cli.solver_cli.adaptive_hints import HINT_PROBABILITY
-from src.smt_lib.smt_lib_parser import parse_smtlib2_core
+from src.smt_lib.smt_lib_parser import parse_smtlib2
 from src.smt_lib.zk_ir import Circuit
 from src.backends.gnark.ir2gnark import IR2GnarkVisitor
 from src.backends.gnark.emitter import EmitVisitor as GnarkEmitter
@@ -42,7 +42,7 @@ def maybe_clean_go_cache() -> None:
 
 def smtlib2_to_gnark(smtlib2: str, solver: str = "z3") -> str:
 	"""Parse SMT-LIB v2 and convert to Gnark Go code."""
-	circuit_ir: Circuit = parse_smtlib2_core(smtlib2, solver=solver)
+	circuit_ir: Circuit = parse_smtlib2(smtlib2, solver=solver)
 	ir2gnark_visitor = IR2GnarkVisitor()
 	gnark_ir = ir2gnark_visitor.visit_circuit(circuit_ir)
 	emitter = GnarkEmitter()
@@ -125,7 +125,7 @@ def build_r1cs_from_gnark(
 	return r1cs, r1cs_sr1cs_str
 
 
-def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str, tmp_dir: Path, hint_model: dict | None = None, solving_timeout: int | None = None, hint_probability: float = HINT_PROBABILITY, compiler: str = "go") -> str:
+def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str, tmp_dir: Path, hint_model: dict | None = None, solving_timeout: int | None = None, hint_probability: float = HINT_PROBABILITY, compiler: str = "go", dump_r1cs: Path | None = None) -> str:
 	"""Compile a GNARK (Go) circuit, export its R1CS, and solve with an SMT solver. Returns 'sat' or 'unsat'."""
 	from src.backends.gnark.r1cs import get_r1cs_sr1cs, parse_sr1cs
 
@@ -156,6 +156,10 @@ def solve_gnark(gnark_path: Path, with_model: bool, with_logs: bool, solver: str
 
 	if wire_hints:
 		r1cs.hints = wire_hints
+
+	if dump_r1cs is not None:
+		from src.r1cs.dump import dump_r1cs as _dump_r1cs
+		dump_r1cs.write_text(_dump_r1cs(r1cs))
 
 	log("Solving R1CS using a SMT solver...", with_logs)
 	solution = solve_r1cs(r1cs, backend=solver, with_logs=with_logs, solving_timeout=solving_timeout)

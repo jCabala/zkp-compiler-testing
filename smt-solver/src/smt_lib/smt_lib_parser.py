@@ -1,5 +1,6 @@
 from io import StringIO
 from typing import Dict, List, Tuple
+import re
 
 from src.smt_lib.zk_ir import (
     Circuit,
@@ -7,6 +8,7 @@ from src.smt_lib.zk_ir import (
     Expression,
     FusedVariable,
     Variable,
+    Integer,
     Boolean,
     UnaryExpression,
     BinaryExpression,
@@ -55,6 +57,42 @@ def _infer_xor_fusion(var_name: str) -> Expression:
         return Variable(name, VariableType.BOOLEAN)
 
     return BinaryExpression(Operator.LXOR, _to_expr(var1), _to_expr(var2))
+
+
+# ------------------------------------------------------------
+# SUM fusion inference from variable naming convention (FF)
+# ------------------------------------------------------------
+
+def _infer_sum_fusion(var_name: str) -> Expression:
+    """
+    Infer SUM fusion expression from a fused variable's name.
+
+    Naming conventions:
+      Original:      scr1_x1_scr1_x2_fused  (split on second "scr")
+      After pruning:  var1__var2__orig__<original>_fused  (split on "__")
+    """
+    base = var_name[: -len(FUSION_SUFFIX)]
+
+    if "__" in base:
+        parts = base.split("__")
+        if len(parts) < 2:
+            raise ValueError(f"Cannot parse renamed fused name: {var_name}")
+        var1, var2 = parts[0], parts[1]
+    else:
+        first = base.find("scr")
+        if first == -1:
+            raise ValueError(f"Cannot parse fused name (no 'scr'): {var_name}")
+        second = base.find("scr", first + 1)
+        if second == -1:
+            raise ValueError(f"Cannot parse fused name (no second 'scr'): {var_name}")
+        var1 = base[:second].rstrip("_")
+        var2 = base[second:]
+
+    return BinaryExpression(
+        Operator.ADD,
+        Variable(var1, VariableType.FIELD),
+        Variable(var2, VariableType.FIELD),
+    )
 
 
 # ------------------------------------------------------------
@@ -182,3 +220,189 @@ def parse_smtlib2_core(smtlib2: str, solver: str = "z3") -> Circuit:
         outputs=outputs,
         statements=statements,
     )
+
+
+# ------------------------------------------------------------
+# Finite-field parser: SMT-LIB v2 (QF_FF subset) → Circuit IR
+# ------------------------------------------------------------
+
+def _strip_smt_comments(s: str) -> str:
+    lines = []
+    for line in s.splitlines():
+        if ";" in line:
+            line = line.split(";", 1)[0]
+        if line.strip():
+            lines.append(line)
+    return "\n".join(lines)
+
+
+def _tokenize_sexpr(s: str) -> list[str]:
+    tokens: list[str] = []
+    buf: list[str] = []
+    for ch in s:
+        if ch in ("(", ")"):
+            if buf:
+                tokens.append("".join(buf))
+                buf = []
+            tokens.append(ch)
+        elif ch.isspace():
+            if buf:
+                tokens.append("".join(buf))
+                buf = []
+        else:
+            buf.append(ch)
+    if buf:
+        tokens.append("".join(buf))
+    return tokens
+
+
+def _parse_sexpr(tokens: list[str], idx: int = 0):
+    if idx >= len(tokens):
+        raise ValueError("Unexpected end of tokens")
+    tok = tokens[idx]
+    if tok == "(":
+        out = []
+        idx += 1
+        while idx < len(tokens) and tokens[idx] != ")":
+            node, idx = _parse_sexpr(tokens, idx)
+            out.append(node)
+        if idx >= len(tokens) or tokens[idx] != ")":
+            raise ValueError("Unbalanced parentheses in SMT-LIB")
+        return out, idx + 1
+    if tok == ")":
+        raise ValueError("Unexpected ')'")
+    return tok, idx + 1
+
+
+def _parse_script(s: str) -> list:
+    tokens = _tokenize_sexpr(s)
+    idx = 0
+    forms = []
+    while idx < len(tokens):
+        node, idx = _parse_sexpr(tokens, idx)
+        forms.append(node)
+    return forms
+
+
+def parse_smtlib2_ff(smtlib2: str) -> Circuit:
+    """
+    Parse a finite-field SMT-LIB v2 formula (QF_FF subset) into a Circuit IR.
+
+    Supported:
+      - (set-logic QF_FF)
+      - (define-sort F () (_ FiniteField p))
+      - (declare-fun x () F)
+      - (assert (= <expr> <expr>))
+      - ff.add / ff.mul / ff.neg
+      - constants (as ffK F)
+    """
+    cleaned = _strip_smt_comments(smtlib2)
+    forms = _parse_script(cleaned)
+
+    declared: set[str] = set()
+    inputs: list[Variable] = []
+    outputs: list[Variable] = []
+    assertions: list[Assertion] = []
+
+    def _to_int_atom(atom: str) -> int | None:
+        if atom.isdigit() or (atom.startswith("-") and atom[1:].isdigit()):
+            return int(atom)
+        if atom.startswith("ff") and atom[2:].isdigit():
+            return int(atom[2:])
+        return None
+
+    def _fold_left(opcode: Operator, exprs: list[Expression]) -> Expression:
+        out = exprs[0]
+        for e in exprs[1:]:
+            out = BinaryExpression(opcode, out, e)
+        return out
+
+    def _expr(node) -> Expression:
+        if isinstance(node, str):
+            maybe_int = _to_int_atom(node)
+            if maybe_int is not None:
+                return Integer(maybe_int)
+            if node in declared:
+                return Variable(node, VariableType.FIELD)
+            raise ValueError(f"Unknown symbol in QF_FF expression: {node}")
+
+        if not node:
+            raise ValueError("Empty expression in QF_FF")
+
+        head = node[0]
+        if head == "as":
+            if len(node) != 3:
+                raise ValueError(f"Malformed (as ...) constant: {node}")
+            ff_token = node[1]
+            maybe_int = _to_int_atom(ff_token)
+            if maybe_int is None:
+                raise ValueError(f"Unsupported constant: {node}")
+            return Integer(maybe_int)
+
+        if head == "ff.add":
+            args = [_expr(a) for a in node[1:]]
+            if not args:
+                raise ValueError("ff.add requires at least one argument")
+            return _fold_left(Operator.ADD, args) if len(args) > 1 else args[0]
+
+        if head == "ff.mul":
+            args = [_expr(a) for a in node[1:]]
+            if not args:
+                raise ValueError("ff.mul requires at least one argument")
+            return _fold_left(Operator.MUL, args) if len(args) > 1 else args[0]
+
+        if head == "ff.neg":
+            if len(node) != 2:
+                raise ValueError("ff.neg expects exactly one argument")
+            return UnaryExpression(Operator.SUB, _expr(node[1]))
+
+        if head == "=":
+            if len(node) != 3:
+                raise ValueError("= expects exactly two arguments")
+            return BinaryExpression(Operator.EQU, _expr(node[1]), _expr(node[2]))
+
+        raise ValueError(f"Unsupported QF_FF operator: {head}")
+
+    for form in forms:
+        if not form:
+            continue
+        head = form[0]
+        if head == "set-logic":
+            continue
+        if head == "define-sort":
+            continue
+        if head == "declare-fun":
+            name = form[1]
+            declared.add(name)
+            if name.endswith(FUSION_SUFFIX):
+                outputs.append(
+                    FusedVariable(name, VariableType.FIELD, _infer_sum_fusion(name))
+                )
+            else:
+                inputs.append(Variable(name, VariableType.FIELD))
+            continue
+        if head == "define-fun":
+            raise NotImplementedError("define-fun is not supported in QF_FF parser")
+        if head == "assert":
+            if len(form) != 2:
+                raise ValueError("assert expects a single argument")
+            expr = _expr(form[1])
+            assertions.append(Assertion(identifier=f"assert_{len(assertions)}", value=expr))
+            continue
+        # ignore check-sat and other commands
+
+    return Circuit(
+        name="smtlib2_ff",
+        inputs=inputs,
+        outputs=outputs,
+        statements=assertions,
+    )
+
+
+def parse_smtlib2(smtlib2: str, solver: str = "z3") -> Circuit:
+    """
+    Auto-detect SMT-LIB logic and parse into Circuit IR.
+    """
+    if re.search(r"\(set-logic\s+QF_FF\b", smtlib2):
+        return parse_smtlib2_ff(smtlib2)
+    return parse_smtlib2_core(smtlib2, solver=solver)
