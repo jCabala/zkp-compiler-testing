@@ -6,7 +6,7 @@ import json
 from src.r1cs.ir import R1CS, Variable, Constraint, LinearCombination, Term
 from src.backends.circom.sym_parser import resolve_bool_wires
 
-_CIRCOMLIB = Path(__file__).resolve().parents[3] / "experiments" / "legacy" / "circomlib"
+_CIRCOMLIB = Path(__file__).resolve().parents[3] / "third_party" / "circomlib"
 
 # --------- Translation ---------
 

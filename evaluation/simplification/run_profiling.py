@@ -32,7 +32,7 @@ REPO_ROOT = SCRIPT_DIR.parent.parent
 SMT_SOLVER_DIR = REPO_ROOT / "smt-solver"
 PROFILING_CIRCOM = REPO_ROOT / "evaluation" / "simplification" / "third_party" / "circom-profiling" / "target" / "release" / "circom"
 DEFAULT_BENCHMARKS = SMT_SOLVER_DIR / "benchmarks" / "SMT-benchmarks" / "core" / "sat"
-CIRCOMLIB_DIR = SMT_SOLVER_DIR / "experiments" / "circomlib"
+CIRCOMLIB_DIR = SMT_SOLVER_DIR / "third_party" / "circomlib"
 
 
 def convert_smt_to_circom(smt2_files: list[Path], out_dir: Path, env: dict) -> list[Path]:

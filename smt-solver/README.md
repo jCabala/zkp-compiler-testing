@@ -16,7 +16,7 @@ chmod +x ./cli.py
 to see a list of commands. The main command for the solver is `./cli.py solve`.
 Run `./cli.py solve --help` for more details.~
 
-When using circom dsl make sure your `tmp-dir` has circomlib files at ../circomlib. E.g set `--tmp-dir experiments/tmp-circom`.
+Circom compilation uses the shared library at `third_party/circomlib`.
 
 ## Experiment Scripts
 

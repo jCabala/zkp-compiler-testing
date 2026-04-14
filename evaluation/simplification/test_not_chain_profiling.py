@@ -37,7 +37,7 @@ REPO_ROOT    = SCRIPT_DIR.parent.parent
 SMT_SOLVER_DIR = REPO_ROOT / "smt-solver"
 PROFILING_CIRCOM = SCRIPT_DIR / "third_party" / "circom-profiling" / "target" / "release" / "circom"
 DEFAULT_BENCHMARKS = SMT_SOLVER_DIR / "benchmarks" / "SMT-benchmarks" / "core" / "unique_sat_1to5vars"
-CIRCOMLIB_DIR = SMT_SOLVER_DIR / "experiments" / "circomlib"
+CIRCOMLIB_DIR = SMT_SOLVER_DIR / "third_party" / "circomlib"
 LOG_FILE = SCRIPT_DIR / "test_not_chain_profiling.log"
 
 P4_THRESHOLD = 350  # minimum cluster size to trigger P4

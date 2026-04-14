@@ -32,6 +32,23 @@ SIMPLE_FORMULA = """\
 (get-model)
 """
 
+NAMED_BOOL_FORMULA = """\
+(set-logic QF_BV)
+(declare-fun alpha () Bool)
+(declare-fun beta_2 () Bool)
+(assert alpha)
+(check-sat)
+"""
+
+FF_FORMULA = """\
+(set-logic QF_FF)
+(define-sort F () (_ FiniteField 101))
+(declare-fun v1 () F)
+(declare-fun witness_2 () F)
+(assert (= v1 (as ff0 F)))
+(check-sat)
+"""
+
 CHAIN_LENGTH = 10  # short for most unit tests
 LONG_CHAIN_LENGTH = 1000
 
@@ -65,6 +82,12 @@ class TestAugmentSmt2:
         _, chains = augment_smt2(SIMPLE_FORMULA, CHAIN_LENGTH, max_count=3, rng=rng)
         for anchor, _ in chains:
             assert anchor in ("x1", "x2", "x3")
+
+    def test_declared_bool_names_not_matching_xn_are_found(self):
+        rng = random.Random(7)
+        _, chains = augment_smt2(NAMED_BOOL_FORMULA, CHAIN_LENGTH, max_count=2, rng=rng)
+        for anchor, _ in chains:
+            assert anchor in ("alpha", "beta_2")
 
     def test_variables_declared_in_formula(self):
         rng = random.Random(3)
@@ -104,6 +127,26 @@ class TestAugmentSmt2:
         augmented, chains = augment_smt2(formula, CHAIN_LENGTH, max_count=5, rng=rng)
         assert chains == []
         assert augmented == formula
+
+    def test_ff_chain_uses_affine_one_minus_x_links(self):
+        class DeterministicRng:
+            def randint(self, a, b):
+                return 1
+
+            def sample(self, population, k):
+                return population[:k]
+
+        rng = DeterministicRng()
+        augmented, chains = augment_smt2(FF_FORMULA, chain_length=2, max_count=1, rng=rng)
+        assert len(chains) == 1
+        anchor, chain_idx = chains[0]
+        assert anchor in ("v1", "witness_2")
+        var1 = f"{ALWAYS_HINT_PREFIX}{chain_idx}_1"
+        var2 = f"{ALWAYS_HINT_PREFIX}{chain_idx}_2"
+        assert f"(declare-fun {var1} () F)" in augmented
+        assert f"(declare-fun {var2} () F)" in augmented
+        assert f"(assert (= {var1} (ff.add (as ff1 F) (ff.neg {anchor}))))" in augmented
+        assert f"(assert (= {var2} (ff.add (as ff1 F) (ff.neg {var1}))))" in augmented
 
 
 # ---------------------------------------------------------------------------
