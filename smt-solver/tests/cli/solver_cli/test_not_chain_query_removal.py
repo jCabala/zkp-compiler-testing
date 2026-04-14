@@ -23,10 +23,25 @@ SIMPLE_BOOL_FORMULA = """\
 (get-model)
 """
 
+SIMPLE_FF_FORMULA = """\
+(set-logic QF_FF)
+(define-sort F () (_ FiniteField 101))
+(declare-fun v1 () F)
+(declare-fun v6 () F)
+(assert (= v1 (as ff1 F)))
+(check-sat)
+"""
+
 
 def _write_formula(tmp_path: Path) -> Path:
     path = tmp_path / "input.smt2"
     path.write_text(SIMPLE_BOOL_FORMULA)
+    return path
+
+
+def _write_ff_formula(tmp_path: Path) -> Path:
+    path = tmp_path / "input_ff.smt2"
+    path.write_text(SIMPLE_FF_FORMULA)
     return path
 
 
@@ -174,3 +189,88 @@ def test_gnark_not_chain_wires_do_not_reach_final_query(tmp_path):
     assert [var.index for var in final_r1cs.variables] == [0, 1]
     assert _constraint_wire_indices(final_r1cs) == {0, 1}
     assert final_r1cs.nConstraints == 1
+
+
+def test_circom_ff_not_chain_wires_do_not_reach_final_query(tmp_path):
+    """
+    The same transitive removal contract should hold for QF_FF inputs:
+    removable FF chain wires and helpers derived only from them must not
+    survive into the final R1CS passed to SMT solving.
+    """
+    smt_path = _write_ff_formula(tmp_path)
+    captured: dict[str, object] = {}
+
+    circom_json = json.dumps(
+        {
+            "n8": 32,
+            "prime": str(PRIME),
+            "nVars": 6,
+            "nOutputs": 0,
+            "nPubInputs": 0,
+            "nPrvInputs": 3,
+            "nLabels": 6,
+            "nConstraints": 4,
+            "useCustomGates": False,
+            "constraints": [
+                [
+                    {"2": "1", "3": "1", "4": str(PRIME - 1)},
+                    {"0": "1"},
+                    {},
+                ],
+                [
+                    {"4": "1", "5": str(PRIME - 1)},
+                    {"0": "1"},
+                    {},
+                ],
+                [
+                    {"1": "1"},
+                    {"0": "1"},
+                    {"0": "1"},
+                ],
+                [
+                    {"2": "1"},
+                    {"0": "1"},
+                    {},
+                ],
+            ],
+            "map": [0, 1, 2, 30, 31, 32],
+            "customGates": [],
+            "customGatesUses": [],
+        }
+    )
+
+    def fake_get_r1cs_with_sym(_circom_path, opt_flag=None, bool_signal_names=None, compiler="circom"):
+        assert not bool_signal_names
+        return circom_json, set(), {30}, {1, 2}
+
+    def fake_solve_r1cs(r1cs, backend="cvc5", with_logs=False, solving_timeout=None):
+        captured["r1cs"] = r1cs
+        return SMTResult(True, {})
+
+    with patch("src.cli.solver_cli.commands.augment_smt2", side_effect=_deterministic_augment), \
+         patch("src.backends.circom.r1cs.get_r1cs_with_sym", side_effect=fake_get_r1cs_with_sym), \
+         patch("src.cli.solver_cli.circom.optimize_r1cs", side_effect=lambda r1cs, with_logs=False: r1cs), \
+         patch("src.cli.solver_cli.circom.solve_r1cs", side_effect=fake_solve_r1cs):
+        result = CliRunner().invoke(
+            cli,
+            [
+                "solve",
+                str(smt_path),
+                "--zk-dsl",
+                "circom",
+                "--solver",
+                "cvc5",
+                "--without-hints",
+                "--no-simplify",
+                "--not-chain-length",
+                "1",
+                "--max-not-chain-count",
+                "1",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    final_r1cs = captured["r1cs"]
+    assert [var.index for var in final_r1cs.variables] == [0, 1, 2]
+    assert _constraint_wire_indices(final_r1cs) == {0, 1, 2}
+    assert final_r1cs.nConstraints == 2

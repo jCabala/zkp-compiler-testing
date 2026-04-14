@@ -1,13 +1,19 @@
 """
-NOT chain augmentation for SMT-LIB formulas.
+Linear chain augmentation for SMT-LIB formulas.
 
-Injects one or more chains of NOT constraints, each anchored to a distinct
-randomly chosen variable, enlarging linear clusters in the compiled R1CS to
+Injects one or more synthetic chains, each anchored to a distinct randomly
+chosen declared variable, enlarging linear clusters in the compiled R1CS to
 trigger P4 (Circom simplification threshold: 350 constraints).
+
+For Boolean formulas each link is a NOT:
+    y = not x
+
+For finite-field formulas each link is the affine equivalent:
+    y = 1 - x
 
 Introduced variables use the `_removable_` prefix — the solver layer detects
 this prefix in the sym/sr1cs file and eliminates all constraints involving
-these wires before building the SMT query. Since the NOT chain is fully
+these wires before building the SMT query. Since the synthetic chain is fully
 determined by the circuit, dropping its constraints is safe and keeps the
 query smaller.
 
@@ -21,14 +27,32 @@ import random as _random_mod
 from typing import Optional
 
 REMOVABLE_PREFIX = "_removable_"
+_DECLARE_FUN_RE = re.compile(
+    r"^\s*\(declare-fun\s+([^\s()]+)\s+\(\)\s+(.+?)\)\s*$",
+    re.MULTILINE,
+)
 
 # List of (anchor_var, chain_idx) pairs — returned by augment_smt2.
 ChainList = list[tuple[str, int]]
 
 
-def _find_variables(smt2: str) -> list[str]:
-    """Return all distinct xN variable names found in the formula."""
-    return list(set(re.findall(r'\bx\d+\b', smt2)))
+def _find_declared_variables(smt2: str) -> list[tuple[str, str]]:
+    """Return distinct declared zero-arity symbols together with their sorts."""
+    seen: set[str] = set()
+    variables: list[tuple[str, str]] = []
+    for name, sort in _DECLARE_FUN_RE.findall(smt2):
+        if name.startswith(REMOVABLE_PREFIX) or name in seen:
+            continue
+        seen.add(name)
+        variables.append((name, sort.strip()))
+    return variables
+
+
+def _build_link_expression(source: str, sort: str) -> str:
+    """Return the SMT-LIB expression for the next chain link."""
+    if sort == "Bool":
+        return f"(not {source})"
+    return f"(ff.add (as ff1 {sort}) (ff.neg {source}))"
 
 
 def augment_smt2(
@@ -51,7 +75,7 @@ def augment_smt2(
     if rng is None:
         rng = _random_mod
 
-    variables = _find_variables(smt2)
+    variables = _find_declared_variables(smt2)
     if not variables:
         return smt2, []
 
@@ -63,16 +87,18 @@ def augment_smt2(
     chains: ChainList = []
     injections: list[str] = []
 
-    for chain_idx, anchor in enumerate(anchors, start=1):
+    for chain_idx, (anchor, sort) in enumerate(anchors, start=1):
         def _var(i: int, ci: int = chain_idx) -> str:
             return f"{REMOVABLE_PREFIX}{ci}_{i}"
 
         declarations = "\n".join(
-            f"(declare-fun {_var(i)} () Bool)" for i in range(1, chain_length + 1)
+            f"(declare-fun {_var(i)} () {sort})" for i in range(1, chain_length + 1)
         )
-        assertions = [f"(assert (= {_var(1)} (not {anchor})))"]
+        assertions = [f"(assert (= {_var(1)} {_build_link_expression(anchor, sort)}))"]
         for i in range(2, chain_length + 1):
-            assertions.append(f"(assert (= {_var(i)} (not {_var(i - 1)})))")
+            assertions.append(
+                f"(assert (= {_var(i)} {_build_link_expression(_var(i - 1), sort)}))"
+            )
 
         injections.append(
             f"\n; --- NOT chain {chain_idx}: {chain_length} links anchored to {anchor} ---\n"
