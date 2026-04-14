@@ -1,0 +1,9 @@
+{
+  "hint_models": 5,
+  "hint_probability": 0.5,
+  "recent_times": [],
+  "total_runs": 31,
+  "update_every": 32,
+  "prob_step": 0.05,
+  "runs_since_last_update": 0
+}
