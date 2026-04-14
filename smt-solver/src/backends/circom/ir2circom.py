@@ -25,9 +25,9 @@ class NameDispenser():
         return identifier
 
 class ImportDependency(Enum):
-    COMPARATORS = "../circomlib/comparators.circom"
-    GATES = "../circomlib/gates.circom"
-    MUX = "../circomlib/mux1.circom"
+    COMPARATORS = "comparators.circom"
+    GATES = "gates.circom"
+    MUX = "mux1.circom"
 
 @dataclass
 class ImportDependencyManager():

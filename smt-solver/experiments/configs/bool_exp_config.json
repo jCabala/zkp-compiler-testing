@@ -1,0 +1,58 @@
+{
+  "defaults": {
+    "tmp_dir": "experiments/obj",
+    "max_files": null,
+    "timeout_sec": 600,
+    "solver_timeout_sec": 120,
+    "with_logs": true,
+    "seed": 0,
+    "not_chain_length": null,
+    "max_not_chain_count": null
+  },
+  "instances": [
+    {
+      "name": "sat_fusion_circom",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/core/unique_sat_1to5vars",
+      "dsl": "circom",
+      "oracle": "smt",
+      "solver": "cvc5",
+      "hints": true,
+      "compiler": "circom",
+      "opt_level": "O2",
+      "not_chain_length": 400,
+      "max_not_chain_count": 5
+    },
+    {
+      "name": "sat_fusion_gnark",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/core/unique_sat_1to5vars",
+      "dsl": "gnark",
+      "oracle": "smt",
+      "solver": "cvc5",
+      "hints": true,
+      "compiler": "go",
+      "not_chain_length": 400,
+      "max_not_chain_count": 5
+    },
+    {
+      "name": "picus_fusion_circom",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/core/unique_sat_1to5vars",
+      "dsl": "circom",
+      "oracle": "picus",
+      "hints": false,
+      "compiler": "circom",
+      "opt_level": "O2",
+      "not_chain_length": 400,
+      "max_not_chain_count": 5
+    },
+    {
+      "name": "picus_fusion_gnark",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/core/unique_sat_1to5vars",
+      "dsl": "gnark",
+      "oracle": "picus",
+      "hints": false,
+      "compiler": "go",
+      "not_chain_length": 400,
+      "max_not_chain_count": 5
+    }
+  ]
+}
