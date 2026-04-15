@@ -1,3 +1,4 @@
+import os
 import re
 import subprocess
 import tempfile
@@ -5,6 +6,10 @@ from pathlib import Path
 from typing import List
 
 from src.r1cs.ir import R1CS, Variable, Constraint, LinearCombination, Term
+
+_GNARK_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+_GO_BUILD_CACHE = Path(tempfile.gettempdir()) / "smt_solver_go_build_cache"
+_GO_BUILD_CACHE.mkdir(exist_ok=True)
 
 # --------- Translation ---------
 
@@ -30,8 +35,16 @@ def get_r1cs_sr1cs(circuit_path: Path, compiler: str = "go") -> str:
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir_path = Path(temp_dir)
         sr1cs_path = temp_dir_path / f"{circuit_name}.sr1cs"
+        env = dict(os.environ, GOCACHE=str(_GO_BUILD_CACHE))
 
-        p = _run([compiler, "run", str(circuit_path), str(sr1cs_path)])
+        p = subprocess.run(
+            [compiler, "run", str(circuit_path), str(sr1cs_path)],
+            cwd=str(_GNARK_PROJECT_ROOT),
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
         if p.returncode != 0:
             raise RuntimeError(f"Gnark compilation/dump failed.\nSTDOUT:\n{p.stdout}\nSTDERR:\n{p.stderr}")
 

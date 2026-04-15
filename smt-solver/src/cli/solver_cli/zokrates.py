@@ -1,0 +1,219 @@
+import re
+import tempfile
+from pathlib import Path
+from random import random
+
+from src.backends.zokrates.emitter import EmitVisitor as ZokratesEmitter
+from src.backends.zokrates.ir2zokrates import IR2ZokratesVisitor
+from src.backends.zokrates.r1cs import compile_to_r1cs, parse_r1cs
+from src.cli.solver_cli.adaptive_hints import HINT_PROBABILITY
+from src.cli.solver_cli.common import log, run_picus, solution_to_str
+from src.r1cs.dump import dump_r1cs as dump_r1cs_text
+from src.r1cs.optimization.eliminate import eliminate_wires
+from src.r1cs.optimization.optimize import optimize_r1cs
+from src.r1cs.sr1cs import dump_sr1cs
+from src.r1cs.solve import solve_r1cs
+from src.smt_lib.smt_lib_parser import parse_smtlib2
+from src.smt_lib.zk_ir import Circuit, VariableType
+
+
+def smtlib2_to_zokrates(smtlib2: str, solver: str = "z3") -> tuple[str, list[str]]:
+	"""Parse SMT-LIB v2 and convert it to ZoKrates code."""
+	circuit_ir: Circuit = parse_smtlib2(smtlib2, solver=solver)
+	bool_vars = [
+		var.name for var in list(circuit_ir.inputs) + list(circuit_ir.outputs)
+		if var.variable_type == VariableType.BOOLEAN
+	]
+	ir2zokrates_visitor = IR2ZokratesVisitor()
+	zokrates_ast = ir2zokrates_visitor.visit_circuit(circuit_ir)
+	emitter = ZokratesEmitter()
+	return emitter.emit(zokrates_ast), bool_vars
+
+
+def _parse_main_params(source: str) -> list[tuple[str, bool]]:
+	match = re.search(r"def\s+main\(([^)]*)\)", source)
+	if not match:
+		return []
+
+	params = []
+	for raw_param in match.group(1).split(","):
+		param = raw_param.strip()
+		if not param:
+			continue
+		parts = param.split()
+		is_private = parts[0] == "private"
+		name = parts[-1]
+		params.append((name, is_private))
+	return params
+
+
+def _build_name_to_wire_map(source: str, r1cs) -> dict[str, int]:
+	params = _parse_main_params(source)
+	public_params = [name for name, is_private in params if not is_private]
+	private_params = [name for name, is_private in params if is_private]
+
+	name_to_wire: dict[str, int] = {}
+	public_start = 1 + r1cs.nOutputs
+	private_start = public_start + r1cs.nPubInputs
+
+	for idx, name in enumerate(public_params):
+		name_to_wire[name] = public_start + idx
+	for idx, name in enumerate(private_params):
+		name_to_wire[name] = private_start + idx
+	return name_to_wire
+
+
+def resolve_hints_for_zokrates(source: str, r1cs, hint_model: dict) -> dict[int, int]:
+	name_to_wire = _build_name_to_wire_map(source, r1cs)
+	hints: dict[int, int] = {}
+	for var_name, value in hint_model.items():
+		if var_name in name_to_wire:
+			hints[name_to_wire[var_name]] = int(value) if isinstance(value, bool) else value
+	return hints
+
+
+def _resolve_input_wire_sets(source: str, r1cs, bool_vars: tuple[str, ...]) -> tuple[set[int], set[int], set[int]]:
+	name_to_wire = _build_name_to_wire_map(source, r1cs)
+	bool_wire_indices = {name_to_wire[name] for name in bool_vars if name in name_to_wire}
+	removable_wire_indices = {
+		wire_idx for name, wire_idx in name_to_wire.items()
+		if name.startswith("_removable_")
+	}
+	protected_wire_indices = {
+		wire_idx for name, wire_idx in name_to_wire.items()
+		if not name.startswith("_removable_")
+	}
+	return bool_wire_indices, removable_wire_indices, protected_wire_indices
+
+
+def _resolve_picus_io(source: str, r1cs) -> tuple[list[int], list[int]]:
+	name_to_wire = _build_name_to_wire_map(source, r1cs)
+	params = _parse_main_params(source)
+	input_wires: list[int] = []
+	output_wires: list[int] = []
+
+	for name, is_private in params:
+		wire_idx = name_to_wire.get(name)
+		if wire_idx is None:
+			continue
+		if is_private:
+			input_wires.append(wire_idx)
+		else:
+			output_wires.append(wire_idx)
+
+	return input_wires, output_wires
+
+
+def build_r1cs_from_zokrates(
+	zokrates_path: Path,
+	r1cs_path: Path,
+	*,
+	bool_vars: tuple[str, ...],
+	with_logs: bool,
+	eliminate_removable: bool = True,
+	optimize: bool = True,
+):
+	"""Parse ZoKrates R1CS and apply the same cleanup passes as other backends."""
+	source = zokrates_path.read_text()
+	r1cs = parse_r1cs(r1cs_path)
+	bool_wire_indices, removable_wire_indices, protected_wire_indices = _resolve_input_wire_sets(
+		source,
+		r1cs,
+		bool_vars,
+	)
+	r1cs.bool_wire_indices = bool_wire_indices
+
+	if eliminate_removable and removable_wire_indices:
+		before = r1cs.nConstraints
+		r1cs = eliminate_wires(r1cs, removable_wire_indices, protected_wire_indices)
+		log(
+			f"Eliminated {before - r1cs.nConstraints} removable constraints ({r1cs.nConstraints} remaining)",
+			with_logs,
+		)
+
+	if optimize:
+		log("Optimizing R1CS...", with_logs)
+		r1cs = optimize_r1cs(r1cs, with_logs=with_logs)
+	return r1cs
+
+
+def solve_zokrates(
+	zokrates_path: Path,
+	*,
+	bool_vars: tuple[str, ...],
+	with_model: bool,
+	with_logs: bool,
+	solver: str,
+	tmp_dir: Path,
+	hint_model: dict | None = None,
+	solving_timeout: int | None = None,
+	hint_probability: float = HINT_PROBABILITY,
+	compiler: str = "zokrates",
+	dump_r1cs: Path | None = None,
+) -> str:
+	"""Compile ZoKrates source to R1CS and solve through the standard backend pipeline."""
+	del with_model
+	source = zokrates_path.read_text()
+
+	tmp_dir.mkdir(parents=True, exist_ok=True)
+	with tempfile.TemporaryDirectory(dir=tmp_dir) as temp_dir:
+		workdir = Path(temp_dir)
+		source_path = workdir / zokrates_path.name
+		source_path.write_text(source)
+
+		log(f"Compiling ZoKrates file: {source_path}...", with_logs)
+		try:
+			r1cs_path = compile_to_r1cs(source_path, workdir, compiler=compiler)
+		except RuntimeError as exc:
+			error_text = str(exc)
+			if "Assertion failed" in error_text:
+				log("ZoKrates rejected the program during compilation with an assertion failure", with_logs)
+				return "unsat"
+			if solver == "picus" and "unconstrained variable" in error_text:
+				log("ZoKrates rejected the program as underconstrained during compilation", with_logs)
+				return "unsat"
+			raise
+
+		r1cs = build_r1cs_from_zokrates(
+			source_path,
+			r1cs_path,
+			bool_vars=bool_vars,
+			with_logs=with_logs,
+			eliminate_removable=True,
+			optimize=True,
+		)
+
+		wire_hints = {}
+		if hint_model:
+			wire_hints = resolve_hints_for_zokrates(source, r1cs, hint_model)
+			wire_hints = {k: v for k, v in wire_hints.items() if random() < hint_probability}
+			log(
+				f"Resolved {len(wire_hints)} hint wire assignments (after probabilistic filtering)",
+				with_logs,
+			)
+
+		if dump_r1cs is not None:
+			to_dump = r1cs
+			if wire_hints:
+				to_dump.hints = wire_hints
+			dump_r1cs.write_text(dump_r1cs_text(to_dump))
+
+		if solver == "picus":
+			log("Solving R1CS using Picus...", with_logs)
+			input_wires, output_wires = _resolve_picus_io(source, r1cs)
+			sr1cs_path = workdir / f"{zokrates_path.stem}.sr1cs"
+			sr1cs_path.write_text(
+				dump_sr1cs(
+					r1cs,
+					input_wires=input_wires,
+					output_wires=output_wires,
+				)
+			)
+			return run_picus(sr1cs_path, hints=wire_hints or None, solving_timeout=solving_timeout)
+
+		if wire_hints:
+			r1cs.hints = wire_hints
+
+		log("Solving R1CS using a SMT solver...", with_logs)
+		solution = solve_r1cs(r1cs, backend=solver, with_logs=with_logs, solving_timeout=solving_timeout)
+		return solution_to_str(solution)

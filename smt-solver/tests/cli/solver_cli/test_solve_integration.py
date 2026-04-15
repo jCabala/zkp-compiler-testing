@@ -2,12 +2,13 @@
 Integration tests for the solve command.
 
 Tests all combinations of:
-- DSL backend: circom, gnark
+- DSL backend: circom, gnark, zokrates
 - SMT solver: z3, cvc5, picus
 - Oracle hints: off, on
 Against SAT and UNSAT boolean formulas.
 """
 
+import shutil
 import pytest
 from pathlib import Path
 from click.testing import CliRunner
@@ -22,8 +23,9 @@ FF_SAT_FILES = sorted((DATA_DIR / "ff").glob("ff_sat_*.smt2"))
 FF_UNSAT_FILES = sorted((DATA_DIR / "ff").glob("ff_unsat_*.smt2"))
 FF_PICUS_SAT_FILES = sorted((DATA_DIR / "ff").glob("ff_picus_sat_*.smt2"))
 FF_PICUS_UNSAT_FILES = sorted((DATA_DIR / "ff").glob("ff_picus_unsat_*.smt2"))
-
-DSLS = ["circom", "gnark"]
+BASE_DSLS = ["circom", "gnark"]
+ZOKRATES_AVAILABLE = shutil.which("zokrates") is not None
+DSLS = BASE_DSLS + (["zokrates"] if ZOKRATES_AVAILABLE else [])
 SMT_SOLVERS = ["z3", "cvc5"]
 HINTS = [False, True]
 

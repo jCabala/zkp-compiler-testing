@@ -12,6 +12,7 @@ from src.cli.solver_cli.common import (
 )
 from src.cli.solver_cli.circom import solve_circom, smtlib2_to_circom
 from src.cli.solver_cli.gnark import solve_gnark, smtlib2_to_gnark
+from src.cli.solver_cli.zokrates import solve_zokrates, smtlib2_to_zokrates
 from src.cli.solver_cli.adaptive_hints import load_state, save_state, record_run, HINT_MODELS
 from src.cli.solver_cli.not_chain import augment_smt2
 
@@ -20,7 +21,7 @@ from src.cli.solver_cli.not_chain import augment_smt2
 @click.option('--config', type=click.Path(exists=True, path_type=Path), default=None, help="JSON file with default option values (CLI flags override).")
 @click.option('--tmp-dir', type=click.Path(path_type=Path), default=None, help="Temporary directory for intermediate files.")
 @click.option("--with-logs", is_flag=True, default=None, help="Enable detailed logging.")
-@click.option("--zk-dsl", type=click.Choice([ZKDSL.CIRCOM, ZKDSL.GNARK]), default=None, help="Choose the zero-knowledge DSL to use.")
+@click.option("--zk-dsl", type=click.Choice([ZKDSL.CIRCOM, ZKDSL.GNARK, ZKDSL.ZOKRATES]), default=None, help="Choose the zero-knowledge DSL to use.")
 @click.option("--solver", type=click.Choice(["z3", "cvc5", "picus"]), default=None, help="Choose the SMT solver backend.")
 @click.option('--prune', type=int, default=None, help="Prune formula to k variables before solving.")
 @click.option('--prune-seed', type=int, default=None, help="Random seed for pruning (for reproducibility).")
@@ -29,7 +30,7 @@ from src.cli.solver_cli.not_chain import augment_smt2
 @click.option('--solving-timeout', type=int, default=None, help="Timeout in seconds for the SMT solving step. Returns 'unknown' if exceeded.")
 @click.option('--not-chain-length', type=int, default=None, help="Length of each injected NOT chain (triggers P4 at >=350). Default: 400.")
 @click.option('--max-not-chain-count', type=int, default=None, help="Upper bound on number of NOT chains to inject; actual count sampled from [0, max]. Default: 0 (disabled).")
-@click.option('--compiler', default=None, help="Custom compiler binary to use (circom binary for circom DSL, go binary for gnark DSL).")
+@click.option('--compiler', default=None, help="Custom compiler binary to use for the selected DSL.")
 @click.option('--dump-r1cs', type=click.Path(path_type=Path), default=None, help="Write the final R1CS (after optional elimination/optimization) to this path.")
 def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, without_hints: bool, no_simplify: bool, solving_timeout: int, not_chain_length: int, max_not_chain_count: int, compiler: str, dump_r1cs: Path | None):
 	"""
@@ -122,6 +123,8 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 			return smtlib2_to_circom(smtlib2, solver=solver)
 		elif dsl == ZKDSL.GNARK:
 			return smtlib2_to_gnark(smtlib2, solver=solver), []
+		elif dsl == ZKDSL.ZOKRATES:
+			return smtlib2_to_zokrates(smtlib2, solver=solver)
 		else:
 			raise ValueError(f"Unsupported ZK DSL: {dsl}")
 
@@ -144,6 +147,8 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 			return solve_circom(circom_path=dsl_path, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver, bool_vars=tuple(bool_vars), hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "circom", dump_r1cs=dump_r1cs)
 		elif zk_dsl == ZKDSL.GNARK:
 			return solve_gnark(gnark_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "go", dump_r1cs=dump_r1cs)
+		elif zk_dsl == ZKDSL.ZOKRATES:
+			return solve_zokrates(zokrates_path=dsl_path, bool_vars=tuple(bool_vars), with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "zokrates", dump_r1cs=dump_r1cs)
 		else:
 			raise ValueError(f"Unsupported ZK DSL: {zk_dsl}")
 

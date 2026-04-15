@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional
 import json
+import os
 import subprocess
 import tempfile
 
@@ -53,6 +54,12 @@ def solve_picus(input_path: Path, hints: Optional[Dict[int, int]] = None, solvin
     cmd.append(str(input_path))
 
     try:
+        env = dict(
+            os.environ,
+            TMPDIR=tempfile.gettempdir(),
+            TMP=tempfile.gettempdir(),
+            TEMP=tempfile.gettempdir(),
+        )
         cmd_result = subprocess.run(
             cmd,
             text=True,
@@ -60,6 +67,7 @@ def solve_picus(input_path: Path, hints: Optional[Dict[int, int]] = None, solvin
             stderr=subprocess.STDOUT,
             check=False,
             timeout=solving_timeout,
+            env=env,
         )
     except subprocess.TimeoutExpired:
         return PicusResult(result=PicusResultType.UNKNOWN, exit_code=-1, output="")

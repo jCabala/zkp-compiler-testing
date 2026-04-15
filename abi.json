@@ -1,0 +1,22 @@
+{
+  "inputs": [
+    {
+      "name": "scr1_x1",
+      "public": false,
+      "type": "field"
+    },
+    {
+      "name": "scr2_x2",
+      "public": false,
+      "type": "field"
+    },
+    {
+      "name": "scr1_x1_scr2_x2_fused",
+      "public": true,
+      "type": "field"
+    }
+  ],
+  "output": {
+    "type": "field"
+  }
+}

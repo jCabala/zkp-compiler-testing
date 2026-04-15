@@ -1,0 +1,36 @@
+{
+  "defaults": {
+    "tmp_dir": "experiments/obj",
+    "max_files": null,
+    "timeout_sec": 600,
+    "solver_timeout_sec": 120,
+    "with_logs": true,
+    "seed": 0,
+    "not_chain_length": null,
+    "max_not_chain_count": null
+  },
+  "instances": [
+    {
+      "name": "sat_fusion_zokrates",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/core/unique_sat_1to5vars",
+      "dsl": "zokrates",
+      "oracle": "smt",
+      "solver": "cvc5",
+      "hints": true,
+      "compiler": "zokrates",
+      "not_chain_length": 400,
+      "max_not_chain_count": 5
+    },
+    {
+      "name": "ff_unique_sat_1to5vars_zokrates",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/unique_sat_1to5vars_circom_O2",
+      "dsl": "zokrates",
+      "oracle": "smt",
+      "solver": "cvc5",
+      "hints": true,
+      "compiler": "zokrates",
+      "not_chain_length": 0,
+      "max_not_chain_count": 0
+    }
+  ]
+}
