@@ -32,7 +32,8 @@ from src.cli.solver_cli.not_chain import augment_smt2
 @click.option('--max-not-chain-count', type=int, default=None, help="Upper bound on number of NOT chains to inject; actual count sampled from [0, max]. Default: 0 (disabled).")
 @click.option('--compiler', default=None, help="Custom compiler binary to use for the selected DSL.")
 @click.option('--dump-r1cs', type=click.Path(path_type=Path), default=None, help="Write the final R1CS (after optional elimination/optimization) to this path.")
-def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, without_hints: bool, no_simplify: bool, solving_timeout: int, not_chain_length: int, max_not_chain_count: int, compiler: str, dump_r1cs: Path | None):
+@click.option('--with-circ', is_flag=True, default=None, help="For ZoKrates only: compile the generated .zok through CirC before importing R1CS.")
+def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, without_hints: bool, no_simplify: bool, solving_timeout: int, not_chain_length: int, max_not_chain_count: int, compiler: str, dump_r1cs: Path | None, with_circ: bool):
 	"""
 	Solve an SMT-LIB file using a SMT solver.
 	SMT_LIB_PATH: Path to the .smt2 file
@@ -59,10 +60,13 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 	max_not_chain_count   = _opt(max_not_chain_count,   "max_not_chain_count",   0)
 	compiler              = _opt(compiler,              "compiler",              None)
 	dump_r1cs             = _opt(dump_r1cs,             "dump_r1cs",             None)
+	with_circ             = _opt(with_circ,             "with_circ",             False)
 	with_hints = not without_hints
 
 	if isinstance(tmp_dir, str):
 		tmp_dir = Path(tmp_dir)
+	if with_circ and zk_dsl != ZKDSL.ZOKRATES:
+		raise click.ClickException("--with-circ is only supported with --zk-dsl zokrates")
 
 	log(f"Using ZK DSL: {zk_dsl}", with_logs=with_logs)
 	log(f"Solving SMT-LIB file: {smt_lib_path}...", with_logs=with_logs)
@@ -148,7 +152,7 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 		elif zk_dsl == ZKDSL.GNARK:
 			return solve_gnark(gnark_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "go", dump_r1cs=dump_r1cs)
 		elif zk_dsl == ZKDSL.ZOKRATES:
-			return solve_zokrates(zokrates_path=dsl_path, bool_vars=tuple(bool_vars), with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "zokrates", dump_r1cs=dump_r1cs)
+			return solve_zokrates(zokrates_path=dsl_path, bool_vars=tuple(bool_vars), with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "zokrates", dump_r1cs=dump_r1cs, with_circ=with_circ)
 		else:
 			raise ValueError(f"Unsupported ZK DSL: {zk_dsl}")
 
