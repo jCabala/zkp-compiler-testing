@@ -91,6 +91,26 @@ def test_translate_ff_to_zokrates_compiles(tmp_path: Path):
 	_compile_zokrates_source(source, tmp_path)
 
 
+def test_translate_zokrates_prunes_dead_inputs_and_sanitizes_names():
+	smt2 = """(define-sort F () (_ FiniteField 17))
+(declare-fun scr1_v1 () F)
+(declare-fun scr1_v2 () F)
+(declare-fun scr1_v4 () F)
+(declare-fun scr2_v1 () F)
+(declare-fun _removable_1_1 () F)
+(declare-fun scr1_v4_scr2_v1_fused () F)
+(assert (= (ff.mul scr1_v1 (ff.add scr1_v4_scr2_v1_fused (ff.neg scr2_v1))) (ff.add (as ff1 F) (ff.mul (as ff16 F) scr1_v2))))
+(assert (= _removable_1_1 (ff.add (as ff1 F) (ff.neg scr1_v1))))
+(check-sat)
+	"""
+	source, extension = translate_smtlib2_to_dsl(smt2, "zokrates")
+	assert extension == ".zok"
+	assert "private field scr1_v4," not in source
+	assert "private field _removable_1_1" not in source
+	assert "private field v_removable_1_1" in source
+	assert "field scr1_v4_scr2_v1_fused" in source
+
+
 @pytest.mark.parametrize(
 	("smt_path", "expected", "with_hints"),
 	[

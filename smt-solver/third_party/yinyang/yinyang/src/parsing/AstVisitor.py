@@ -51,6 +51,7 @@ from yinyang.src.parsing.Ast import (
     GetValue,
     FunDecl,
     SMTLIBCommand,
+    Term,
 )
 from yinyang.src.parsing.Types import (
     BITVECTOR_TYPE,
@@ -443,7 +444,15 @@ class AstVisitor(SMTLIBv2Visitor):
             and ctx.sort()
             and ctx.ParClose()
         ):
-            raise AstException("ParOpen GRW_As identifier sort ParClose")
+            identifier = self.visitIdentifier(ctx.identifier(), local_vars)
+            sort = self.visitSort(ctx.sort())
+            if isinstance(identifier, Term):
+                identifier_name = identifier.name
+            elif isinstance(identifier, str):
+                identifier_name = identifier
+            else:
+                identifier_name = identifier.__str__()
+            return Const(name=f"(as {identifier_name} {sort})", type=sort)
 
         if ctx.identifier():
             return self.visitIdentifier(ctx.identifier(), local_vars)

@@ -1,7 +1,8 @@
-from pathlib import Path
-from uuid import uuid4
-from time import monotonic
 import json
+import re
+from pathlib import Path
+from time import monotonic
+from uuid import uuid4
 import click
 
 from src.smt_lib.simplify import simplify_formula
@@ -15,6 +16,15 @@ from src.cli.solver_cli.gnark import solve_gnark, smtlib2_to_gnark
 from src.cli.solver_cli.zokrates import solve_zokrates, smtlib2_to_zokrates
 from src.cli.solver_cli.adaptive_hints import load_state, save_state, record_run, HINT_MODELS
 from src.cli.solver_cli.not_chain import augment_smt2
+
+
+def _is_qf_ff_formula(smt2: str) -> bool:
+	"""Detect finite-field SMT-LIB even when set-logic was stripped by Yinyang."""
+	return (
+		"(set-logic QF_FF" in smt2
+		or "FiniteField" in smt2
+		or bool(re.search(r"\bff\.(add|mul|neg|sub)\b", smt2))
+	)
 
 @click.command()
 @click.argument('smt_lib_path', type=click.Path(exists=True, path_type=Path))
@@ -71,7 +81,7 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 	log(f"Using ZK DSL: {zk_dsl}", with_logs=with_logs)
 	log(f"Solving SMT-LIB file: {smt_lib_path}...", with_logs=with_logs)
 	file_content = smt_lib_path.read_text()
-	is_qf_ff = "(set-logic QF_FF" in file_content
+	is_qf_ff = _is_qf_ff_formula(file_content)
 
 	# Apply pruning if requested
 	# Pruning and hints use pysmt in-process — always use z3 to avoid cvc5 Cython conflicts.

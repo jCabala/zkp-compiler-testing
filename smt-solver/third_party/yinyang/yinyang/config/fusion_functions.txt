@@ -133,3 +133,14 @@
 (assert (= x (str.substr z 0 (str.len x))))
 (assert (= y (str.replace (str.replace z x "") c "")))
 #end
+
+; Finite field
+;
+#begin
+(declare-const x F)
+(declare-const y F)
+(declare-const z F)
+(assert (= z (ff.add x y)))
+(assert (= x (ff.add z (ff.neg y))))
+(assert (= y (ff.add z (ff.neg x))))
+#end

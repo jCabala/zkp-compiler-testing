@@ -1,15 +1,27 @@
 {
   "inputs": [
     {
-      "name": "x1",
+      "name": "scr1_v1",
       "public": false,
-      "type": "bool"
+      "type": "field"
+    },
+    {
+      "name": "scr1_v2",
+      "public": false,
+      "type": "field"
+    },
+    {
+      "name": "scr2_v1",
+      "public": false,
+      "type": "field"
+    },
+    {
+      "name": "scr1_v4_scr2_v1_fused",
+      "public": true,
+      "type": "field"
     }
   ],
   "output": {
-    "type": "tuple",
-    "components": {
-      "elements": []
-    }
+    "type": "field"
   }
 }
