@@ -233,6 +233,7 @@ def _solve_config_data(instance: dict[str, Any], defaults: dict[str, Any]) -> di
 		"with_logs": bool(instance.get("with_logs", defaults.get("with_logs", False))),
 		"without_hints": not bool(hints_enabled),
 		"no_simplify": bool(instance.get("no_simplify", defaults.get("no_simplify", False))),
+		"with_circ": bool(instance.get("with_circ", defaults.get("with_circ", False))),
 	}
 
 	solving_timeout = instance.get("solving_timeout_sec", defaults.get("solver_timeout_sec"))

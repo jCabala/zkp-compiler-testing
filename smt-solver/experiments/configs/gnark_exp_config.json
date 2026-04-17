@@ -1,0 +1,31 @@
+{
+  "defaults": {
+    "tmp_dir": "experiments/obj",
+    "max_files": null,
+    "timeout_sec": 600,
+    "solver_timeout_sec": 120,
+    "with_logs": true,
+    "seed": 0,
+    "not_chain_length": 0,
+    "max_not_chain_count": 0
+  },
+  "instances": [
+    {
+      "name": "sat_gnark",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/unique_sat_1to5vars_gnark_O2",
+      "dsl": "gnark",
+      "oracle": "smt",
+      "solver": "cvc5",
+      "hints": true,
+      "compiler": "go"
+    },
+    {
+      "name": "picus_gnark",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/unique_sat_1to5vars_gnark_O2",
+      "dsl": "gnark",
+      "oracle": "picus",
+      "hints": false,
+      "compiler": "go"
+    }
+  ]
+}
