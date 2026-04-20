@@ -27,6 +27,8 @@ def compile_zokrates_to_r1cs_json(zokrates_path: Path, out_dir: Path) -> Path:
             str(zokrates_path),
             "--output",
             str(json_path),
+            "--field-builtin",
+            "bn254",
         ],
         cwd=_CIRC_DIR,
         text=True,
@@ -122,6 +124,18 @@ def _parse_lc(raw_lc: dict, raw_id_to_wire: dict[int, int]) -> LinearCombination
     return LinearCombination(terms=terms)
 
 
+# CirC serialises FBn254/FBls12381 field elements in Montgomery form:
+#   stored = value * R mod p   (R = 2^256 for BN254, 2^384 for BLS12-381)
+# We must multiply by R^{-1} mod p to recover the standard representative.
+_BN254_P    = 21888242871839275222246405745257275088548364400416034343698204186575808495617
+_BN254_R    = 6350874878119819312338956282401532410528162663560392320966563075034087161851   # 2^256 mod p
+_BN254_RINV = 9915499612839321149637521777990102151350674507940716049588462388200839649614   # R^{-1} mod p
+
+_BLS_P    = 52435875175126190479447740508185965837690552500527637822603658699938581184513
+_BLS_R    = 20690987792304517493546419304065979215229097455316523017309531943206242971949    # 2^384 mod p
+_BLS_RINV = 3355780196830291892987310667864784896352702591869607001429614921875678373541     # R^{-1} mod p
+
+
 def _parse_field_value(raw_value) -> int:
     if isinstance(raw_value, int):
         return raw_value
@@ -131,9 +145,9 @@ def _parse_field_value(raw_value) -> int:
         if "IntField" in raw_value:
             return int(raw_value["IntField"])
         if "FBls12381" in raw_value:
-            return _limbs_to_int(raw_value["FBls12381"])
+            return (_limbs_to_int(raw_value["FBls12381"]) * _BLS_RINV) % _BLS_P
         if "FBn254" in raw_value:
-            return _limbs_to_int(raw_value["FBn254"])
+            return (_limbs_to_int(raw_value["FBn254"]) * _BN254_RINV) % _BN254_P
     raise ValueError(f"Unsupported Circ field value encoding: {raw_value!r}")
 
 

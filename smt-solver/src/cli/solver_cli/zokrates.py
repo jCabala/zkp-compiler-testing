@@ -340,7 +340,11 @@ def build_r1cs_from_circ(
 	name_to_wire = {renamed_to_original.get(name, name): idx for name, idx in name_to_wire.items()}
 	input_names = [renamed_to_original.get(name, name) for name in input_names]
 	public_input_names = {renamed_to_original.get(name, name) for name in public_input_names}
-	bool_wire_indices, removable_wire_indices, protected_wire_indices = _resolve_wire_sets(name_to_wire, bool_vars)
+	bool_wire_indices, removable_wire_indices, _ = _resolve_wire_sets(name_to_wire, bool_vars)
+	# Protect every non-removable wire, including unnamed CirC intermediates, so
+	# that eliminate_wires never absorbs them and drops main-formula constraints.
+	all_wire_indices = {v.index for v in r1cs.variables if v.index != 0}
+	protected_wire_indices = all_wire_indices - removable_wire_indices
 	r1cs.bool_wire_indices = bool_wire_indices
 
 	if eliminate_removable and removable_wire_indices:

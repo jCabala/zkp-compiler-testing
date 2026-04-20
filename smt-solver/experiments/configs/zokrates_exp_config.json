@@ -21,12 +21,33 @@
       "compiler": "zokrates"
     },
     {
+      "name": "sat_zokrates_circ",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/generated_suite",
+      "dsl": "zokrates",
+      "oracle": "smt",
+      "solver": "cvc5",
+      "hints": true,
+      "compiler": "zokrates",
+      "with_circ": true,
+      "max_not_chain_count": 0
+    },
+    {
       "name": "picus_zokrates",
       "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/generated_suite",
       "dsl": "zokrates",
       "oracle": "picus",
       "hints": false,
       "compiler": "zokrates"
+    },
+    {
+      "name": "picus_zokrates_circ",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/generated_suite",
+      "dsl": "zokrates",
+      "oracle": "picus",
+      "hints": false,
+      "compiler": "zokrates",
+      "with_circ": true,
+      "max_not_chain_count": 0
     }
   ]
 }

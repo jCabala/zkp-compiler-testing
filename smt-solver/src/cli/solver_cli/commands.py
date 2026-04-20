@@ -77,6 +77,8 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 		tmp_dir = Path(tmp_dir)
 	if with_circ and zk_dsl != ZKDSL.ZOKRATES:
 		raise click.ClickException("--with-circ is only supported with --zk-dsl zokrates")
+	if with_circ and max_not_chain_count:
+		raise click.ClickException("NOT chains (--max-not-chain-count > 0) cannot be used with --with-circ: CirC's global optimization rewrites the R1CS structure when chain anchors are present, producing false UNSAT results after chain elimination.")
 
 	log(f"Using ZK DSL: {zk_dsl}", with_logs=with_logs)
 	log(f"Solving SMT-LIB file: {smt_lib_path}...", with_logs=with_logs)

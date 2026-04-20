@@ -235,8 +235,9 @@ def detect_ternary_pattern(poly: NormalizedPoly, bool_wires: Set[int]) -> Set[in
     bool_count = sum([v in bool_wires for v in all_vars])
     
     if bool_count == 2:
-        # The non-boolean variable becomes ternary
-        for v in all_vars:
+        # Only a v_neg variable can be ternary: v_neg = v_pos - v_other_neg ∈ {p-1,0,1}.
+        # v_pos is NOT ternary when both v_negs are boolean: v_pos = v_neg1 + v_neg2 ∈ {0,1,2}.
+        for v in v_negs:
             if v not in bool_wires:
                 result.add(v)
                 break
