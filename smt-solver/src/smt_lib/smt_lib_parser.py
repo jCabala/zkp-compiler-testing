@@ -361,6 +361,23 @@ def parse_smtlib2_ff(smtlib2: str) -> Circuit:
                 raise ValueError("= expects exactly two arguments")
             return BinaryExpression(Operator.EQU, _expr(node[1]), _expr(node[2]))
 
+        if head == "and":
+            args = [_expr(a) for a in node[1:]]
+            if not args:
+                return Boolean(True)
+            return _fold_left(Operator.LAND, args) if len(args) > 1 else args[0]
+
+        if head == "or":
+            args = [_expr(a) for a in node[1:]]
+            if not args:
+                return Boolean(False)
+            return _fold_left(Operator.LOR, args) if len(args) > 1 else args[0]
+
+        if head == "not":
+            if len(node) != 2:
+                raise ValueError("not expects exactly one argument")
+            return UnaryExpression(Operator.NOT, _expr(node[1]))
+
         raise ValueError(f"Unsupported QF_FF operator: {head}")
 
     for form in forms:
@@ -403,6 +420,10 @@ def parse_smtlib2(smtlib2: str, solver: str = "z3") -> Circuit:
     """
     Auto-detect SMT-LIB logic and parse into Circuit IR.
     """
-    if re.search(r"\(set-logic\s+QF_FF\b", smtlib2):
+    if (
+        re.search(r"\(set-logic\s+QF_FF\b", smtlib2)
+        or "FiniteField" in smtlib2
+        or re.search(r"\bff\.(add|mul|neg|sub)\b", smtlib2)
+    ):
         return parse_smtlib2_ff(smtlib2)
     return parse_smtlib2_core(smtlib2, solver=solver)

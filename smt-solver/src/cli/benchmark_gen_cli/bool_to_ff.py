@@ -6,7 +6,9 @@ from uuid import uuid4
 
 from src.cli.solver_cli.circom import smtlib2_to_circom, build_r1cs_from_circom
 from src.cli.solver_cli.gnark import smtlib2_to_gnark, build_r1cs_from_gnark
+from src.cli.solver_cli.zokrates import smtlib2_to_zokrates
 from src.backends.circom.r1cs import OptFlag
+from src.backends.zokrates.r1cs import compile_to_r1cs as compile_zokrates_to_r1cs, parse_r1cs as parse_zokrates_r1cs
 from src.r1cs.emit_qf_ff import emit_qf_ff
 
 
@@ -21,6 +23,7 @@ class BoolToFFConfig:
 	with_logs: bool
 	keep_intermediate: Path | None
 	max_out: int | None
+	max_vars: int | None = None
 
 
 def _log(msg: str, with_logs: bool, log):
@@ -117,6 +120,41 @@ def _prepare_r1cs_from_gnark(
 			gnark_path.unlink()
 
 
+def _prepare_r1cs_from_zokrates(
+	smtlib2: str,
+	*,
+	compiler: str | None,
+	with_logs: bool,
+	log,
+	keep_intermediate: Path | None,
+):
+	zokrates_code, _ = smtlib2_to_zokrates(smtlib2)
+	intermediate_name = f"temp-{uuid4()}.zok"
+	zokrates_path = _write_intermediate(keep_intermediate, intermediate_name, zokrates_code)
+	cleanup = False
+	if zokrates_path is None:
+		tmp_dir = Path("/tmp/smt_solver")
+		tmp_dir.mkdir(parents=True, exist_ok=True)
+		zokrates_path = tmp_dir / intermediate_name
+		zokrates_path.write_text(zokrates_code)
+		cleanup = True
+
+	_log(f"Compiling ZoKrates: {zokrates_path}", with_logs, log)
+	try:
+		r1cs_path = compile_zokrates_to_r1cs(zokrates_path, zokrates_path.parent, compiler=compiler or "zokrates")
+		return parse_zokrates_r1cs(r1cs_path)
+	finally:
+		if cleanup:
+			if zokrates_path.exists():
+				zokrates_path.unlink()
+			r1cs_path = zokrates_path.parent / f"{zokrates_path.stem}.r1cs"
+			binary_path = zokrates_path.parent / zokrates_path.stem
+			if r1cs_path.exists():
+				r1cs_path.unlink()
+			if binary_path.exists():
+				binary_path.unlink()
+
+
 def generate_ff_benchmarks(
 	*,
 	in_folder: Path,
@@ -126,6 +164,7 @@ def generate_ff_benchmarks(
 	max_out: int | None,
 	opt_level: str,
 	suffix: str | None,
+	max_vars: int | None,
 	skip_existing: bool,
 	continue_on_error: bool,
 	with_logs: bool,
@@ -161,8 +200,24 @@ def generate_ff_benchmarks(
 					log=log,
 					keep_intermediate=keep_intermediate,
 				)
+			elif dsl == "zokrates":
+				r1cs = _prepare_r1cs_from_zokrates(
+					smtlib2,
+					compiler=compiler,
+					with_logs=with_logs,
+					log=log,
+					keep_intermediate=keep_intermediate,
+				)
 			else:
 				raise ValueError(f"Unsupported DSL: {dsl}")
+
+			if max_vars is not None and r1cs.nVars > max_vars:
+				_log(
+					f"Skipping {smt2_path.name}: nVars={r1cs.nVars} exceeds threshold {max_vars}",
+					with_logs,
+					log,
+				)
+				continue
 
 			out_name = smt2_path.stem
 			if suffix:
@@ -183,3 +238,69 @@ def generate_ff_benchmarks(
 			raise
 
 	log(f"Converted {converted} file(s) to QF_FF in {out_folder}")
+
+
+def generate_ff_benchmark_suite(
+	*,
+	in_folder: Path,
+	out_base: Path,
+	max_vars: int,
+	circom_compiler: str | None,
+	gnark_compiler: str | None,
+	zokrates_compiler: str | None,
+	circom_opt_levels: tuple[str, ...],
+	max_out: int | None,
+	skip_existing: bool,
+	continue_on_error: bool,
+	with_logs: bool,
+	keep_intermediate: Path | None,
+	log=print,
+):
+	for opt_level in circom_opt_levels:
+		generate_ff_benchmarks(
+			in_folder=in_folder,
+			out_folder=out_base,
+			dsl="circom",
+			compiler=circom_compiler,
+			max_out=max_out,
+			opt_level=opt_level,
+			suffix=f"circom_{opt_level}",
+			max_vars=max_vars,
+			skip_existing=skip_existing,
+			continue_on_error=continue_on_error,
+			with_logs=with_logs,
+			keep_intermediate=keep_intermediate,
+			log=log,
+		)
+
+	generate_ff_benchmarks(
+		in_folder=in_folder,
+		out_folder=out_base,
+		dsl="gnark",
+		compiler=gnark_compiler,
+		max_out=max_out,
+		opt_level="O2",
+		suffix="gnark",
+		max_vars=max_vars,
+		skip_existing=skip_existing,
+		continue_on_error=continue_on_error,
+		with_logs=with_logs,
+		keep_intermediate=keep_intermediate,
+		log=log,
+	)
+
+	generate_ff_benchmarks(
+		in_folder=in_folder,
+		out_folder=out_base,
+		dsl="zokrates",
+		compiler=zokrates_compiler,
+		max_out=max_out,
+		opt_level="O2",
+		suffix="zokrates",
+		max_vars=max_vars,
+		skip_existing=skip_existing,
+		continue_on_error=continue_on_error,
+		with_logs=with_logs,
+		keep_intermediate=keep_intermediate,
+		log=log,
+	)

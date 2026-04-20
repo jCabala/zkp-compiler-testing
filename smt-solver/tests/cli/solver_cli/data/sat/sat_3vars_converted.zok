@@ -1,0 +1,4 @@
+def main(private bool x1, private bool x2, private bool x3) {
+    assert((((!x3) && x1) && (!x2)));
+    return;
+}

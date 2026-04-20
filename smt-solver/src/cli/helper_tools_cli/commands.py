@@ -178,7 +178,7 @@ def generate_unique_sat_benchmark_command(out_folder: Path, count: int, nvars: i
 @click.command(name="smt-to-dsl")
 @click.argument('in_folder', type=click.Path(exists=True, file_okay=False, path_type=Path))
 @click.argument('out_folder', type=click.Path(path_type=Path))
-@click.option("--dsl", type=click.Choice(["circom", "gnark", "noir"]), required=True, help="Target DSL for generated programs.")
+@click.option("--dsl", type=click.Choice(["circom", "gnark", "noir", "zokrates"]), required=True, help="Target DSL for generated programs.")
 @click.option('--max-out', type=int, default=None, help="Maximum number of files to convert.")
 @click.option(
 	"--format",

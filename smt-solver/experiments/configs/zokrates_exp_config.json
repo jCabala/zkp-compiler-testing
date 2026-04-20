@@ -1,0 +1,53 @@
+{
+  "defaults": {
+    "tmp_dir": "experiments/obj",
+    "max_files": null,
+    "timeout_sec": 600,
+    "solver_timeout_sec": 120,
+    "with_logs": true,
+    "with_circ": false,
+    "seed": 0,
+    "not_chain_length": 400,
+    "max_not_chain_count": 3
+  },
+  "instances": [
+    {
+      "name": "sat_zokrates",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/generated_suite",
+      "dsl": "zokrates",
+      "oracle": "smt",
+      "solver": "cvc5",
+      "hints": true,
+      "compiler": "zokrates"
+    },
+    {
+      "name": "sat_zokrates_circ",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/generated_suite",
+      "dsl": "zokrates",
+      "oracle": "smt",
+      "solver": "cvc5",
+      "hints": true,
+      "compiler": "zokrates",
+      "with_circ": true,
+      "max_not_chain_count": 0
+    },
+    {
+      "name": "picus_zokrates",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/generated_suite",
+      "dsl": "zokrates",
+      "oracle": "picus",
+      "hints": false,
+      "compiler": "zokrates"
+    },
+    {
+      "name": "picus_zokrates_circ",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/generated_suite",
+      "dsl": "zokrates",
+      "oracle": "picus",
+      "hints": false,
+      "compiler": "zokrates",
+      "with_circ": true,
+      "max_not_chain_count": 0
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+def main(private bool scr1_x1, private bool scr2_x2, bool scr1_x1_scr2_x2_fused) -> bool {
+    assert((scr1_x1 || scr2_x2));
+    return scr1_x1_scr2_x2_fused;
+}

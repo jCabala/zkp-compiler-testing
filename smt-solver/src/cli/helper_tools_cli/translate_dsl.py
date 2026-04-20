@@ -9,6 +9,7 @@ from src.backends.gnark.ir2gnark import IR2GnarkVisitor
 from src.backends.gnark.emitter import EmitVisitor as GnarkEmitter
 from src.backends.noir.ir2noir import IR2NoirVisitor
 from src.backends.noir.emitter import EmitVisitor as NoirEmitter
+from src.cli.solver_cli.zokrates import smtlib2_to_zokrates
 
 
 def _extract_gnark_fragment_for_circuzz(go_source: str) -> str:
@@ -91,6 +92,10 @@ def translate_smtlib2_to_dsl(smtlib2: str, dsl: str, output_format: str = "stand
 		noir_ast = ir2noir_visitor.visit_circuit(circuit_ir)
 		emitter = NoirEmitter()
 		return emitter.emit(noir_ast), ".nr"
+
+	if dsl == "zokrates":
+		source, _ = smtlib2_to_zokrates(smtlib2)
+		return source, ".zok"
 
 	raise ValueError(f"Unsupported DSL: {dsl}")
 

@@ -62,6 +62,15 @@ def eliminate_wires(
 
     kept_constraints = constraints
 
+    # Remove variables that appear in no kept constraint — these were resurrected
+    # solely by a chain anchor and have no main-formula constraints of their own.
+    referenced = {0}  # constant wire is always retained
+    for constraint in kept_constraints:
+        for lc in (constraint.A, constraint.B, constraint.C):
+            for term in lc.terms:
+                referenced.add(term.variable.index)
+    removable |= {v.index for v in r1cs.variables if v.index not in referenced}
+
     kept_variables = [
         variable for variable in r1cs.variables
         if variable.index == 0 or variable.index not in removable

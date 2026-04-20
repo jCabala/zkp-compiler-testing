@@ -9,6 +9,7 @@ from typing import Any
 from src.smt_lib.smt_lib_parser import parse_smtlib2_ff
 from src.smt_lib.zk_ir import (
 	Assertion,
+	Boolean,
 	BinaryExpression,
 	UnaryExpression,
 	Integer,
@@ -73,14 +74,19 @@ def _solve_ff_models(smtlib2: str, *, max_models: int = 1, solving_timeout: int 
 		var_map[var.name] = v
 
 	def expr_to_cv(expr):
+		if isinstance(expr, Boolean):
+			return cv.BoolVal(expr.value)
 		if isinstance(expr, Integer):
 			return ff_val(expr.value)
 		if isinstance(expr, Variable):
 			return var_map[expr.name]
 		if isinstance(expr, UnaryExpression):
-			if expr.op != Operator.SUB:
+			if expr.op == Operator.SUB:
+				return -expr_to_cv(expr.value)
+			if expr.op == Operator.NOT:
+				return cv.Not(expr_to_cv(expr.value))
+			else:
 				raise ValueError(f"Unsupported unary op in QF_FF hints: {expr.op}")
-			return -expr_to_cv(expr.value)
 		if isinstance(expr, BinaryExpression):
 			if expr.op == Operator.ADD:
 				return expr_to_cv(expr.lhs) + expr_to_cv(expr.rhs)
@@ -88,6 +94,10 @@ def _solve_ff_models(smtlib2: str, *, max_models: int = 1, solving_timeout: int 
 				return expr_to_cv(expr.lhs) * expr_to_cv(expr.rhs)
 			if expr.op == Operator.EQU:
 				return expr_to_cv(expr.lhs) == expr_to_cv(expr.rhs)
+			if expr.op == Operator.LAND:
+				return cv.And(expr_to_cv(expr.lhs), expr_to_cv(expr.rhs))
+			if expr.op == Operator.LOR:
+				return cv.Or(expr_to_cv(expr.lhs), expr_to_cv(expr.rhs))
 			raise ValueError(f"Unsupported binary op in QF_FF hints: {expr.op}")
 		raise ValueError(f"Unsupported expression type in QF_FF hints: {type(expr)}")
 

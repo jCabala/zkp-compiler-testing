@@ -23,6 +23,7 @@ CONTAINER_REPO_ROOT = Path("/workspace")
 CONTAINER_ROOT_DIR = CONTAINER_REPO_ROOT / ROOT_DIR.name
 IMAGE_CIRCOM = os.environ.get("IMAGE_CIRCOM", "localhost/smt-exp-circom:latest")
 IMAGE_GNARK = os.environ.get("IMAGE_GNARK", "localhost/smt-exp-gnark:latest")
+IMAGE_ZOKRATES = os.environ.get("IMAGE_ZOKRATES", "localhost/smt-exp-zokrates:latest")
 CONTAINER_MEMORY = os.environ.get("CONTAINER_MEMORY", "64g")
 CONTAINER_MEMORY_SWAP = os.environ.get("CONTAINER_MEMORY_SWAP", "-1")
 YINYANG_OK_NOBUGS = 0
@@ -121,6 +122,8 @@ def _select_image_for_dsl(dsl: str) -> str:
 		return IMAGE_CIRCOM
 	if dsl == "gnark":
 		return IMAGE_GNARK
+	if dsl == "zokrates":
+		return IMAGE_ZOKRATES
 	raise ValueError(f"Unsupported DSL for podman execution: {dsl}")
 
 
@@ -230,6 +233,7 @@ def _solve_config_data(instance: dict[str, Any], defaults: dict[str, Any]) -> di
 		"with_logs": bool(instance.get("with_logs", defaults.get("with_logs", False))),
 		"without_hints": not bool(hints_enabled),
 		"no_simplify": bool(instance.get("no_simplify", defaults.get("no_simplify", False))),
+		"with_circ": bool(instance.get("with_circ", defaults.get("with_circ", False))),
 	}
 
 	solving_timeout = instance.get("solving_timeout_sec", defaults.get("solver_timeout_sec"))
@@ -474,6 +478,8 @@ def _podman_instance_cmd(instance: dict[str, Any], config_path: Path, output_dir
 		"IMAGE_CIRCOM",
 		"-e",
 		"IMAGE_GNARK",
+		"-e",
+		"IMAGE_ZOKRATES",
 		_select_image_for_dsl(instance["dsl"]),
 		"python3",
 		"experiments/run_experiments.py",

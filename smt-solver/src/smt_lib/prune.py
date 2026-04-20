@@ -8,6 +8,8 @@ import random
 from typing import Dict, List, Set, Tuple, Optional, Any
 from io import StringIO
 
+import pysmt.environment
+
 
 def _add_fused_variable_constraints(smtlib2_str: str) -> str:
     """
@@ -62,6 +64,10 @@ def run_smt_solver_models(smtlib2_str: str, solver: str = "z3", max_models: int 
     """
     if max_models <= 0:
         raise ValueError("max_models must be > 0")
+
+    # pySMT keeps a process-global symbol table; start fresh so earlier tests
+    # cannot leak Bool declarations into later Int/FF parses.
+    pysmt.environment.reset_env()
 
     if solver == "cvc5":
         # ------------------------------------------------------------------
@@ -174,6 +180,10 @@ def prune_formula(
         - pruned_smtlib: Modified SMT-LIB string
         - metadata: Dictionary with pruning information
     """
+    # pySMT keeps symbols in a global environment across calls. Reset once per
+    # prune operation so mixed-type test cases do not collide with prior parses.
+    pysmt.environment.reset_env()
+
     if solver == "cvc5":
         # ------------------------------------------------------------------
         # THIS IMPORT NEEDS TO STAY TO AVOID PROBLEMS BETWEEN PYSMT AND CVC5

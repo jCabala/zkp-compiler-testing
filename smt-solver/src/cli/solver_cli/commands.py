@@ -1,7 +1,8 @@
-from pathlib import Path
-from uuid import uuid4
-from time import monotonic
 import json
+import re
+from pathlib import Path
+from time import monotonic
+from uuid import uuid4
 import click
 
 from src.smt_lib.simplify import simplify_formula
@@ -12,15 +13,25 @@ from src.cli.solver_cli.common import (
 )
 from src.cli.solver_cli.circom import solve_circom, smtlib2_to_circom
 from src.cli.solver_cli.gnark import solve_gnark, smtlib2_to_gnark
+from src.cli.solver_cli.zokrates import solve_zokrates, smtlib2_to_zokrates
 from src.cli.solver_cli.adaptive_hints import load_state, save_state, record_run, HINT_MODELS
 from src.cli.solver_cli.not_chain import augment_smt2
+
+
+def _is_qf_ff_formula(smt2: str) -> bool:
+	"""Detect finite-field SMT-LIB even when set-logic was stripped by Yinyang."""
+	return (
+		"(set-logic QF_FF" in smt2
+		or "FiniteField" in smt2
+		or bool(re.search(r"\bff\.(add|mul|neg|sub)\b", smt2))
+	)
 
 @click.command()
 @click.argument('smt_lib_path', type=click.Path(exists=True, path_type=Path))
 @click.option('--config', type=click.Path(exists=True, path_type=Path), default=None, help="JSON file with default option values (CLI flags override).")
 @click.option('--tmp-dir', type=click.Path(path_type=Path), default=None, help="Temporary directory for intermediate files.")
 @click.option("--with-logs", is_flag=True, default=None, help="Enable detailed logging.")
-@click.option("--zk-dsl", type=click.Choice([ZKDSL.CIRCOM, ZKDSL.GNARK]), default=None, help="Choose the zero-knowledge DSL to use.")
+@click.option("--zk-dsl", type=click.Choice([ZKDSL.CIRCOM, ZKDSL.GNARK, ZKDSL.ZOKRATES]), default=None, help="Choose the zero-knowledge DSL to use.")
 @click.option("--solver", type=click.Choice(["z3", "cvc5", "picus"]), default=None, help="Choose the SMT solver backend.")
 @click.option('--prune', type=int, default=None, help="Prune formula to k variables before solving.")
 @click.option('--prune-seed', type=int, default=None, help="Random seed for pruning (for reproducibility).")
@@ -29,9 +40,10 @@ from src.cli.solver_cli.not_chain import augment_smt2
 @click.option('--solving-timeout', type=int, default=None, help="Timeout in seconds for the SMT solving step. Returns 'unknown' if exceeded.")
 @click.option('--not-chain-length', type=int, default=None, help="Length of each injected NOT chain (triggers P4 at >=350). Default: 400.")
 @click.option('--max-not-chain-count', type=int, default=None, help="Upper bound on number of NOT chains to inject; actual count sampled from [0, max]. Default: 0 (disabled).")
-@click.option('--compiler', default=None, help="Custom compiler binary to use (circom binary for circom DSL, go binary for gnark DSL).")
+@click.option('--compiler', default=None, help="Custom compiler binary to use for the selected DSL.")
 @click.option('--dump-r1cs', type=click.Path(path_type=Path), default=None, help="Write the final R1CS (after optional elimination/optimization) to this path.")
-def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, without_hints: bool, no_simplify: bool, solving_timeout: int, not_chain_length: int, max_not_chain_count: int, compiler: str, dump_r1cs: Path | None):
+@click.option('--with-circ', is_flag=True, default=None, help="For ZoKrates only: compile the generated .zok through CirC before importing R1CS.")
+def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_dsl: str, solver: str, prune: int, prune_seed: int, without_hints: bool, no_simplify: bool, solving_timeout: int, not_chain_length: int, max_not_chain_count: int, compiler: str, dump_r1cs: Path | None, with_circ: bool):
 	"""
 	Solve an SMT-LIB file using a SMT solver.
 	SMT_LIB_PATH: Path to the .smt2 file
@@ -58,15 +70,20 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 	max_not_chain_count   = _opt(max_not_chain_count,   "max_not_chain_count",   0)
 	compiler              = _opt(compiler,              "compiler",              None)
 	dump_r1cs             = _opt(dump_r1cs,             "dump_r1cs",             None)
+	with_circ             = _opt(with_circ,             "with_circ",             False)
 	with_hints = not without_hints
 
 	if isinstance(tmp_dir, str):
 		tmp_dir = Path(tmp_dir)
+	if with_circ and zk_dsl != ZKDSL.ZOKRATES:
+		raise click.ClickException("--with-circ is only supported with --zk-dsl zokrates")
+	if with_circ and max_not_chain_count:
+		raise click.ClickException("NOT chains (--max-not-chain-count > 0) cannot be used with --with-circ: CirC's global optimization rewrites the R1CS structure when chain anchors are present, producing false UNSAT results after chain elimination.")
 
 	log(f"Using ZK DSL: {zk_dsl}", with_logs=with_logs)
 	log(f"Solving SMT-LIB file: {smt_lib_path}...", with_logs=with_logs)
 	file_content = smt_lib_path.read_text()
-	is_qf_ff = "(set-logic QF_FF" in file_content
+	is_qf_ff = _is_qf_ff_formula(file_content)
 
 	# Apply pruning if requested
 	# Pruning and hints use pysmt in-process — always use z3 to avoid cvc5 Cython conflicts.
@@ -122,6 +139,8 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 			return smtlib2_to_circom(smtlib2, solver=solver)
 		elif dsl == ZKDSL.GNARK:
 			return smtlib2_to_gnark(smtlib2, solver=solver), []
+		elif dsl == ZKDSL.ZOKRATES:
+			return smtlib2_to_zokrates(smtlib2, solver=solver)
 		else:
 			raise ValueError(f"Unsupported ZK DSL: {dsl}")
 
@@ -144,6 +163,8 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 			return solve_circom(circom_path=dsl_path, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver, bool_vars=tuple(bool_vars), hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "circom", dump_r1cs=dump_r1cs)
 		elif zk_dsl == ZKDSL.GNARK:
 			return solve_gnark(gnark_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "go", dump_r1cs=dump_r1cs)
+		elif zk_dsl == ZKDSL.ZOKRATES:
+			return solve_zokrates(zokrates_path=dsl_path, bool_vars=tuple(bool_vars), with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "zokrates", dump_r1cs=dump_r1cs, with_circ=with_circ)
 		else:
 			raise ValueError(f"Unsupported ZK DSL: {zk_dsl}")
 

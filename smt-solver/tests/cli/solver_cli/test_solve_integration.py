@@ -2,12 +2,13 @@
 Integration tests for the solve command.
 
 Tests all combinations of:
-- DSL backend: circom, gnark
+- DSL backend: circom, gnark, zokrates
 - SMT solver: z3, cvc5, picus
 - Oracle hints: off, on
 Against SAT and UNSAT boolean formulas.
 """
 
+import shutil
 import pytest
 from pathlib import Path
 from click.testing import CliRunner
@@ -22,19 +23,24 @@ FF_SAT_FILES = sorted((DATA_DIR / "ff").glob("ff_sat_*.smt2"))
 FF_UNSAT_FILES = sorted((DATA_DIR / "ff").glob("ff_unsat_*.smt2"))
 FF_PICUS_SAT_FILES = sorted((DATA_DIR / "ff").glob("ff_picus_sat_*.smt2"))
 FF_PICUS_UNSAT_FILES = sorted((DATA_DIR / "ff").glob("ff_picus_unsat_*.smt2"))
-
-DSLS = ["circom", "gnark"]
+BASE_DSLS = ["circom", "gnark"]
+ZOKRATES_AVAILABLE = shutil.which("zokrates") is not None
+DSLS = BASE_DSLS + (["zokrates"] if ZOKRATES_AVAILABLE else [])
 SMT_SOLVERS = ["z3", "cvc5"]
 HINTS = [False, True]
+CARGO_AVAILABLE = shutil.which("cargo") is not None
+ZOKRATES_WITH_CIRC_AVAILABLE = ZOKRATES_AVAILABLE and CARGO_AVAILABLE
 
 
-def _assert_solve(smt_path, dsl, solver, with_hints, expected):
+def _assert_solve(smt_path, dsl, solver, with_hints, expected, *, with_circ=False):
     args = [
         "solve",
         str(smt_path),
         "--zk-dsl", dsl,
         "--solver", solver,
     ]
+    if with_circ:
+        args.append("--with-circ")
     if not with_hints:
         args.append("--without-hints")
     result = CliRunner().invoke(cli, args)
@@ -117,3 +123,63 @@ def test_ff_picus_sat_formulas(smt_file, dsl, with_hints):
 @pytest.mark.parametrize("smt_file", FF_PICUS_UNSAT_FILES, ids=[f.stem for f in FF_PICUS_UNSAT_FILES])
 def test_ff_picus_unsat_formulas(smt_file, dsl):
 	_assert_solve(smt_file, dsl, "picus", False, "unsat")
+
+
+# ---------------------- zokrates + circ tests ----------------------
+
+@pytest.mark.skipif(not ZOKRATES_WITH_CIRC_AVAILABLE, reason="ZoKrates or cargo is not installed")
+@pytest.mark.parametrize("solver", ["z3"])
+@pytest.mark.parametrize("with_hints", [False], ids=["no-hints"])
+@pytest.mark.parametrize("smt_file", SAT_FILES, ids=[f.stem for f in SAT_FILES])
+def test_zokrates_with_circ_sat_formulas(smt_file, solver, with_hints):
+    _assert_solve(smt_file, "zokrates", solver, with_hints, "sat", with_circ=True)
+
+
+@pytest.mark.skipif(not ZOKRATES_WITH_CIRC_AVAILABLE, reason="ZoKrates or cargo is not installed")
+@pytest.mark.parametrize("solver", ["z3"])
+@pytest.mark.parametrize("with_hints", [False], ids=["no-hints"])
+@pytest.mark.parametrize("smt_file", UNSAT_FILES, ids=[f.stem for f in UNSAT_FILES])
+def test_zokrates_with_circ_unsat_formulas(smt_file, solver, with_hints):
+    _assert_solve(smt_file, "zokrates", solver, with_hints, "unsat", with_circ=True)
+
+
+@pytest.mark.skipif(not ZOKRATES_WITH_CIRC_AVAILABLE, reason="ZoKrates or cargo is not installed")
+@pytest.mark.parametrize("with_hints", [False], ids=["no-hints"])
+@pytest.mark.parametrize("smt_file", PICUS_SAT_FILES, ids=[f.stem for f in PICUS_SAT_FILES])
+def test_zokrates_with_circ_picus_sat_formulas(smt_file, with_hints):
+    _assert_solve(smt_file, "zokrates", "picus", with_hints, "sat", with_circ=True)
+
+
+@pytest.mark.skipif(not ZOKRATES_WITH_CIRC_AVAILABLE, reason="ZoKrates or cargo is not installed")
+@pytest.mark.parametrize("smt_file", PICUS_UNSAT_FILES, ids=[f.stem for f in PICUS_UNSAT_FILES])
+def test_zokrates_with_circ_picus_unsat_formulas(smt_file):
+    _assert_solve(smt_file, "zokrates", "picus", False, "unsat", with_circ=True)
+
+
+@pytest.mark.skipif(not ZOKRATES_WITH_CIRC_AVAILABLE, reason="ZoKrates or cargo is not installed")
+@pytest.mark.parametrize("solver", ["cvc5"])
+@pytest.mark.parametrize("with_hints", [False], ids=["no-hints"])
+@pytest.mark.parametrize("smt_file", FF_SAT_FILES, ids=[f.stem for f in FF_SAT_FILES])
+def test_zokrates_with_circ_ff_sat_formulas(smt_file, solver, with_hints):
+    _assert_solve(smt_file, "zokrates", solver, with_hints, "sat", with_circ=True)
+
+
+@pytest.mark.skipif(not ZOKRATES_WITH_CIRC_AVAILABLE, reason="ZoKrates or cargo is not installed")
+@pytest.mark.parametrize("solver", ["cvc5"])
+@pytest.mark.parametrize("with_hints", [False], ids=["no-hints"])
+@pytest.mark.parametrize("smt_file", FF_UNSAT_FILES, ids=[f.stem for f in FF_UNSAT_FILES])
+def test_zokrates_with_circ_ff_unsat_formulas(smt_file, solver, with_hints):
+    _assert_solve(smt_file, "zokrates", solver, with_hints, "unsat", with_circ=True)
+
+
+@pytest.mark.skipif(not ZOKRATES_WITH_CIRC_AVAILABLE, reason="ZoKrates or cargo is not installed")
+@pytest.mark.parametrize("with_hints", [False], ids=["no-hints"])
+@pytest.mark.parametrize("smt_file", FF_PICUS_SAT_FILES, ids=[f.stem for f in FF_PICUS_SAT_FILES])
+def test_zokrates_with_circ_ff_picus_sat_formulas(smt_file, with_hints):
+    _assert_solve(smt_file, "zokrates", "picus", with_hints, "sat", with_circ=True)
+
+
+@pytest.mark.skipif(not ZOKRATES_WITH_CIRC_AVAILABLE, reason="ZoKrates or cargo is not installed")
+@pytest.mark.parametrize("smt_file", FF_PICUS_UNSAT_FILES, ids=[f.stem for f in FF_PICUS_UNSAT_FILES])
+def test_zokrates_with_circ_ff_picus_unsat_formulas(smt_file):
+    _assert_solve(smt_file, "zokrates", "picus", False, "unsat", with_circ=True)
