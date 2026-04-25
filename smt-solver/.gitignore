@@ -16,3 +16,6 @@ __pycache__/
 
 # Zokrates
 abi.json
+
+# Benchmarks
+benchmarks/

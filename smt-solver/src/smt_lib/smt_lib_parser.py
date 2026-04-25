@@ -317,8 +317,13 @@ def parse_smtlib2_ff(smtlib2: str) -> Circuit:
             out = BinaryExpression(opcode, out, e)
         return out
 
-    def _expr(node) -> Expression:
+    def _expr(node, env: dict | None = None) -> Expression:
+        if env is None:
+            env = {}
+
         if isinstance(node, str):
+            if node in env:
+                return env[node]
             maybe_int = _to_int_atom(node)
             if maybe_int is not None:
                 return Integer(maybe_int)
@@ -340,13 +345,13 @@ def parse_smtlib2_ff(smtlib2: str) -> Circuit:
             return Integer(maybe_int)
 
         if head == "ff.add":
-            args = [_expr(a) for a in node[1:]]
+            args = [_expr(a, env) for a in node[1:]]
             if not args:
                 raise ValueError("ff.add requires at least one argument")
             return _fold_left(Operator.ADD, args) if len(args) > 1 else args[0]
 
         if head == "ff.mul":
-            args = [_expr(a) for a in node[1:]]
+            args = [_expr(a, env) for a in node[1:]]
             if not args:
                 raise ValueError("ff.mul requires at least one argument")
             return _fold_left(Operator.MUL, args) if len(args) > 1 else args[0]
@@ -354,21 +359,21 @@ def parse_smtlib2_ff(smtlib2: str) -> Circuit:
         if head == "ff.neg":
             if len(node) != 2:
                 raise ValueError("ff.neg expects exactly one argument")
-            return UnaryExpression(Operator.SUB, _expr(node[1]))
+            return UnaryExpression(Operator.SUB, _expr(node[1], env))
 
         if head == "=":
             if len(node) != 3:
                 raise ValueError("= expects exactly two arguments")
-            return BinaryExpression(Operator.EQU, _expr(node[1]), _expr(node[2]))
+            return BinaryExpression(Operator.EQU, _expr(node[1], env), _expr(node[2], env))
 
         if head == "and":
-            args = [_expr(a) for a in node[1:]]
+            args = [_expr(a, env) for a in node[1:]]
             if not args:
                 return Boolean(True)
             return _fold_left(Operator.LAND, args) if len(args) > 1 else args[0]
 
         if head == "or":
-            args = [_expr(a) for a in node[1:]]
+            args = [_expr(a, env) for a in node[1:]]
             if not args:
                 return Boolean(False)
             return _fold_left(Operator.LOR, args) if len(args) > 1 else args[0]
@@ -376,7 +381,29 @@ def parse_smtlib2_ff(smtlib2: str) -> Circuit:
         if head == "not":
             if len(node) != 2:
                 raise ValueError("not expects exactly one argument")
-            return UnaryExpression(Operator.NOT, _expr(node[1]))
+            return UnaryExpression(Operator.NOT, _expr(node[1], env))
+
+        if head == "let":
+            # (let ((var1 expr1) (var2 expr2) ...) body)
+            # Bindings are evaluated simultaneously in the current env,
+            # then inlined into the body — no new variables introduced.
+            if len(node) != 3:
+                raise ValueError(f"let expects exactly 2 arguments, got {len(node) - 1}")
+            bindings = node[1]
+            body = node[2]
+            new_env = {**env, **{b[0]: _expr(b[1], env) for b in bindings}}
+            return _expr(body, new_env)
+
+        if head == "distinct":
+            args = [_expr(a, env) for a in node[1:]]
+            if len(args) < 2:
+                raise ValueError("distinct expects at least two arguments")
+            pairs = [
+                UnaryExpression(Operator.NOT, BinaryExpression(Operator.EQU, args[i], args[j]))
+                for i in range(len(args))
+                for j in range(i + 1, len(args))
+            ]
+            return _fold_left(Operator.LAND, pairs) if len(pairs) > 1 else pairs[0]
 
         raise ValueError(f"Unsupported QF_FF operator: {head}")
 
@@ -388,7 +415,7 @@ def parse_smtlib2_ff(smtlib2: str) -> Circuit:
             continue
         if head == "define-sort":
             continue
-        if head == "declare-fun":
+        if head in ("declare-fun", "declare-const"):
             name = form[1]
             declared.add(name)
             if name.endswith(FUSION_SUFFIX):

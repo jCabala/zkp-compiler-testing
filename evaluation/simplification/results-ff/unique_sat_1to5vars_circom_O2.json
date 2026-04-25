@@ -19,7 +19,7 @@
         "input_constraints": 15,
         "substitutions_produced": 15,
         "remaining_constraints": 0,
-        "duration_ms": 1
+        "duration_ms": 0
       },
       {
         "event": "constant_eq_simplification",
@@ -36,6 +36,13 @@
         "use_old_heuristics": false
       },
       {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
         "event": "cluster_simplification",
         "cluster_size": 1,
         "num_signals": 1,
@@ -43,11 +50,11 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_result",
-        "process": "process_3",
+        "event": "cluster_simplification",
         "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
       },
       {
         "event": "cluster_simplification",
@@ -83,13 +90,6 @@
         "cluster_size": 1,
         "substitutions_produced": 1,
         "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
       },
       {
         "event": "cluster_result",
@@ -117,7 +117,7 @@
         "input_constraints": 6,
         "substitutions_produced": 6,
         "remaining_constraints": 0,
-        "duration_ms": 1
+        "duration_ms": 3
       },
       {
         "event": "non_linear_simplification",
@@ -135,7 +135,7 @@
         "substitutions_produced": 0,
         "new_linear_from_nonlinear": 0,
         "continues": false,
-        "duration_ms": 0
+        "duration_ms": 2
       },
       {
         "event": "operator_counts",
@@ -164,7 +164,7 @@
         "final_constraints_total": 12,
         "signals_deleted": 27,
         "signals_remaining": 15,
-        "total_duration_ms": 4
+        "total_duration_ms": 8
       }
     ]
   },
@@ -188,7 +188,7 @@
         "input_constraints": 15,
         "substitutions_produced": 15,
         "remaining_constraints": 0,
-        "duration_ms": 1
+        "duration_ms": 0
       },
       {
         "event": "constant_eq_simplification",
@@ -205,20 +205,6 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -238,6 +224,13 @@
         "cluster_size": 1,
         "substitutions_produced": 1,
         "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
       },
       {
         "event": "cluster_simplification",
@@ -273,6 +266,13 @@
         "num_signals": 2,
         "process": "process_3",
         "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
       },
       {
         "event": "cluster_result",
@@ -357,7 +357,7 @@
         "input_constraints": 30,
         "substitutions_produced": 30,
         "remaining_constraints": 0,
-        "duration_ms": 2
+        "duration_ms": 1
       },
       {
         "event": "constant_eq_simplification",
@@ -374,34 +374,6 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -426,20 +398,6 @@
         "event": "cluster_simplification",
         "cluster_size": 1,
         "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
         "process": "process_3",
         "use_old_heuristics": false
       },
@@ -495,6 +453,20 @@
       {
         "event": "cluster_simplification",
         "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
         "num_signals": 2,
         "process": "process_3",
         "use_old_heuristics": false
@@ -514,6 +486,13 @@
         "use_old_heuristics": false
       },
       {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
         "event": "cluster_simplification",
         "cluster_size": 1,
         "num_signals": 1,
@@ -526,6 +505,27 @@
         "cluster_size": 1,
         "substitutions_produced": 1,
         "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
       },
       {
         "event": "cluster_result",
@@ -557,7 +557,7 @@
         "substitutions_produced": 0,
         "new_linear_from_nonlinear": 0,
         "continues": false,
-        "duration_ms": 0
+        "duration_ms": 2
       },
       {
         "event": "operator_counts",
@@ -586,7 +586,7 @@
         "final_constraints_total": 24,
         "signals_deleted": 54,
         "signals_remaining": 29,
-        "total_duration_ms": 6
+        "total_duration_ms": 7
       }
     ]
   },
@@ -627,55 +627,6 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -718,41 +669,6 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -763,13 +679,6 @@
         "event": "cluster_simplification",
         "cluster_size": 1,
         "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
         "process": "process_3",
         "use_old_heuristics": false
       },
@@ -793,6 +702,139 @@
         "cluster_size": 1,
         "substitutions_produced": 1,
         "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
       },
       {
         "event": "cluster_result",
@@ -809,62 +851,6 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 6,
@@ -874,6 +860,20 @@
       {
         "event": "cluster_simplification",
         "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
         "num_signals": 2,
         "process": "process_3",
         "use_old_heuristics": false
@@ -900,6 +900,13 @@
         "remaining_constraints": 0
       },
       {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -912,13 +919,6 @@
         "num_signals": 1,
         "process": "process_3",
         "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
       },
       {
         "event": "cluster_result",
@@ -932,7 +932,7 @@
         "input_constraints": 27,
         "substitutions_produced": 27,
         "remaining_constraints": 0,
-        "duration_ms": 3
+        "duration_ms": 1
       },
       {
         "event": "non_linear_simplification",
@@ -950,7 +950,7 @@
         "substitutions_produced": 0,
         "new_linear_from_nonlinear": 0,
         "continues": false,
-        "duration_ms": 0
+        "duration_ms": 3
       },
       {
         "event": "operator_counts",
@@ -979,7 +979,7 @@
         "final_constraints_total": 48,
         "signals_deleted": 108,
         "signals_remaining": 59,
-        "total_duration_ms": 7
+        "total_duration_ms": 8
       }
     ]
   },
@@ -1003,7 +1003,7 @@
         "input_constraints": 70,
         "substitutions_produced": 70,
         "remaining_constraints": 0,
-        "duration_ms": 1
+        "duration_ms": 5
       },
       {
         "event": "constant_eq_simplification",
@@ -1043,6 +1043,34 @@
       {
         "event": "cluster_simplification",
         "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
         "num_signals": 2,
         "process": "process_3",
         "use_old_heuristics": false
@@ -1118,27 +1146,6 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -1151,48 +1158,6 @@
         "num_signals": 1,
         "process": "process_3",
         "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
       },
       {
         "event": "cluster_simplification",
@@ -1223,16 +1188,44 @@
         "remaining_constraints": 0
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
+        "event": "cluster_result",
         "process": "process_3",
-        "use_old_heuristics": false
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
       },
       {
         "event": "cluster_simplification",
         "cluster_size": 1,
         "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
         "process": "process_3",
         "use_old_heuristics": false
       },
@@ -1265,13 +1258,6 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
         "event": "cluster_simplification",
         "cluster_size": 1,
         "num_signals": 1,
@@ -1279,16 +1265,9 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
         "event": "cluster_simplification",
         "cluster_size": 1,
-        "num_signals": 2,
+        "num_signals": 1,
         "process": "process_3",
         "use_old_heuristics": false
       },
@@ -1328,11 +1307,32 @@
         "remaining_constraints": 0
       },
       {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
         "substitutions_produced": 1,
         "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
       },
       {
         "event": "cluster_result",
@@ -1367,7 +1367,7 @@
         "input_constraints": 32,
         "substitutions_produced": 32,
         "remaining_constraints": 0,
-        "duration_ms": 4
+        "duration_ms": 6
       },
       {
         "event": "non_linear_simplification",
@@ -1414,7 +1414,7 @@
         "final_constraints_total": 56,
         "signals_deleted": 126,
         "signals_remaining": 68,
-        "total_duration_ms": 7
+        "total_duration_ms": 13
       }
     ]
   },
@@ -1438,7 +1438,7 @@
         "input_constraints": 95,
         "substitutions_produced": 95,
         "remaining_constraints": 0,
-        "duration_ms": 1
+        "duration_ms": 2
       },
       {
         "event": "constant_eq_simplification",
@@ -1455,20 +1455,6 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -1481,6 +1467,13 @@
         "num_signals": 2,
         "process": "process_3",
         "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
       },
       {
         "event": "cluster_simplification",
@@ -1840,6 +1833,41 @@
         "use_old_heuristics": false
       },
       {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 14,
+        "substitutions_produced": 14,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
         "event": "cluster_simplification",
         "cluster_size": 1,
         "num_signals": 2,
@@ -1868,39 +1896,11 @@
         "remaining_constraints": 0
       },
       {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 14,
-        "substitutions_produced": 14,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
         "event": "linear_simplification",
         "input_constraints": 45,
         "substitutions_produced": 45,
         "remaining_constraints": 0,
-        "duration_ms": 2
+        "duration_ms": 3
       },
       {
         "event": "non_linear_simplification",
@@ -1947,7 +1947,7 @@
         "final_constraints_total": 76,
         "signals_deleted": 171,
         "signals_remaining": 93,
-        "total_duration_ms": 6
+        "total_duration_ms": 12
       }
     ]
   },
@@ -1971,7 +1971,7 @@
         "input_constraints": 70,
         "substitutions_produced": 70,
         "remaining_constraints": 0,
-        "duration_ms": 1
+        "duration_ms": 2
       },
       {
         "event": "constant_eq_simplification",
@@ -1988,27 +1988,6 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -2046,39 +2025,11 @@
       {
         "event": "cluster_simplification",
         "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
         "num_signals": 1,
         "process": "process_3",
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -2102,28 +2053,7 @@
       {
         "event": "cluster_simplification",
         "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
         "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
         "process": "process_3",
         "use_old_heuristics": false
       },
@@ -2191,6 +2121,13 @@
         "remaining_constraints": 0
       },
       {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -2217,6 +2154,97 @@
         "num_signals": 1,
         "process": "process_3",
         "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
       },
       {
         "event": "cluster_simplification",
@@ -2256,34 +2284,6 @@
       {
         "event": "cluster_result",
         "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
         "cluster_size": 4,
         "substitutions_produced": 4,
         "remaining_constraints": 0
@@ -2296,13 +2296,6 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -2338,11 +2331,18 @@
         "remaining_constraints": 0
       },
       {
-        "event": "cluster_result",
-        "process": "process_3",
+        "event": "cluster_simplification",
         "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
       },
       {
         "event": "cluster_result",
@@ -2363,7 +2363,7 @@
         "input_constraints": 30,
         "substitutions_produced": 30,
         "remaining_constraints": 0,
-        "duration_ms": 3
+        "duration_ms": 6
       },
       {
         "event": "non_linear_simplification",
@@ -2372,7 +2372,7 @@
         "storage_quadratic": 56,
         "storage_constant": 0,
         "storage_empty": 0,
-        "duration_ms": 0
+        "duration_ms": 1
       },
       {
         "event": "optimization_round",
@@ -2410,7 +2410,7 @@
         "final_constraints_total": 56,
         "signals_deleted": 126,
         "signals_remaining": 67,
-        "total_duration_ms": 7
+        "total_duration_ms": 11
       }
     ]
   },
@@ -2434,7 +2434,7 @@
         "input_constraints": 75,
         "substitutions_produced": 75,
         "remaining_constraints": 0,
-        "duration_ms": 1
+        "duration_ms": 3
       },
       {
         "event": "constant_eq_simplification",
@@ -2451,20 +2451,6 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -2474,21 +2460,7 @@
       {
         "event": "cluster_simplification",
         "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
         "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
         "process": "process_3",
         "use_old_heuristics": false
       },
@@ -2514,11 +2486,11 @@
         "remaining_constraints": 0
       },
       {
-        "event": "cluster_result",
-        "process": "process_3",
+        "event": "cluster_simplification",
         "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
       },
       {
         "event": "cluster_result",
@@ -2535,6 +2507,13 @@
         "use_old_heuristics": false
       },
       {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
         "event": "cluster_simplification",
         "cluster_size": 1,
         "num_signals": 2,
@@ -2542,13 +2521,6 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -2561,13 +2533,6 @@
         "num_signals": 1,
         "process": "process_3",
         "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
       },
       {
         "event": "cluster_result",
@@ -2584,6 +2549,13 @@
         "use_old_heuristics": false
       },
       {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
         "event": "cluster_simplification",
         "cluster_size": 1,
         "num_signals": 1,
@@ -2591,9 +2563,16 @@
         "use_old_heuristics": false
       },
       {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
         "event": "cluster_simplification",
         "cluster_size": 1,
-        "num_signals": 1,
+        "num_signals": 2,
         "process": "process_3",
         "use_old_heuristics": false
       },
@@ -2617,6 +2596,55 @@
         "cluster_size": 1,
         "substitutions_produced": 1,
         "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
       },
       {
         "event": "cluster_result",
@@ -2759,18 +2787,18 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
         "substitutions_produced": 1,
         "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
       },
       {
         "event": "cluster_result",
@@ -2799,34 +2827,6 @@
         "num_signals": 1,
         "process": "process_3",
         "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
       },
       {
         "event": "cluster_result",
@@ -2901,7 +2901,7 @@
         "final_constraints_total": 60,
         "signals_deleted": 135,
         "signals_remaining": 72,
-        "total_duration_ms": 7
+        "total_duration_ms": 15
       }
     ]
   },
@@ -2925,7 +2925,7 @@
         "input_constraints": 110,
         "substitutions_produced": 110,
         "remaining_constraints": 0,
-        "duration_ms": 2
+        "duration_ms": 1
       },
       {
         "event": "constant_eq_simplification",
@@ -2942,90 +2942,6 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -3105,7 +3021,7 @@
       {
         "event": "cluster_simplification",
         "cluster_size": 1,
-        "num_signals": 1,
+        "num_signals": 2,
         "process": "process_3",
         "use_old_heuristics": false
       },
@@ -3208,6 +3124,97 @@
         "use_old_heuristics": false
       },
       {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
         "event": "cluster_simplification",
         "cluster_size": 1,
         "num_signals": 1,
@@ -3309,20 +3316,6 @@
         "event": "cluster_simplification",
         "cluster_size": 1,
         "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
         "process": "process_3",
         "use_old_heuristics": false
       },
@@ -3385,62 +3378,6 @@
       {
         "event": "cluster_result",
         "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
         "cluster_size": 10,
         "substitutions_produced": 10,
         "remaining_constraints": 0
@@ -3448,6 +3385,41 @@
       {
         "event": "cluster_simplification",
         "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
         "num_signals": 2,
         "process": "process_3",
         "use_old_heuristics": false
@@ -3472,6 +3444,34 @@
         "cluster_size": 1,
         "substitutions_produced": 1,
         "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
       },
       {
         "event": "cluster_result",
@@ -3499,7 +3499,7 @@
         "input_constraints": 49,
         "substitutions_produced": 49,
         "remaining_constraints": 0,
-        "duration_ms": 5
+        "duration_ms": 6
       },
       {
         "event": "non_linear_simplification",
@@ -3508,7 +3508,7 @@
         "storage_quadratic": 88,
         "storage_constant": 0,
         "storage_empty": 0,
-        "duration_ms": 1
+        "duration_ms": 3
       },
       {
         "event": "optimization_round",
@@ -3546,7 +3546,7 @@
         "final_constraints_total": 88,
         "signals_deleted": 198,
         "signals_remaining": 106,
-        "total_duration_ms": 10
+        "total_duration_ms": 21
       }
     ]
   },
@@ -3587,62 +3587,6 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -3699,6 +3643,13 @@
         "use_old_heuristics": false
       },
       {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -3729,147 +3680,7 @@
       {
         "event": "cluster_simplification",
         "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
         "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 2,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
         "process": "process_3",
         "use_old_heuristics": false
       },
@@ -3930,6 +3741,55 @@
         "remaining_constraints": 0
       },
       {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -3972,6 +3832,27 @@
         "use_old_heuristics": false
       },
       {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
         "event": "cluster_simplification",
         "cluster_size": 1,
         "num_signals": 1,
@@ -4007,27 +3888,6 @@
         "use_old_heuristics": false
       },
       {
-        "event": "cluster_simplification",
-        "cluster_size": 1,
-        "num_signals": 1,
-        "process": "process_3",
-        "use_old_heuristics": false
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
-        "event": "cluster_result",
-        "process": "process_3",
-        "cluster_size": 1,
-        "substitutions_produced": 1,
-        "remaining_constraints": 0
-      },
-      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -4049,6 +3909,13 @@
         "remaining_constraints": 0
       },
       {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
         "event": "cluster_result",
         "process": "process_3",
         "cluster_size": 1,
@@ -4061,6 +3928,97 @@
         "num_signals": 1,
         "process": "process_3",
         "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 2,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
       },
       {
         "event": "cluster_simplification",
@@ -4100,6 +4058,48 @@
       {
         "event": "cluster_result",
         "process": "process_3",
+        "cluster_size": 10,
+        "substitutions_produced": 10,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
+        "cluster_size": 1,
+        "substitutions_produced": 1,
+        "remaining_constraints": 0
+      },
+      {
+        "event": "cluster_simplification",
+        "cluster_size": 1,
+        "num_signals": 1,
+        "process": "process_3",
+        "use_old_heuristics": false
+      },
+      {
+        "event": "cluster_result",
+        "process": "process_3",
         "cluster_size": 1,
         "substitutions_produced": 1,
         "remaining_constraints": 0
@@ -4107,8 +4107,8 @@
       {
         "event": "cluster_result",
         "process": "process_3",
-        "cluster_size": 10,
-        "substitutions_produced": 10,
+        "cluster_size": 1,
+        "substitutions_produced": 1,
         "remaining_constraints": 0
       },
       {
@@ -4116,7 +4116,7 @@
         "input_constraints": 47,
         "substitutions_produced": 47,
         "remaining_constraints": 0,
-        "duration_ms": 3
+        "duration_ms": 5
       },
       {
         "event": "non_linear_simplification",
@@ -4125,7 +4125,7 @@
         "storage_quadratic": 84,
         "storage_constant": 0,
         "storage_empty": 0,
-        "duration_ms": 1
+        "duration_ms": 3
       },
       {
         "event": "optimization_round",
@@ -4134,7 +4134,7 @@
         "substitutions_produced": 0,
         "new_linear_from_nonlinear": 0,
         "continues": false,
-        "duration_ms": 0
+        "duration_ms": 2
       },
       {
         "event": "operator_counts",
@@ -4163,7 +4163,7 @@
         "final_constraints_total": 84,
         "signals_deleted": 189,
         "signals_remaining": 101,
-        "total_duration_ms": 9
+        "total_duration_ms": 16
       }
     ]
   }

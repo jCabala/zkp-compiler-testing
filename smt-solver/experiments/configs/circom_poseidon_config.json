@@ -11,8 +11,8 @@
   },
   "instances": [
     {
-      "name": "sat_circom",
-      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/bool-based/unique_sat_1to5vars_circom_O2",
+      "name": "sat_circom_poseidon",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/poseidon",
       "dsl": "circom",
       "oracle": "smt",
       "solver": "cvc5",
@@ -21,8 +21,8 @@
       "opt_level": "O2"
     },
     {
-      "name": "picus_circom",
-      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/bool-based/unique_sat_1to5vars_circom_O2",
+      "name": "picus_circom_poseidon",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/poseidon",
       "dsl": "circom",
       "oracle": "picus",
       "hints": false,
