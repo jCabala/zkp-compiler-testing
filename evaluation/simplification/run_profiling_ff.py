@@ -29,7 +29,7 @@ def main() -> int:
 	parser.add_argument(
 		"--benchmarks-root",
 		type=Path,
-		default=SMT_SOLVER_DIR / "benchmarks" / "SMT-benchmarks" / "finite-field",
+		default=SMT_SOLVER_DIR / "benchmarks" / "SMT-benchmarks" / "finite-field" / "bool-based",
 		help="Root directory containing FF benchmark folders",
 	)
 	parser.add_argument(
