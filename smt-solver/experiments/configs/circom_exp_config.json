@@ -12,7 +12,7 @@
   "instances": [
     {
       "name": "sat_circom",
-      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/unique_sat_1to5vars_circom_O2",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/bool-based/unique_sat_1to5vars_circom_O2",
       "dsl": "circom",
       "oracle": "smt",
       "solver": "cvc5",
@@ -22,7 +22,7 @@
     },
     {
       "name": "picus_circom",
-      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/unique_sat_1to5vars_circom_O2",
+      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/bool-based/unique_sat_1to5vars_circom_O2",
       "dsl": "circom",
       "oracle": "picus",
       "hints": false,

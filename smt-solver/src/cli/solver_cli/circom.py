@@ -1,5 +1,5 @@
 from pathlib import Path
-from random import Random, random
+from random import Random
 from src.cli.solver_cli.adaptive_hints import HINT_PROBABILITY
 from src.smt_lib.smt_lib_parser import parse_smtlib2
 from src.smt_lib.zk_ir import Circuit
@@ -119,7 +119,8 @@ def solve_circom(circom_path: Path, bool_vars: tuple, with_model: bool, with_log
 	wire_hints = {}
 	if hint_model:
 		wire_hints = resolve_hints_for_circom(circom_path, hint_model, opt_level, with_logs, compiler)
-		wire_hints = {k: v for k, v in wire_hints.items() if random() < hint_probability}
+		_hint_rng = Random(42)
+		wire_hints = {k: v for k, v in wire_hints.items() if _hint_rng.random() < hint_probability}
 		log(f"Resolved {len(wire_hints)} hint wire assignments (after probabilistic filtering)", with_logs)
 
 	log(f"Compiling Circom file: {circom_path}...", with_logs)

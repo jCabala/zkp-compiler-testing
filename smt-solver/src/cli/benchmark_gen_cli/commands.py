@@ -3,6 +3,7 @@ import click
 
 from src.cli.benchmark_gen_cli.bool_to_ff import generate_ff_benchmarks, generate_ff_benchmark_suite
 from src.cli.benchmark_gen_cli.sudoku import sudoku17_to_smtlib2
+from src.cli.benchmark_gen_cli.filter_ff_benchmarks import filter_ff_benchmarks
 
 
 @click.command(name="bool-smt-to-ff")
@@ -120,6 +121,74 @@ def generate_ff_benchmark_suite_command(
 	except Exception as e:
 		click.echo(f"✗ Error: {e}", err=True)
 		raise click.Abort()
+
+
+@click.command(name="filter-ff-benchmarks")
+@click.argument("in_folder", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.argument("out_folder", type=click.Path(path_type=Path))
+@click.option("--timeout", type=int, default=30, show_default=True, help="Solver timeout per call in seconds.")
+@click.option("--max-iterations", type=int, default=5, show_default=True, help="Maximum number of disequality-augmentation rounds for a non-unique benchmark.")
+@click.option("--stats-file", type=click.Path(path_type=Path), default=None, help="Path to a JSON file updated with running statistics every 100 benchmarks.")
+def filter_ff_benchmarks_command(in_folder: Path, out_folder: Path, timeout: int, max_iterations: int, stats_file: Path | None):
+	"""
+	Filter a folder of QF_FF benchmarks to keep only uniquely satisfiable ones.
+
+	UNSAT formulas are discarded. Non-unique formulas are augmented with
+	per-variable disequality constraints against a second discovered model,
+	then re-checked iteratively; if still non-unique they are discarded.
+
+	IN_FOLDER: folder with .smt2 QF_FF files
+	OUT_FOLDER: output folder for uniquely satisfiable .smt2 files
+	"""
+	try:
+		filter_ff_benchmarks(
+			in_folder,
+			out_folder,
+			timeout=timeout,
+			max_iterations=max_iterations,
+			stats_file=stats_file,
+			log=click.echo,
+		)
+	except Exception as e:
+		click.echo(f"✗ Error: {e}", err=True)
+		raise click.Abort()
+
+
+@click.command(name="generate-poseidon-benchmarks")
+@click.argument("out_folder", type=click.Path(path_type=Path))
+@click.option("--count", "-n", type=int, default=10, show_default=True, help="Number of benchmarks to generate.")
+@click.option("--seed", type=int, default=None, help="Random seed for reproducibility.")
+@click.option("--min-rounds", type=int, default=1, show_default=True, help="Minimum number of Poseidon rounds.")
+@click.option("--max-rounds", type=int, default=5, show_default=True, help="Maximum number of Poseidon rounds.")
+def generate_poseidon_benchmarks_command(
+    out_folder: Path,
+    count: int,
+    seed,
+    min_rounds: int,
+    max_rounds: int,
+):
+    """Generate unique-SAT finite-field benchmarks based on a Poseidon-like permutation.
+
+    All benchmarks use the Circom prime (BN254 scalar field). Per benchmark,
+    state width, S-box exponent, MDS matrix, and round constants are sampled
+    independently. Each benchmark fixes a known output y and asks the solver to
+    find the unique input x such that Poseidon(x) = y.
+
+    OUT_FOLDER: directory where .smt2 files will be written.
+    """
+    try:
+        from src.cli.benchmark_gen_cli.poseidon import generate_poseidon_benchmarks
+        generate_poseidon_benchmarks(
+            out_folder=out_folder,
+            count=count,
+            seed=seed,
+            min_rounds=min_rounds,
+            max_rounds=max_rounds,
+            log=click.echo,
+        )
+    except Exception as e:
+        click.echo(f"✗ Error: {e}", err=True)
+        raise click.Abort()
 
 
 @click.command(name="sudoku17-to-smtlib2")

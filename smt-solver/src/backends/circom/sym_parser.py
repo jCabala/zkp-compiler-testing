@@ -42,8 +42,7 @@ def parse_sym_file(sym_path: Path) -> Dict[str, int]:
             label_id, wire_index, component_index, signal_name = parts
             
             try:
-                wire_idx = int(wire_index)
-                signal_to_wire[signal_name] = wire_idx
+                signal_to_wire[signal_name] = int(label_id)
             except ValueError:
                 # Skip lines with non-numeric wire index
                 continue
