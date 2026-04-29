@@ -4,6 +4,7 @@ import click
 from src.cli.benchmark_gen_cli.bool_to_ff import generate_ff_benchmarks, generate_ff_benchmark_suite
 from src.cli.benchmark_gen_cli.sudoku import sudoku17_to_smtlib2
 from src.cli.benchmark_gen_cli.filter_ff_benchmarks import filter_ff_benchmarks
+from src.smt_lib.simplify import simplify_formula_preserve_asserts
 
 
 @click.command(name="bool-smt-to-ff")
@@ -123,6 +124,52 @@ def generate_ff_benchmark_suite_command(
 		raise click.Abort()
 
 
+@click.command(name="simplify-smtlib2-folder")
+@click.argument("in_folder", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.argument("out_folder", type=click.Path(path_type=Path))
+@click.option("--max-out", type=int, default=None, help="Maximum number of input files to simplify.")
+@click.option("--skip-existing", is_flag=True, default=False, help="Skip outputs that already exist.")
+def simplify_smtlib2_folder_command(
+	in_folder: Path,
+	out_folder: Path,
+	max_out: int | None,
+	skip_existing: bool,
+):
+	"""
+	Simplify all .smt2 files in IN_FOLDER and write the simplified outputs to OUT_FOLDER.
+
+	This uses a structure-preserving Z3-based simplifier that simplifies each
+	assert independently, drops trivial `true` assertions, and avoids collapsing
+	UNSAT benchmarks into a single `(assert false)` due only to cross-assert
+	contradictions.
+	"""
+	try:
+		out_folder.mkdir(parents=True, exist_ok=True)
+		smt2_files = sorted(in_folder.glob("*.smt2"))
+		if max_out is not None:
+			smt2_files = smt2_files[:max_out]
+		if not smt2_files:
+			click.echo(f"No .smt2 files found in {in_folder}")
+			return
+
+		written = 0
+		for smt2_file in smt2_files:
+			out_file = out_folder / smt2_file.name
+			if skip_existing and out_file.exists():
+				continue
+			simplified = simplify_formula_preserve_asserts(smt2_file.read_text())
+			out_file.write_text(simplified)
+			written += 1
+
+		click.echo(
+			f"✓ Simplified {written} SMT-LIB2 file(s) "
+			f"from {len(smt2_files)} input file(s) into {out_folder}"
+		)
+	except Exception as e:
+		click.echo(f"✗ Error: {e}", err=True)
+		raise click.Abort()
+
+
 @click.command(name="filter-ff-benchmarks")
 @click.argument("in_folder", type=click.Path(exists=True, file_okay=False, path_type=Path))
 @click.argument("out_folder", type=click.Path(path_type=Path))
@@ -160,12 +207,27 @@ def filter_ff_benchmarks_command(in_folder: Path, out_folder: Path, timeout: int
 @click.option("--seed", type=int, default=None, help="Random seed for reproducibility.")
 @click.option("--min-rounds", type=int, default=1, show_default=True, help="Minimum number of Poseidon rounds.")
 @click.option("--max-rounds", type=int, default=5, show_default=True, help="Maximum number of Poseidon rounds.")
+@click.option(
+    "--state-width",
+    type=int,
+    default=None,
+    help="Force a fixed Poseidon state width. By default benchmarks sample from the built-in widths.",
+)
+@click.option(
+    "--mds-mode",
+    type=click.Choice(["random", "sparse", "identity"]),
+    default="random",
+    show_default=True,
+    help="Linear layer mode for benchmark generation.",
+)
 def generate_poseidon_benchmarks_command(
     out_folder: Path,
     count: int,
     seed,
     min_rounds: int,
     max_rounds: int,
+    state_width: int | None,
+    mds_mode: str,
 ):
     """Generate unique-SAT finite-field benchmarks based on a Poseidon-like permutation.
 
@@ -184,6 +246,8 @@ def generate_poseidon_benchmarks_command(
             seed=seed,
             min_rounds=min_rounds,
             max_rounds=max_rounds,
+            state_width=state_width,
+            mds_mode=mds_mode,
             log=click.echo,
         )
     except Exception as e:

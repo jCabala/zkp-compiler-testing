@@ -45,6 +45,36 @@ def _sample_mds(rng: random.Random, t: int) -> list[list[int]]:
     raise ValueError(f"Could not sample invertible {t}x{t} matrix mod CIRCOM_PRIME")
 
 
+def _sample_sparse_mds(rng: random.Random, t: int) -> list[list[int]]:
+    """Sample a sparse invertible matrix.
+
+    We use an upper-triangular matrix with ones on the diagonal and a small
+    number of non-zero off-diagonal entries. This preserves bijectivity while
+    producing much simpler benchmark terms than a dense random matrix.
+    """
+    p = CIRCOM_PRIME
+    M = [[0] * t for _ in range(t)]
+    for i in range(t):
+        M[i][i] = 1
+    for i in range(t - 1):
+        M[i][i + 1] = rng.randint(1, p - 1)
+    return M
+
+
+def _sample_identity_mds(t: int) -> list[list[int]]:
+    return [[1 if i == j else 0 for j in range(t)] for i in range(t)]
+
+
+def _sample_linear_layer(rng: random.Random, t: int, mds_mode: str) -> list[list[int]]:
+    if mds_mode == "random":
+        return _sample_mds(rng, t)
+    if mds_mode == "sparse":
+        return _sample_sparse_mds(rng, t)
+    if mds_mode == "identity":
+        return _sample_identity_mds(t)
+    raise ValueError(f"Unsupported mds_mode: {mds_mode}")
+
+
 def _poseidon_permute(
     state: list[int],
     M: list[list[int]],
@@ -144,11 +174,16 @@ def generate_poseidon_benchmarks(
     seed=None,
     min_rounds: int = 1,
     max_rounds: int = 5,
+    state_width: int | None = None,
+    mds_mode: str = "random",
     log=print,
 ) -> None:
     p = CIRCOM_PRIME
     rng = random.Random(seed)
     out_folder.mkdir(parents=True, exist_ok=True)
+
+    if state_width is not None and state_width <= 0:
+        raise ValueError("state_width must be positive")
 
     generated = 0
     attempts = 0
@@ -156,10 +191,10 @@ def generate_poseidon_benchmarks(
     while generated < count and attempts < count * 50:
         attempts += 1
         try:
-            t = rng.choice([2, 3])
-            alpha = 3
+            t = state_width if state_width is not None else rng.choice([2, 3])
+            alpha = 5
             rounds = rng.randint(min_rounds, max_rounds)
-            M = _sample_mds(rng, t)
+            M = _sample_linear_layer(rng, t, mds_mode)
             round_consts = [[rng.randint(0, p - 1) for _ in range(t)] for _ in range(rounds)]
             x = [rng.randint(0, p - 1) for _ in range(t)]
             y = _poseidon_permute(x, M, round_consts, alpha)

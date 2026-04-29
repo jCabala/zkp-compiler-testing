@@ -155,6 +155,67 @@ def _prepare_r1cs_from_zokrates(
 				binary_path.unlink()
 
 
+def convert_bool_smt_to_ff(
+	*,
+	smt2_path: Path,
+	out_file: Path,
+	dsl: str,
+	compiler: str | None,
+	opt_level: str,
+	max_vars: int | None,
+	skip_existing: bool,
+	with_logs: bool,
+	keep_intermediate: Path | None,
+	log=print,
+) -> bool:
+	if skip_existing and out_file.exists():
+		_log(f"Skipping existing {out_file}", with_logs, log)
+		return False
+
+	smtlib2 = smt2_path.read_text()
+	if dsl == "circom":
+		r1cs = _prepare_r1cs_from_circom(
+			smtlib2,
+			compiler=compiler,
+			opt_level=opt_level,
+			with_logs=with_logs,
+			log=log,
+			keep_intermediate=keep_intermediate,
+		)
+	elif dsl == "gnark":
+		r1cs = _prepare_r1cs_from_gnark(
+			smtlib2,
+			compiler=compiler,
+			with_logs=with_logs,
+			log=log,
+			keep_intermediate=keep_intermediate,
+		)
+	elif dsl == "zokrates":
+		r1cs = _prepare_r1cs_from_zokrates(
+			smtlib2,
+			compiler=compiler,
+			with_logs=with_logs,
+			log=log,
+			keep_intermediate=keep_intermediate,
+		)
+	else:
+		raise ValueError(f"Unsupported DSL: {dsl}")
+
+	if max_vars is not None and r1cs.nVars > max_vars:
+		_log(
+			f"Skipping {smt2_path.name}: nVars={r1cs.nVars} exceeds threshold {max_vars}",
+			with_logs,
+			log,
+		)
+		return False
+
+	out_file.parent.mkdir(parents=True, exist_ok=True)
+	qf_ff = emit_qf_ff(r1cs, source_path=smt2_path, backend=dsl)
+	out_file.write_text(qf_ff)
+	_log(f"Wrote {out_file}", with_logs, log)
+	return True
+
+
 def generate_ff_benchmarks(
 	*,
 	in_folder: Path,
@@ -182,55 +243,23 @@ def generate_ff_benchmarks(
 
 	for smt2_path in selected:
 		try:
-			smtlib2 = smt2_path.read_text()
-			if dsl == "circom":
-				r1cs = _prepare_r1cs_from_circom(
-					smtlib2,
-					compiler=compiler,
-					opt_level=opt_level,
-					with_logs=with_logs,
-					log=log,
-					keep_intermediate=keep_intermediate,
-				)
-			elif dsl == "gnark":
-				r1cs = _prepare_r1cs_from_gnark(
-					smtlib2,
-					compiler=compiler,
-					with_logs=with_logs,
-					log=log,
-					keep_intermediate=keep_intermediate,
-				)
-			elif dsl == "zokrates":
-				r1cs = _prepare_r1cs_from_zokrates(
-					smtlib2,
-					compiler=compiler,
-					with_logs=with_logs,
-					log=log,
-					keep_intermediate=keep_intermediate,
-				)
-			else:
-				raise ValueError(f"Unsupported DSL: {dsl}")
-
-			if max_vars is not None and r1cs.nVars > max_vars:
-				_log(
-					f"Skipping {smt2_path.name}: nVars={r1cs.nVars} exceeds threshold {max_vars}",
-					with_logs,
-					log,
-				)
-				continue
-
 			out_name = smt2_path.stem
 			if suffix:
 				out_name = f"{out_name}--{suffix}"
 			out_file = out_folder / f"{out_name}.smt2"
-			if skip_existing and out_file.exists():
-				_log(f"Skipping existing {out_file}", with_logs, log)
-				continue
-
-			qf_ff = emit_qf_ff(r1cs, source_path=smt2_path, backend=dsl)
-			out_file.write_text(qf_ff)
-			converted += 1
-			_log(f"Wrote {out_file}", with_logs, log)
+			if convert_bool_smt_to_ff(
+				smt2_path=smt2_path,
+				out_file=out_file,
+				dsl=dsl,
+				compiler=compiler,
+				opt_level=opt_level,
+				max_vars=max_vars,
+				skip_existing=skip_existing,
+				with_logs=with_logs,
+				keep_intermediate=keep_intermediate,
+				log=log,
+			):
+				converted += 1
 		except Exception as e:
 			if continue_on_error:
 				log(f"Skipping {smt2_path.name}: {e}")

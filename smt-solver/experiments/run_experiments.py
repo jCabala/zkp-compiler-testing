@@ -142,6 +142,17 @@ def _select_benchmarks(bench_dir: Path, max_files: int | None, seed: int) -> lis
 	return sorted(shuffled[:max_files])
 
 
+def _instance_benchmark_dirs(instance: dict[str, Any]) -> list[Path]:
+	if "benchmarks_dirs" in instance:
+		values = instance["benchmarks_dirs"]
+		if not isinstance(values, list) or not values:
+			raise ValueError("benchmarks_dirs must be a non-empty list of paths")
+		return [_path_from_root(value) for value in values]
+	if "benchmarks_dir" in instance:
+		return [_path_from_root(instance["benchmarks_dir"])]
+	raise ValueError("Each instance must define benchmarks_dir or benchmarks_dirs")
+
+
 def _artifacts_root(defaults: dict[str, Any]) -> Path:
 	return _path_from_root(defaults.get("artifacts_dir"), default=ARTIFACTS_DIR)
 
@@ -157,12 +168,20 @@ def _instance_tmp_dir(instance: dict[str, Any], defaults: dict[str, Any]) -> Pat
 
 
 def _instance_seed_targets(instance: dict[str, Any], defaults: dict[str, Any]) -> list[Path]:
-	bench_dir = _path_from_root(instance["benchmarks_dir"])
+	bench_dirs = _instance_benchmark_dirs(instance)
 	max_files = instance.get("max_files", defaults.get("max_files"))
 	seed = instance.get("seed", defaults.get("seed", 0))
 	if max_files is None:
-		return [bench_dir]
-	return _select_benchmarks(bench_dir, max_files, seed)
+		return bench_dirs
+	all_files: list[Path] = []
+	for bench_dir in bench_dirs:
+		all_files.extend(sorted(bench_dir.glob("*.smt2")))
+	if max_files >= len(all_files):
+		return sorted(all_files)
+	rng = random.Random(seed)
+	shuffled = all_files[:]
+	rng.shuffle(shuffled)
+	return sorted(shuffled[:max_files])
 
 
 def _solver_backend(instance: dict[str, Any]) -> str:
@@ -416,7 +435,8 @@ def _run_yinyang_instance(instance: dict[str, Any], defaults: dict[str, Any]) ->
 		"name": instance["name"],
 		"dsl": instance["dsl"],
 		"oracle": instance["oracle"],
-		"benchmarks_dir": instance["benchmarks_dir"],
+		"benchmarks_dir": instance.get("benchmarks_dir"),
+		"benchmarks_dirs": instance.get("benchmarks_dirs"),
 		"status": status,
 		"returncode": proc.returncode,
 		"elapsed_sec": round(elapsed, 3),

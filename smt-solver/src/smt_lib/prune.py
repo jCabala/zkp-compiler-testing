@@ -5,10 +5,128 @@ SMT formula pruning: Reduce n variables to k by substituting (n-k) variables wit
 """
 
 import random
+import re
+import shutil
+import subprocess
 from typing import Dict, List, Set, Tuple, Optional, Any
 from io import StringIO
 
 import pysmt.environment
+
+
+def _ensure_solver_runtime(solver: str) -> None:
+    if solver == "cvc5":
+        # ------------------------------------------------------------------
+        # THIS IMPORT NEEDS TO STAY TO AVOID PROBLEMS BETWEEN PYSMT AND CVC5
+        import cvc5.pythonic
+        # ------------------------------------------------------------------
+
+
+_BOOL_DECL_RE = re.compile(r"^\s*\(declare-fun\s+(\S+)\s+\(\)\s+Bool\)\s*$", re.M)
+_ANY_DECL_RE = re.compile(r"^\s*\(declare-fun\s+(\S+)\s+\(\)\s+(.+?)\)\s*$", re.M)
+
+
+def _extract_boolean_declared_vars_fast(smtlib2_str: str) -> List[str] | None:
+    """
+    Return declared Boolean variables using regex-only parsing, or None when the
+    input contains non-Boolean declarations that require the full pySMT path.
+    """
+    bool_names = []
+    for m in _ANY_DECL_RE.finditer(smtlib2_str):
+        name = m.group(1)
+        sort = m.group(2).strip()
+        if name == "div" or name.endswith("_fused"):
+            continue
+        if sort != "Bool":
+            return None
+        bool_names.append(name)
+    return bool_names
+
+
+def _run_z3_boolean_model_fast(smtlib2_str: str) -> Tuple[str, Optional[Dict[str, bool]]]:
+    if shutil.which("z3") is None:
+        raise RuntimeError("z3 not found in PATH")
+
+    query = smtlib2_str
+    if "(get-model)" not in query:
+        query = query.rstrip() + "\n(get-model)\n"
+    proc = subprocess.run(
+        ["z3", "-in"],
+        input=query,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    if not lines:
+        return "unknown", None
+    result = lines[0]
+    if result == "sat":
+        model: Dict[str, bool] = {}
+        for m in re.finditer(
+            r"\(define-fun\s+(\S+)\s+\(\)\s+Bool\s+(true|false)\)",
+            proc.stdout,
+            re.S,
+        ):
+            model[m.group(1)] = (m.group(2) == "true")
+        return "sat", model
+    if result == "unsat":
+        return "unsat", None
+    if proc.returncode != 0:
+        return "unknown", None
+    return "unknown", None
+
+
+def prepare_prune_context(
+    smtlib2_str: str,
+    solver: str = "z3",
+) -> Dict[str, Any]:
+    """
+    Precompute the expensive per-formula state needed by pruning.
+
+    The returned context can be reused across many pruning variants of the same
+    SMT-LIB input so we don't repeatedly solve and re-parse the same benchmark.
+    """
+    fast_bool_vars = _extract_boolean_declared_vars_fast(smtlib2_str)
+    if solver == "z3" and fast_bool_vars is not None:
+        result, model = _run_z3_boolean_model_fast(smtlib2_str)
+        return {
+            "result": result,
+            "model": model,
+            "all_vars": fast_bool_vars,
+        }
+
+    pysmt.environment.reset_env()
+    _ensure_solver_runtime(solver)
+
+    from pysmt.smtlib.parser import SmtLibParser
+    from pysmt.typing import BOOL
+
+    parser = SmtLibParser()
+    script = parser.get_script(StringIO(smtlib2_str))
+
+    all_vars: List[str] = []
+    var_types: Dict[str, Any] = {}
+    for cmd in script.commands:
+        if cmd.name == "declare-fun":
+            var_name = str(cmd.args[0])
+            if var_name != "div" and not var_name.endswith("_fused"):
+                all_vars.append(var_name)
+        elif cmd.name == "assert":
+            for var in cmd.args[0].get_free_variables():
+                var_types[var.symbol_name()] = var.symbol_type()
+
+    non_bool_vars = [v for v in all_vars if v in var_types and var_types[v] != BOOL]
+    if non_bool_vars:
+        raise ValueError(f"Pruning only supports Boolean variables. Found non-Boolean variables: {non_bool_vars}")
+
+    result, model = _run_smt_solver_single_model(smtlib2_str, solver_name=solver)
+    return {
+        "result": result,
+        "model": model,
+        "all_vars": all_vars,
+    }
 
 
 def _add_fused_variable_constraints(smtlib2_str: str) -> str:
@@ -52,6 +170,42 @@ def _add_fused_variable_constraints(smtlib2_str: str) -> str:
         insert_idx += 1
 
     return '\n'.join(lines)
+
+
+def _fast_substitute_boolean_variables(smtlib2_str: str, substitutions: Dict[str, Any]) -> str:
+    """
+    Fast text-based substitution for Boolean-only SMT-LIB.
+
+    This avoids pySMT parse/substitute/serialize for workloads such as Sudoku
+    where variable names are simple identifiers and replacements are Boolean
+    constants.
+    """
+    if not substitutions:
+        return smtlib2_str
+
+    drop = set(substitutions.keys())
+    lines = smtlib2_str.splitlines()
+    kept_lines: List[str] = []
+    decl_re = re.compile(r"^\s*\(declare-fun\s+(\S+)\s+\(\)\s+Bool\)\s*$")
+    for line in lines:
+        m = decl_re.match(line)
+        if m and m.group(1) in drop:
+            continue
+        kept_lines.append(line)
+
+    result = "\n".join(kept_lines)
+    token_re = re.compile(r"\b(" + "|".join(re.escape(name) for name in sorted(drop, key=len, reverse=True)) + r")\b")
+
+    def repl(match: re.Match[str]) -> str:
+        value = substitutions[match.group(1)]
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        return str(value)
+
+    result = token_re.sub(repl, result)
+    if smtlib2_str.endswith("\n"):
+        result += "\n"
+    return result
 
 
 def run_smt_solver_models(smtlib2_str: str, solver: str = "z3", max_models: int = 1) -> Tuple[str, List[Dict[str, Any]]]:
@@ -157,6 +311,13 @@ def run_smt_solver(smtlib2_str: str, solver: str = "z3") -> Tuple[str, Optional[
     return "sat", models[0]
 
 
+def _run_smt_solver_single_model(
+    smtlib2_str: str,
+    solver_name: str = "z3",
+) -> Tuple[str, Optional[Dict[str, Any]]]:
+    return run_smt_solver(smtlib2_str, solver=solver_name)
+
+
 def prune_formula(
     smtlib2_str: str, 
     k: int, 
@@ -180,21 +341,31 @@ def prune_formula(
         - pruned_smtlib: Modified SMT-LIB string
         - metadata: Dictionary with pruning information
     """
-    # pySMT keeps symbols in a global environment across calls. Reset once per
-    # prune operation so mixed-type test cases do not collide with prior parses.
+    ctx = prepare_prune_context(smtlib2_str, solver=solver)
+    return prune_formula_with_context(
+        smtlib2_str,
+        k=k,
+        context=ctx,
+        seed=seed,
+        prefer_fused_pairs=prefer_fused_pairs,
+    )
+
+
+def prune_formula_with_context(
+    smtlib2_str: str,
+    k: int,
+    context: Dict[str, Any],
+    seed: Optional[int] = None,
+    prefer_fused_pairs: bool = True,
+) -> Tuple[str, Dict[str, Any]]:
+    """
+    Prune an SMT formula using a precomputed context from prepare_prune_context.
+    """
     pysmt.environment.reset_env()
 
-    if solver == "cvc5":
-        # ------------------------------------------------------------------
-        # THIS IMPORT NEEDS TO STAY TO AVOID PROBLEMS BETWEEN PYSMT AND CVC5
-        import cvc5.pythonic
-        # ------------------------------------------------------------------
-    
-    from pysmt.shortcuts import Solver, Symbol, And, TRUE, FALSE, Int, substitute
+    from pysmt.shortcuts import TRUE, FALSE, Int, substitute
     from pysmt.smtlib.parser import SmtLibParser
     from pysmt.smtlib.script import SmtLibCommand
-    from pysmt.exceptions import SolverReturnedUnknownResultError
-    from pysmt.typing import BOOL
     
     def _add_fused_variable_constraints(smtlib2_str: str) -> str:
         """
@@ -252,97 +423,6 @@ def prune_formula(
             insert_idx += 1
         
         return '\n'.join(lines)
-
-
-    def run_smt_solver(smtlib2_str: str, solver_name: str = "z3") -> Tuple[str, Optional[Dict[str, Any]]]:
-        """
-        Run an SMT solver on the given SMT-LIB formula.
-        Temporarily adds XOR constraints for fused variables to get consistent model values.
-        
-        Args:
-            smtlib2_str: SMT-LIB v2 formula as string
-            solver_name: Solver to use ("z3" or "cvc5")
-        
-        Returns:
-            Tuple of (result, model) where:
-            - result: "sat", "unsat", or "unknown"
-            - model: Dictionary mapping variable names to values (if SAT), None otherwise
-        """
-        try:
-            # Add temporary XOR constraints for fused variables
-            smtlib2_str_with_constraints = _add_fused_variable_constraints(smtlib2_str)
-            
-            parser = SmtLibParser()
-            script = parser.get_script(StringIO(smtlib2_str_with_constraints))
-            
-            assertions = []
-            for cmd in script.commands:
-                if cmd.name == "assert":
-                    assertions.append(cmd.args[0])
-            
-            if not assertions:
-                return "sat", {}
-            
-            formula = And(assertions) if len(assertions) > 1 else assertions[0]
-            
-            # Keep solver context open for model extraction
-            with Solver(name=solver_name) as s:
-                s.add_assertion(formula)
-                result = s.solve()
-                
-                if result:
-                    model = s.get_model()
-                    model_dict = {}
-                    
-                    for var_symbol in formula.get_free_variables():
-                        var_name = var_symbol.symbol_name()
-                        if var_name == "div":  # Skip helpers
-                            continue
-                        
-                        if var_symbol in model:
-                            value = model[var_symbol]
-                            if value.is_bool_constant():
-                                model_dict[var_name] = value.is_true()
-                            elif value.is_int_constant():
-                                model_dict[var_name] = value.constant_value()
-                            else:
-                                model_dict[var_name] = str(value)
-                    
-                    return "sat", model_dict
-                else:
-                    return "unsat", None
-                    
-        except SolverReturnedUnknownResultError:
-            return "unknown", None
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return "unknown", None
-
-
-    def extract_variables(smtlib2_str: str) -> List[str]:
-        """
-        Extract all non-fused variable names from SMT-LIB declare-fun commands.
-        Fused variables are excluded because they are derived from other variables.
-        
-        Args:
-            smtlib2_str: SMT-LIB v2 formula as string
-        
-        Returns:
-            List of non-fused variable names
-        """
-        parser = SmtLibParser()
-        script = parser.get_script(StringIO(smtlib2_str))
-        
-        variables = []
-        for cmd in script.commands:
-            if cmd.name == "declare-fun":
-                var_name = str(cmd.args[0])
-                # Skip helper functions and fused variables
-                if var_name != "div" and not var_name.endswith("_fused"):
-                    variables.append(var_name)
-        
-        return variables
 
 
     def select_k_random_variables(all_vars: List[str], k: int, seed: Optional[int] = None) -> Set[str]:
@@ -545,6 +625,9 @@ def prune_formula(
         
         # Merge fully unwrapped fused variables into substitutions
         substitutions = {**substitutions, **fully_unwrapped_fused}
+
+        if all(isinstance(v, bool) for v in substitutions.values()):
+            return _fast_substitute_boolean_variables(smtlib2_str, substitutions)
         
         parser = SmtLibParser()
         script = parser.get_script(StringIO(smtlib2_str))
@@ -589,21 +672,9 @@ def prune_formula(
 
 
     # Main logic
-    result, model = run_smt_solver(smtlib2_str, solver)
-    all_vars = extract_variables(smtlib2_str)
-    
-    # Verify all variables are Boolean
-    parser = SmtLibParser()
-    script = parser.get_script(StringIO(smtlib2_str))
-    var_types = {}
-    for cmd in script.commands:
-        if cmd.name == "assert":
-            for var in cmd.args[0].get_free_variables():
-                var_types[var.symbol_name()] = var.symbol_type()
-    
-    non_bool_vars = [v for v in all_vars if v in var_types and var_types[v] != BOOL]
-    if non_bool_vars:
-        raise ValueError(f"Pruning only supports Boolean variables. Found non-Boolean variables: {non_bool_vars}")
+    result = context["result"]
+    model = context["model"]
+    all_vars = context["all_vars"]
     
     if k >= len(all_vars):
         metadata = {

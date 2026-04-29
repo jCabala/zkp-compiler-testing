@@ -110,6 +110,43 @@ def _reemit_script_with_single_assert(original_script: str, simplified_term_sexp
     return "\n".join(kept) + "\n"
 
 
+def _reemit_script_with_assert_list(original_script: str, simplified_asserts: List[str]) -> str:
+    """
+    Keep original top-level non-assert commands, then append simplified asserts
+    individually and finish with (check-sat).
+    """
+    cmds = _split_smtlib_commands(original_script)
+
+    drop_heads = {
+        "assert",
+        "check-sat",
+        "check-sat-assuming",
+        "get-model",
+        "get-value",
+        "get-proof",
+        "get-unsat-core",
+        "get-assignment",
+        "get-info",
+        "get-option",
+        "exit",
+        "push",
+        "pop",
+    }
+
+    kept: List[str] = []
+    for c in cmds:
+        if _cmd_head_symbol(c) in drop_heads:
+            continue
+        kept.append(c)
+
+    if not simplified_asserts:
+        kept.append("(assert true)")
+    else:
+        kept.extend(f"(assert {term})" for term in simplified_asserts)
+    kept.append("(check-sat)")
+    return "\n".join(kept) + "\n"
+
+
 # -----------------------------
 # Public API (Z3 only)
 # -----------------------------
@@ -125,6 +162,18 @@ def simplify_formula(smtlib2_str: str) -> str:
     """
     simplified = _simplify_term_z3(smtlib2_str)
     return _reemit_script_with_single_assert(smtlib2_str, simplified)
+
+
+def simplify_formula_preserve_asserts(smtlib2_str: str) -> str:
+    """
+    Simplify each assert independently while preserving benchmark structure.
+
+    Unlike simplify_formula(), this does not conjoin all assertions first, so
+    UNSAT benchmarks do not collapse to a single `(assert false)` merely due to
+    contradictions across different assertions.
+    """
+    simplified_asserts = _simplify_asserts_individually_z3(smtlib2_str)
+    return _reemit_script_with_assert_list(smtlib2_str, simplified_asserts)
 
 
 # -----------------------------
@@ -163,3 +212,41 @@ def _simplify_term_z3(smtlib2_str: str) -> str:
         return z3.BoolVal(True).sexpr()
 
     return res[0].as_expr().sexpr()
+
+
+def _simplify_asserts_individually_z3(smtlib2_str: str) -> List[str]:
+    try:
+        import z3  # type: ignore
+        from z3 import z3util  # type: ignore
+    except Exception as e:
+        raise RuntimeError("Z3 Python bindings not available (pip install z3-solver).") from e
+
+    cleaned = _Z3_STRIP_EXEC_ONLY.sub("", smtlib2_str)
+    assertions = z3.parse_smt2_string(cleaned)
+    if not assertions:
+        return []
+
+    tactic = z3.Then(z3.Tactic("simplify"), z3.Tactic("propagate-values"))
+    simplified_terms: List[str] = []
+
+    for assertion in assertions:
+        original_has_vars = bool(z3util.get_vars(assertion))
+        term = z3.simplify(assertion)
+        g = z3.Goal()
+        g.add(term)
+        res = tactic(g)
+        if len(res) == 0 or len(res[0]) == 0:
+            term = z3.BoolVal(True)
+        else:
+            term = res[0].as_expr()
+
+        if z3.is_true(term):
+            continue
+        if z3.is_false(term) and original_has_vars:
+            simplified_terms.append(assertion.sexpr())
+            continue
+        if z3.is_false(term):
+            continue
+        simplified_terms.append(term.sexpr())
+
+    return simplified_terms
