@@ -1,0 +1,47 @@
+; Auto-generated finite-field SMT-LIB (QF_FF)
+; source=/home/jcabala/fyp/new_repos/zkp_testing/smt-solver/benchmarks/core/unique/royle17_00039--prune3--seed381.smt2
+; backend=circom
+; prime=21888242871839275222246405745257275088548364400416034343698204186575808495617
+; nVars=17 nConstraints=16
+(set-logic QF_FF)
+
+(define-sort F () (_ FiniteField 21888242871839275222246405745257275088548364400416034343698204186575808495617))
+
+(declare-fun v1 () F)
+(declare-fun v2 () F)
+(declare-fun v3 () F)
+(declare-fun v227 () F)
+(declare-fun v738 () F)
+(declare-fun v6612 () F)
+(declare-fun v40180 () F)
+(declare-fun v44274 () F)
+(declare-fun v49663 () F)
+(declare-fun v58105 () F)
+(declare-fun v68226 () F)
+(declare-fun v95497 () F)
+(declare-fun v123155 () F)
+(declare-fun v127256 () F)
+(declare-fun v128185 () F)
+(declare-fun v139075 () F)
+
+(assert (= (ff.mul v1 (ff.add v1 (ff.neg (as ff1 F)))) (as ff0 F)))
+(assert (= (ff.mul v2 (ff.add v2 (ff.neg (as ff1 F)))) (as ff0 F)))
+(assert (= (ff.mul v3 (ff.add v3 (ff.neg (as ff1 F)))) (as ff0 F)))
+(assert (= (ff.mul (ff.add (as ff1 F) (ff.mul (as ff21888242871839275222246405745257275088548364400416034343698204186575808495616 F) v1)) v1) (as ff0 F)))
+(assert (= (ff.mul (ff.add (as ff1 F) (ff.mul (as ff21888242871839275222246405745257275088548364400416034343698204186575808495616 F) v2)) v2) (as ff0 F)))
+(assert (= (ff.mul (ff.add (as ff1 F) (ff.mul (as ff21888242871839275222246405745257275088548364400416034343698204186575808495616 F) v3)) v3) (as ff0 F)))
+(assert (= (ff.mul v1 v227) (as ff1 F)))
+(assert (= (ff.mul v2 v738) (as ff1 F)))
+(assert (= (ff.mul (ff.add (as ff1 F) (ff.mul (as ff21888242871839275222246405745257275088548364400416034343698204186575808495616 F) v3)) v6612) (as ff1 F)))
+(assert (= (ff.mul v1 v40180) (as ff1 F)))
+(assert (= (ff.mul v2 v44274) (as ff1 F)))
+(assert (= (ff.mul (ff.add (as ff1 F) (ff.mul (as ff21888242871839275222246405745257275088548364400416034343698204186575808495616 F) v3)) v49663) (as ff1 F)))
+(assert (= (ff.mul v2 v58105) (as ff1 F)))
+(assert (= (ff.mul (ff.add (as ff1 F) (ff.mul (as ff21888242871839275222246405745257275088548364400416034343698204186575808495616 F) v3)) v68226) (as ff1 F)))
+(assert (= (ff.mul v1 v95497) (as ff1 F)))
+(assert (= (ff.mul v1 v123155) (as ff1 F)))
+(assert (= (ff.mul v2 v127256) (as ff1 F)))
+(assert (= (ff.mul (ff.add (as ff1 F) (ff.mul (as ff21888242871839275222246405745257275088548364400416034343698204186575808495616 F) v3)) v128185) (as ff1 F)))
+(assert (= (ff.mul v2 v139075) (as ff1 F)))
+
+(check-sat)

@@ -17,6 +17,6 @@ __pycache__/
 # Zokrates
 abi.json
 
-# Benchmarks
-benchmarks/**/*.smt2
-benchmarks/**/*.circom
+# # Benchmarks
+# benchmarks/**/*.smt2
+# benchmarks/**/*.circom
