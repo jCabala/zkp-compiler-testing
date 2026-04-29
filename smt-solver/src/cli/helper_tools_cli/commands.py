@@ -1,10 +1,11 @@
 import json
+import random
 import shutil
 from pathlib import Path
 import click
 from src.backends.circom.r1cs import get_r1cs_json
 from src.smt_lib import cnf_string_to_smt2
-from src.smt_lib.prune import prune_formula
+from src.smt_lib.prune import prepare_prune_context, prune_formula_with_context
 from src.cli.helper_tools_cli.generate_proof import generate_proof, ProofGenerationError
 from src.cli.helper_tools_cli.unique_sat_benchmark import generate_unique_sat_benchmarks
 from src.cli.helper_tools_cli.translate_dsl import translate_smtlib2_folder
@@ -107,17 +108,42 @@ def cnf_to_smtlib2_command(in_folder: Path, out_folder: Path):
 @click.command(name="prune-smtlib2-folder")
 @click.argument("in_folder", type=click.Path(exists=True, file_okay=False, path_type=Path))
 @click.argument("out_folder", type=click.Path(path_type=Path))
-@click.option("--k", type=int, required=True, help="Keep k variables in each pruned output.")
+@click.option("--k", type=int, default=None, help="Keep exactly k variables in each pruned output.")
+@click.option("--min-vars", type=int, default=None, help="Minimum number of variables to keep.")
+@click.option("--max-vars", type=int, default=None, help="Maximum number of variables to keep.")
 @click.option("--variants", type=int, default=1, show_default=True, help="How many pruned variants to output per input formula.")
 @click.option("--seed", type=int, default=0, show_default=True, help="Base random seed. Variant i uses seed+i.")
 @click.option("--solver", type=click.Choice(["z3", "cvc5"]), default="z3", show_default=True, help="Solver used by pruning.")
-def prune_smtlib2_folder_command(in_folder: Path, out_folder: Path, k: int, variants: int, seed: int, solver: str):
+def prune_smtlib2_folder_command(
+	in_folder: Path,
+	out_folder: Path,
+	k: int | None,
+	min_vars: int | None,
+	max_vars: int | None,
+	variants: int,
+	seed: int,
+	solver: str,
+):
 	"""
 	Prune all .smt2 files in IN_FOLDER and write pruned variants to OUT_FOLDER.
 	"""
 	try:
-		if k <= 0:
+		using_fixed_k = k is not None
+		using_range = min_vars is not None or max_vars is not None
+		if using_fixed_k and using_range:
+			raise ValueError("Use either --k or --min-vars/--max-vars, not both")
+		if not using_fixed_k and not using_range:
+			raise ValueError("Provide either --k or both --min-vars and --max-vars")
+		if using_range and (min_vars is None or max_vars is None):
+			raise ValueError("Both --min-vars and --max-vars are required when using a range")
+		if using_fixed_k and k <= 0:
 			raise ValueError("--k must be > 0")
+		if using_range and min_vars <= 0:
+			raise ValueError("--min-vars must be > 0")
+		if using_range and max_vars <= 0:
+			raise ValueError("--max-vars must be > 0")
+		if using_range and min_vars > max_vars:
+			raise ValueError("--min-vars must be <= --max-vars")
 		if variants <= 0:
 			raise ValueError("--variants must be > 0")
 
@@ -128,14 +154,18 @@ def prune_smtlib2_folder_command(in_folder: Path, out_folder: Path, k: int, vari
 			return
 
 		written = 0
-		for smt2_file in smt2_files:
+		for file_index, smt2_file in enumerate(smt2_files):
 			content = smt2_file.read_text()
+			ctx = prepare_prune_context(content, solver=solver)
 			for i in range(variants):
-				variant_seed = seed + i
-				pruned_content, metadata = prune_formula(
+				variant_seed = seed + (file_index * variants) + i
+				target_k = k
+				if using_range:
+					target_k = random.Random(variant_seed).randint(min_vars, max_vars)
+				pruned_content, metadata = prune_formula_with_context(
 					content,
-					k=k,
-					solver=solver,
+					k=target_k,
+					context=ctx,
 					seed=variant_seed,
 					prefer_fused_pairs=False,
 				)
@@ -146,7 +176,7 @@ def prune_smtlib2_folder_command(in_folder: Path, out_folder: Path, k: int, vari
 					)
 					continue
 
-				out_file = out_folder / f"{smt2_file.stem}--prune{k}--seed{variant_seed}.smt2"
+				out_file = out_folder / f"{smt2_file.stem}--prune{target_k}--seed{variant_seed}.smt2"
 				out_file.write_text(pruned_content)
 				written += 1
 

@@ -127,11 +127,12 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 		file_content, not_chains = augment_smt2(file_content, not_chain_length, max_not_chain_count)
 		log(f"Injected {len(not_chains)} NOT chain(s): length={not_chain_length}, anchors={[a for a, _ in not_chains]}", with_logs=with_logs)
 
-	if not no_simplify:
-		if is_qf_ff:
-			log("Skipping simplification for QF_FF input", with_logs=with_logs)
-		else:
-			file_content = simplify_formula(file_content)
+	# # Disabling the simplification logic for now
+	# if not no_simplify:
+	# 	if is_qf_ff:
+	# 		log("Skipping simplification for QF_FF input", with_logs=with_logs)
+	# 	else:
+	# 		file_content = simplify_formula(file_content)
 
 	def _parse_smtlib2(smtlib2: str, dsl: str, solver: str = "z3") -> tuple[str, list[str]]:
 		"""Convert SMT-LIB v2 to the target DSL. Returns (code, bool_vars)."""

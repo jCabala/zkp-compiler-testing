@@ -11,8 +11,8 @@
   },
   "instances": [
     {
-      "name": "sat_circom",
-      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/bool-based/unique_sat_1to5vars_circom_O2",
+      "name": "sat_circom_ff",
+      "benchmarks_dir": "benchmarks/prod/sat",
       "dsl": "circom",
       "oracle": "smt",
       "solver": "cvc5",
@@ -21,13 +21,24 @@
       "opt_level": "O2"
     },
     {
-      "name": "picus_circom",
-      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/bool-based/unique_sat_1to5vars_circom_O2",
+      "name": "picus_circom_ff_unique",
+      "benchmarks_dir": "benchmarks/finite-field/unique-poseiodn-alpha-5-sparse",
       "dsl": "circom",
       "oracle": "picus",
       "hints": false,
       "compiler": "circom",
       "opt_level": "O2"
+    },
+    {
+      "name": "unsat_circom_ff",
+      "benchmarks_dir": "benchmarks/prod/unsat",
+      "dsl": "circom",
+      "oracle": "smt",
+      "solver": "cvc5",
+      "hints": true,
+      "compiler": "circom",
+      "opt_level": "O2",
+      "yinyang_oracle": "unsat"
     }
   ]
 }
