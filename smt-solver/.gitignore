@@ -18,5 +18,5 @@ __pycache__/
 abi.json
 
 # # Benchmarks
-# benchmarks/**/*.smt2
-# benchmarks/**/*.circom
+benchmarks/prod/**/*.smt2
+benchmarks/**/*.circom
