@@ -1,0 +1,6 @@
+(set-logic QF_BV)
+(declare-fun x166 () Bool)
+(declare-fun x298 () Bool)
+(declare-fun x468 () Bool)
+(assert (and (not x166) (not x298) (not x468)))
+(check-sat)

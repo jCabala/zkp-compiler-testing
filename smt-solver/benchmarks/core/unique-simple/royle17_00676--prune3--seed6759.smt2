@@ -1,0 +1,6 @@
+(set-logic QF_BV)
+(declare-fun x224 () Bool)
+(declare-fun x265 () Bool)
+(declare-fun x482 () Bool)
+(assert (and (not x224) (not x265) (not x482)))
+(check-sat)
