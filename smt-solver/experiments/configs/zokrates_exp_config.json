@@ -33,7 +33,7 @@
     },
     {
       "name": "picus_zokrates",
-      "benchmarks_dir": "benchmarks/finite-field/unique-poseiodn-alpha-5-sparse",
+      "benchmarks_dir": "benchmarks/prod/unique",
       "dsl": "zokrates",
       "oracle": "picus",
       "hints": false,
@@ -41,7 +41,7 @@
     },
     {
       "name": "picus_zokrates_circ",
-      "benchmarks_dir": "benchmarks/finite-field/unique-poseiodn-alpha-5-sparse",
+      "benchmarks_dir": "benchmarks/prod/unique",
       "dsl": "zokrates",
       "oracle": "picus",
       "hints": false,

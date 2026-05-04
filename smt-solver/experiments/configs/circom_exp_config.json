@@ -22,7 +22,7 @@
     },
     {
       "name": "picus_circom_ff_unique",
-      "benchmarks_dir": "benchmarks/finite-field/unique-poseiodn-alpha-5-sparse",
+      "benchmarks_dir": "benchmarks/prod/unique",
       "dsl": "circom",
       "oracle": "picus",
       "hints": false,

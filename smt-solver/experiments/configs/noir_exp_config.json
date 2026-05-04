@@ -21,7 +21,7 @@
     },
     {
       "name": "picus_noir_ff_unique",
-      "benchmarks_dir": "benchmarks/finite-field/unique-poseiodn-alpha-5-sparse",
+      "benchmarks_dir": "benchmarks/prod/unique",
       "dsl": "noir",
       "oracle": "picus",
       "hints": false,
