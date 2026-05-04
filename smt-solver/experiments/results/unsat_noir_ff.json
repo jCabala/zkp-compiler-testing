@@ -1,0 +1,20 @@
+{
+  "name": "unsat_noir_ff",
+  "dsl": "noir",
+  "oracle": "smt",
+  "benchmarks_dir": "benchmarks/prod/unsat",
+  "benchmarks_dirs": null,
+  "status": "error (-15)",
+  "returncode": -15,
+  "elapsed_sec": 7432.092,
+  "out_file": "/workspace/smt-solver/experiments/obj/unsat_noir_ff.out",
+  "warmup_log": "/workspace/smt-solver/experiments/obj/unsat_noir_ff/warmup.log",
+  "log_dir": "/workspace/smt-solver/experiments/obj/unsat_noir_ff/logs",
+  "scratch_dir": "/workspace/smt-solver/experiments/obj/unsat_noir_ff/scratch",
+  "bug_dir": "/workspace/smt-solver/experiments/obj/unsat_noir_ff/bugs",
+  "solve_config": "/workspace/smt-solver/experiments/obj/unsat_noir_ff/solve_config.json",
+  "run_snapshot": "/workspace/smt-solver/experiments/obj/run_config_20260430-130249_unsat_noir_ff.env",
+  "seed_targets": [
+    "/workspace/smt-solver/benchmarks/prod/unsat"
+  ]
+}

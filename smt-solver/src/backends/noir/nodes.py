@@ -83,6 +83,23 @@ class TupleLiteral(Expression):
 
 
 @dataclass
+class FunctionCall(Expression):
+    function: Identifier
+    arguments: list[Expression]
+
+    def copy(self) -> "FunctionCall":
+        return FunctionCall(self.function.copy(), [arg.copy() for arg in self.arguments])
+
+
+@dataclass
+class UnsafeExpression(Expression):
+    expr: Expression
+
+    def copy(self) -> "UnsafeExpression":
+        return UnsafeExpression(self.expr.copy())
+
+
+@dataclass
 class ExpressionStatement(Statement):
     expr: Expression
     with_semicolon: bool = True
@@ -97,6 +114,7 @@ class LetStatement(Statement):
     expr: Expression
     type_: NoirType | None = None
     is_mutable: bool = False
+    leading_comment: str | None = None
 
     def copy(self) -> "LetStatement":
         return LetStatement(
@@ -104,6 +122,7 @@ class LetStatement(Statement):
             self.expr.copy(),
             self.type_.copy() if self.type_ else None,
             self.is_mutable,
+            self.leading_comment,
         )
 
 
@@ -164,6 +183,7 @@ class FunctionDefinition(ASTNode):
     return_type: NoirType | None = None
     is_public: bool = True
     is_public_return: bool = True
+    is_unconstrained: bool = False
 
     def copy(self) -> "FunctionDefinition":
         return FunctionDefinition(
@@ -173,13 +193,19 @@ class FunctionDefinition(ASTNode):
             self.return_type.copy() if self.return_type else None,
             self.is_public,
             self.is_public_return,
+            self.is_unconstrained,
         )
 
 
 @dataclass
 class Document(ASTNode):
     main: FunctionDefinition
+    helper_functions: list[FunctionDefinition] = field(default_factory=list)
     imports: list[str] = field(default_factory=list)
 
     def copy(self) -> "Document":
-        return Document(self.main.copy(), [i for i in self.imports])
+        return Document(
+            self.main.copy(),
+            [helper.copy() for helper in self.helper_functions],
+            [i for i in self.imports],
+        )

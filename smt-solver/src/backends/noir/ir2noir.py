@@ -140,19 +140,27 @@ class IR2NoirVisitor:
     def visit_circuit(self, node: IRNodes.Circuit) -> Document:
         output_names = {o.name for o in node.outputs}
         statements: list[Statement] = []
+        helper_functions: list[FunctionDefinition] = []
 
         # Declare output locals.
         for out in node.outputs:
             out_type = self._type_from_var(out)
             if isinstance(out, IRNodes.FusedVariable) and out.fusion_expression is not None:
-                fused_expr, fused_tail = self.visit_expression(out.fusion_expression)
-                statements += fused_tail
+                helper_functions.append(self._build_fused_helper(out))
+                helper_args = self._collect_variable_definitions(out.fusion_expression)
+                helper_call = FunctionCall(
+                    Identifier(self._fused_helper_name(out)),
+                    [Identifier(arg.name.name) for arg in helper_args],
+                )
                 statements.append(
                     LetStatement(
                         Identifier(out.name),
-                        fused_expr,
+                        UnsafeExpression(helper_call),
                         out_type,
                         is_mutable=False,
+                        leading_comment=(
+                            "Safety: the hinted fused output is intentionally unconstrained and only used as a witness."
+                        ),
                     )
                 )
             else:
@@ -196,7 +204,51 @@ class IR2NoirVisitor:
             is_public=True,
             is_public_return=True,
         )
-        return Document(main_fn)
+        return Document(main_fn, helper_functions=helper_functions)
+
+    def _collect_variable_definitions(self, expr: IRNodes.Expression) -> list[VariableDefinition]:
+        variables: dict[str, VariableDefinition] = {}
+
+        def walk(node: IRNodes.Expression):
+            match node:
+                case IRNodes.Variable():
+                    variables.setdefault(
+                        node.name,
+                        VariableDefinition(Identifier(node.name), self._type_from_var(node)),
+                    )
+                case IRNodes.UnaryExpression():
+                    walk(node.value)
+                case IRNodes.BinaryExpression():
+                    walk(node.lhs)
+                    walk(node.rhs)
+                case IRNodes.TernaryExpression():
+                    walk(node.condition)
+                    walk(node.if_expr)
+                    walk(node.else_expr)
+                case IRNodes.Boolean() | IRNodes.Integer():
+                    return
+                case _:
+                    raise NotImplementedError(f"unsupported helper expression node {node.__class__.__name__}")
+
+        walk(expr)
+        return list(variables.values())
+
+    def _fused_helper_name(self, out: IRNodes.FusedVariable) -> str:
+        return f"{out.name}_hint"
+
+    def _build_fused_helper(self, out: IRNodes.FusedVariable) -> FunctionDefinition:
+        helper_args = self._collect_variable_definitions(out.fusion_expression)
+        helper_expr, helper_stmts = self.visit_expression(out.fusion_expression)
+        helper_body = helper_stmts + [ExpressionStatement(helper_expr, with_semicolon=False)]
+        return FunctionDefinition(
+            name=Identifier(self._fused_helper_name(out)),
+            arguments=helper_args,
+            body=BasicBlock(helper_body),
+            return_type=self._type_from_var(out),
+            is_public=False,
+            is_public_return=False,
+            is_unconstrained=True,
+        )
 
     def _type_from_var(self, var: IRNodes.Variable) -> NoirType:
         if var.variable_type == IRNodes.VariableType.BOOLEAN:

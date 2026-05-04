@@ -6,6 +6,7 @@ from src.smt_lib.prune import prune_formula
 class ZKDSL:
 	CIRCOM = "circom"
 	GNARK = "gnark"
+	NOIR = "noir"
 	ZOKRATES = "zokrates"
 
 
@@ -33,6 +34,8 @@ def dsl_extension(zk_dsl: str) -> str:
 		return "circom"
 	elif zk_dsl == ZKDSL.GNARK:
 		return "go"
+	elif zk_dsl == ZKDSL.NOIR:
+		return "nr"
 	elif zk_dsl == ZKDSL.ZOKRATES:
 		return "zok"
 	else:

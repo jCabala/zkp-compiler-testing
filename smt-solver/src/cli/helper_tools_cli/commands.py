@@ -7,6 +7,12 @@ from src.backends.circom.r1cs import get_r1cs_json
 from src.smt_lib import cnf_string_to_smt2
 from src.smt_lib.prune import prepare_prune_context, prune_formula_with_context
 from src.cli.helper_tools_cli.generate_proof import generate_proof, ProofGenerationError
+from src.cli.helper_tools_cli.noir_acir import (
+	build_acir_decoder,
+	compile_smt2_folder_to_noir_acir,
+	decode_noir_artifact,
+	emit_sr1cs_from_decoded_noir_artifact,
+)
 from src.cli.helper_tools_cli.unique_sat_benchmark import generate_unique_sat_benchmarks
 from src.cli.helper_tools_cli.translate_dsl import translate_smtlib2_folder
 
@@ -225,6 +231,73 @@ def translate_to_dsl_command(in_folder: Path, out_folder: Path, dsl: str, max_ou
 			click.echo("✗ Error: 'z3' not found in PATH.", err=True)
 			raise click.Abort()
 		translate_smtlib2_folder(in_folder, out_folder, dsl, max_out, output_format, log=click.echo)
+	except Exception as e:
+		click.echo(f"✗ Error: {e}", err=True)
+		raise click.Abort()
+
+
+# --------------------------- Compile Noir ACIR Command ----------------------------------
+@click.command(name="prod-to-noir-acir")
+@click.argument(
+	"in_folder",
+	type=click.Path(exists=True, file_okay=False, path_type=Path),
+	default=Path("benchmarks/prod"),
+	required=False,
+)
+@click.argument("out_folder", type=click.Path(path_type=Path))
+@click.option("--count", type=int, default=100, show_default=True, help="Maximum number of SMT2 benchmarks to compile.")
+@click.option(
+	"--cache-home",
+	type=click.Path(path_type=Path),
+	default=Path("/tmp/smt_solver_noir_home"),
+	show_default=True,
+	help="Writable HOME directory used by nargo while compiling.",
+)
+@click.option(
+	"--no-decode-bytecode",
+	is_flag=True,
+	default=False,
+	help="Skip running 'nargo info --print-acir' and only keep the raw ACIR JSON artifact.",
+)
+def compile_prod_to_noir_acir_command(in_folder: Path, out_folder: Path, count: int, cache_home: Path, no_decode_bytecode: bool):
+	"""Translate SMT-LIB benchmarks to Noir and compile them to ACIR JSON artifacts."""
+	try:
+		if shutil.which("z3") is None:
+			click.echo("✗ Error: 'z3' not found in PATH.", err=True)
+			raise click.Abort()
+		if shutil.which("nargo") is None:
+			click.echo("✗ Error: 'nargo' not found in PATH.", err=True)
+			raise click.Abort()
+		summary = compile_smt2_folder_to_noir_acir(
+			in_folder=in_folder,
+			out_folder=out_folder,
+			count=count,
+			cache_home=cache_home,
+			decode_bytecode=not no_decode_bytecode,
+			log=click.echo,
+		)
+		click.echo(f"✓ Compiled {summary['count']} benchmark(s) to ACIR in {out_folder}")
+	except Exception as e:
+		click.echo(f"✗ Error: {e}", err=True)
+		raise click.Abort()
+
+
+@click.command(name="decode-noir-artifact")
+@click.argument("artifact_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option("--output", type=click.Path(path_type=Path), default=None, help="Output path for decoded JSON.")
+def decode_noir_artifact_command(artifact_path: Path, output: Path | None):
+	"""Decode a Noir ACIR artifact JSON into a structured JSON dump."""
+	try:
+		decoder_bin = build_acir_decoder(log=click.echo)
+		decoded_path = decode_noir_artifact(artifact_path=artifact_path, decoder_bin=decoder_bin, log=click.echo)
+		sr1cs_path = emit_sr1cs_from_decoded_noir_artifact(decoded_path=decoded_path, log=click.echo)
+		if output is not None and output != decoded_path:
+			output.parent.mkdir(parents=True, exist_ok=True)
+			output.write_text(decoded_path.read_text())
+			click.echo(f"Copied decoded ACIR to {output}")
+			decoded_path = output
+		click.echo(f"✓ Decoded Noir artifact to {decoded_path}")
+		click.echo(f"✓ Wrote Noir SR1CS to {sr1cs_path}")
 	except Exception as e:
 		click.echo(f"✗ Error: {e}", err=True)
 		raise click.Abort()

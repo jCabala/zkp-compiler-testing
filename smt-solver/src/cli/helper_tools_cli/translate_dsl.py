@@ -27,7 +27,7 @@ def _extract_gnark_fragment_for_circuzz(go_source: str) -> str:
 	return fragment + "\n"
 
 
-def _sanitize_noir_package_name(name: str) -> str:
+def sanitize_noir_package_name(name: str) -> str:
 	cleaned = re.sub(r"[^a-zA-Z0-9_]", "_", name)
 	if not cleaned:
 		cleaned = "noir_case"
@@ -36,7 +36,7 @@ def _sanitize_noir_package_name(name: str) -> str:
 	return cleaned.lower()
 
 
-def _write_noir_project(project_dir: Path, package_name: str, main_nr_source: str):
+def write_noir_project(project_dir: Path, package_name: str, main_nr_source: str):
 	src_dir = project_dir / "src"
 	src_dir.mkdir(parents=True, exist_ok=True)
 	(src_dir / "main.nr").write_text(main_nr_source)
@@ -115,8 +115,8 @@ def translate_smtlib2_folder(in_folder: Path, out_folder: Path, dsl: str, max_ou
 		dsl_code, extension = translate_smtlib2_to_dsl(smtlib2, dsl, output_format=output_format)
 		if output_format == "circuzz" and dsl == "noir":
 			project_dir = out_folder / smt2_file.stem
-			package_name = _sanitize_noir_package_name(smt2_file.stem)
-			_write_noir_project(project_dir, package_name, dsl_code)
+			package_name = sanitize_noir_package_name(smt2_file.stem)
+			write_noir_project(project_dir, package_name, dsl_code)
 			out_file = project_dir / "src" / "main.nr"
 		else:
 			out_file = out_folder / f"{smt2_file.stem}{extension}"
