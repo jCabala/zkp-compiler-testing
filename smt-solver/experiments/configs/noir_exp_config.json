@@ -11,33 +11,30 @@
   },
   "instances": [
     {
-      "name": "sat_circom_ff",
+      "name": "sat_noir_ff",
       "benchmarks_dir": "benchmarks/prod/sat",
-      "dsl": "circom",
+      "dsl": "noir",
       "oracle": "smt",
       "solver": "cvc5",
-      "hints": true,
-      "compiler": "circom",
-      "opt_level": "O2"
+      "hints": false,
+      "compiler": "nargo"
     },
     {
-      "name": "picus_circom_ff_unique",
+      "name": "picus_noir_ff_unique",
       "benchmarks_dir": "benchmarks/prod/unique",
-      "dsl": "circom",
+      "dsl": "noir",
       "oracle": "picus",
       "hints": false,
-      "compiler": "circom",
-      "opt_level": "O2"
+      "compiler": "nargo"
     },
     {
-      "name": "unsat_circom_ff",
+      "name": "unsat_noir_ff",
       "benchmarks_dir": "benchmarks/prod/unsat",
-      "dsl": "circom",
+      "dsl": "noir",
       "oracle": "smt",
       "solver": "cvc5",
-      "hints": true,
-      "compiler": "circom",
-      "opt_level": "O2",
+      "hints": false,
+      "compiler": "nargo",
       "yinyang_oracle": "unsat"
     }
   ]

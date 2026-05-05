@@ -13,6 +13,7 @@ from src.cli.solver_cli.common import (
 )
 from src.cli.solver_cli.circom import solve_circom, smtlib2_to_circom
 from src.cli.solver_cli.gnark import solve_gnark, smtlib2_to_gnark
+from src.cli.solver_cli.noir import solve_noir, smtlib2_to_noir
 from src.cli.solver_cli.zokrates import solve_zokrates, smtlib2_to_zokrates
 from src.cli.solver_cli.adaptive_hints import load_state, save_state, record_run, HINT_MODELS
 from src.cli.solver_cli.not_chain import augment_smt2
@@ -31,7 +32,7 @@ def _is_qf_ff_formula(smt2: str) -> bool:
 @click.option('--config', type=click.Path(exists=True, path_type=Path), default=None, help="JSON file with default option values (CLI flags override).")
 @click.option('--tmp-dir', type=click.Path(path_type=Path), default=None, help="Temporary directory for intermediate files.")
 @click.option("--with-logs", is_flag=True, default=None, help="Enable detailed logging.")
-@click.option("--zk-dsl", type=click.Choice([ZKDSL.CIRCOM, ZKDSL.GNARK, ZKDSL.ZOKRATES]), default=None, help="Choose the zero-knowledge DSL to use.")
+@click.option("--zk-dsl", type=click.Choice([ZKDSL.CIRCOM, ZKDSL.GNARK, ZKDSL.NOIR, ZKDSL.ZOKRATES]), default=None, help="Choose the zero-knowledge DSL to use.")
 @click.option("--solver", type=click.Choice(["z3", "cvc5", "picus"]), default=None, help="Choose the SMT solver backend.")
 @click.option('--prune', type=int, default=None, help="Prune formula to k variables before solving.")
 @click.option('--prune-seed', type=int, default=None, help="Random seed for pruning (for reproducibility).")
@@ -107,7 +108,7 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 	# _ahint_ variables must not appear in these models — they must not count
 	# toward progressive hint statistics or oracle run count.
 	hint_model_list: list[dict] = []
-	if with_hints:
+	if with_hints and zk_dsl != ZKDSL.NOIR:
 		if is_qf_ff:
 			models = run_ff_hint_models_subprocess(
 				file_content,
@@ -140,6 +141,8 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 			return smtlib2_to_circom(smtlib2, solver=solver)
 		elif dsl == ZKDSL.GNARK:
 			return smtlib2_to_gnark(smtlib2, solver=solver), []
+		elif dsl == ZKDSL.NOIR:
+			return smtlib2_to_noir(smtlib2, solver=solver), []
 		elif dsl == ZKDSL.ZOKRATES:
 			return smtlib2_to_zokrates(smtlib2, solver=solver)
 		else:
@@ -164,6 +167,8 @@ def solve(smt_lib_path: Path, config: Path, tmp_dir: Path, with_logs: bool, zk_d
 			return solve_circom(circom_path=dsl_path, o0=False, o1=False, o2=True, with_logs=with_logs, with_model=False, solver=solver, bool_vars=tuple(bool_vars), hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "circom", dump_r1cs=dump_r1cs)
 		elif zk_dsl == ZKDSL.GNARK:
 			return solve_gnark(gnark_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "go", dump_r1cs=dump_r1cs)
+		elif zk_dsl == ZKDSL.NOIR:
+			return solve_noir(noir_path=dsl_path, with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout, compiler=compiler or "nargo", dump_r1cs=dump_r1cs)
 		elif zk_dsl == ZKDSL.ZOKRATES:
 			return solve_zokrates(zokrates_path=dsl_path, bool_vars=tuple(bool_vars), with_logs=with_logs, with_model=False, solver=solver, tmp_dir=tmp_dir, hint_model=hint_model, solving_timeout=solving_timeout, hint_probability=adaptive_state.hint_probability, compiler=compiler or "zokrates", dump_r1cs=dump_r1cs, with_circ=with_circ)
 		else:

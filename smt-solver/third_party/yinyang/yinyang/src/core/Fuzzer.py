@@ -278,6 +278,7 @@ class Fuzzer:
                 # and stderr against the ignore list 
                 # (see yinyang/config/Config.py:54).
                 if in_ignore_list(stdout, stderr):
+                    self.save_error(scratchfile, "ignored", solver_cli, stdout, stderr, 0)
                     log_ignore_list_mutant(solver_cli)
                     self.statistic.invalid_mutants += 1
                     self.statistic.ineff_ignore_list += 1
@@ -305,6 +306,9 @@ class Fuzzer:
 
                     # Check whether a "command not found" error occurred.
                     elif exitcode == 127:
+                        self.save_error(
+                            scratchfile, "cmd-not-found", solver_cli, stdout, stderr, exitcode
+                        )
                         self.statistic.ineff_cmd_not_found += 1
                         logging.debug(
                             str(iteration)
@@ -316,6 +320,9 @@ class Fuzzer:
                         continue  # Continue to the next solver.
 
                     else:
+                        error_path = self.save_error(
+                            scratchfile, "exit-other", solver_cli, stdout, stderr, exitcode
+                        )
                         self.statistic.ineff_exit_other += 1
                         out_preview = escape((stdout or "").strip().replace("\n", "\\n"))[:160]
                         err_preview = escape((stderr or "").strip().replace("\n", "\\n"))[:160]
@@ -331,6 +338,8 @@ class Fuzzer:
                             + str(out_preview)
                             + "' stderr='"
                             + str(err_preview)
+                            + "' error='"
+                            + str(error_path)
                             + "'"
                         )
                         continue  # Continue to the next solver.
@@ -428,6 +437,34 @@ class Fuzzer:
             log.write("stdout:\n")
             log.write(stdout)
         return report
+
+    def save_error(self, scratchfile, errtype, cli, stdout, stderr, exitcode):
+        plain_cli = plain(cli)
+        stem = "%s-%s-%s-%s" % (
+            errtype,
+            plain_cli,
+            escape(self.currentseeds),
+            random_string(),
+        )
+        testcase_path = "%s/%s.smt2" % (self.args.errorfolder, stem)
+        stdout_path = "%s/%s.stdout" % (self.args.errorfolder, stem)
+        stderr_path = "%s/%s.stderr" % (self.args.errorfolder, stem)
+        meta_path = "%s/%s.meta" % (self.args.errorfolder, stem)
+        try:
+            shutil.copy(scratchfile, testcase_path)
+            with open(stdout_path, "w") as stdout_file:
+                stdout_file.write(stdout or "")
+            with open(stderr_path, "w") as stderr_file:
+                stderr_file.write(stderr or "")
+            with open(meta_path, "w") as meta_file:
+                meta_file.write("command: " + cli + "\n")
+                meta_file.write("exitcode: " + str(exitcode) + "\n")
+                meta_file.write("seed: " + self.currentseeds + "\n")
+                meta_file.write("testcase: " + testcase_path + "\n")
+        except Exception:
+            logging.error("error: couldn't write error report.")
+            exit(ERR_EXHAUSTED_DISK)
+        return testcase_path
 
     def report_diff(
         self,

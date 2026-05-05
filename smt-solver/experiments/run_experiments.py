@@ -23,6 +23,7 @@ CONTAINER_REPO_ROOT = Path("/workspace")
 CONTAINER_ROOT_DIR = CONTAINER_REPO_ROOT / ROOT_DIR.name
 IMAGE_CIRCOM = os.environ.get("IMAGE_CIRCOM", "localhost/smt-exp-circom:latest")
 IMAGE_GNARK = os.environ.get("IMAGE_GNARK", "localhost/smt-exp-gnark:latest")
+IMAGE_NOIR = os.environ.get("IMAGE_NOIR", "localhost/smt-exp-noir:latest")
 IMAGE_ZOKRATES = os.environ.get("IMAGE_ZOKRATES", "localhost/smt-exp-zokrates:latest")
 CONTAINER_MEMORY = os.environ.get("CONTAINER_MEMORY", "64g")
 CONTAINER_MEMORY_SWAP = os.environ.get("CONTAINER_MEMORY_SWAP", "-1")
@@ -122,6 +123,8 @@ def _select_image_for_dsl(dsl: str) -> str:
 		return IMAGE_CIRCOM
 	if dsl == "gnark":
 		return IMAGE_GNARK
+	if dsl == "noir":
+		return IMAGE_NOIR
 	if dsl == "zokrates":
 		return IMAGE_ZOKRATES
 	raise ValueError(f"Unsupported DSL for podman execution: {dsl}")
@@ -498,6 +501,8 @@ def _podman_instance_cmd(instance: dict[str, Any], config_path: Path, output_dir
 		"IMAGE_CIRCOM",
 		"-e",
 		"IMAGE_GNARK",
+		"-e",
+		"IMAGE_NOIR",
 		"-e",
 		"IMAGE_ZOKRATES",
 		_select_image_for_dsl(instance["dsl"]),

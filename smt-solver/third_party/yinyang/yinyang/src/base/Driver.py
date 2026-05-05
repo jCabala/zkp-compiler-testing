@@ -77,6 +77,17 @@ def create_log_folder():
             exit(ERR_EXHAUSTED_DISK)
 
 
+def create_error_folder():
+    errorfolder = Path(args.logfolder).resolve().parent / "errors"
+    args.errorfolder = str(errorfolder)
+    if not os.path.isdir(args.errorfolder):
+        try:
+            os.mkdir(args.errorfolder)
+        except Exception:
+            print("error: error folder cannot be created", flush=True)
+            exit(ERR_EXHAUSTED_DISK)
+
+
 def create_scratch_folder():
     if not os.path.isdir(args.scratchfolder):
         try:
@@ -144,6 +155,7 @@ def run_checks(parser, strategy):
     check_iterations()
     create_bug_folder()
     create_log_folder()
+    create_error_folder()
     create_scratch_folder()
     get_seeds()
     if strategy in ["opfuzz", "typefuzz"]:

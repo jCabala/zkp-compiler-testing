@@ -30,6 +30,10 @@ class EmitVisitor:
                 self.visit_string_literal(node)
             case TupleLiteral():
                 self.visit_tuple_literal(node)
+            case FunctionCall():
+                self.visit_function_call(node)
+            case UnsafeExpression():
+                self.visit_unsafe_expression(node)
             case ExpressionStatement():
                 self.visit_expression_statement(node)
             case LetStatement():
@@ -83,6 +87,20 @@ class EmitVisitor:
                 self.buffer.write(", ")
         self.buffer.write(")")
 
+    def visit_function_call(self, node: FunctionCall):
+        self.visit(node.function)
+        self.buffer.write("(")
+        for idx, arg in enumerate(node.arguments):
+            self.visit(arg)
+            if idx + 1 < len(node.arguments):
+                self.buffer.write(", ")
+        self.buffer.write(")")
+
+    def visit_unsafe_expression(self, node: UnsafeExpression):
+        self.buffer.write("unsafe { ")
+        self.visit(node.expr)
+        self.buffer.write(" }")
+
     def visit_expression_statement(self, node: ExpressionStatement):
         self.buffer.write(self.current_indent)
         self.visit(node.expr)
@@ -90,6 +108,8 @@ class EmitVisitor:
             self.buffer.write(";")
 
     def visit_let_statement(self, node: LetStatement):
+        if node.leading_comment:
+            self.buffer.write(self.current_indent + f"// {node.leading_comment}\n")
         self.buffer.write(self.current_indent + "let ")
         if node.is_mutable:
             self.buffer.write("mut ")
@@ -140,6 +160,8 @@ class EmitVisitor:
     def visit_function_definition(self, node: FunctionDefinition):
         if node.is_public:
             self.buffer.write("pub ")
+        if node.is_unconstrained:
+            self.buffer.write("unconstrained ")
         self.buffer.write("fn ")
         self.visit(node.name)
         self.buffer.write("(")
@@ -162,6 +184,9 @@ class EmitVisitor:
             self.buffer.write(f"use {imp};\n")
             if idx + 1 == len(node.imports):
                 self.buffer.write("\n")
+        for helper in node.helper_functions:
+            self.visit(helper)
+            self.buffer.write("\n\n")
         self.visit(node.main)
         self.buffer.write("\n")
 

@@ -1,0 +1,20 @@
+{
+  "name": "picus_noir_ff_unique",
+  "dsl": "noir",
+  "oracle": "picus",
+  "benchmarks_dir": "benchmarks/finite-field/unique-poseiodn-alpha-5-sparse",
+  "benchmarks_dirs": null,
+  "status": "error (-15)",
+  "returncode": -15,
+  "elapsed_sec": 7431.476,
+  "out_file": "/workspace/smt-solver/experiments/obj/picus_noir_ff_unique.out",
+  "warmup_log": "/workspace/smt-solver/experiments/obj/picus_noir_ff_unique/warmup.log",
+  "log_dir": "/workspace/smt-solver/experiments/obj/picus_noir_ff_unique/logs",
+  "scratch_dir": "/workspace/smt-solver/experiments/obj/picus_noir_ff_unique/scratch",
+  "bug_dir": "/workspace/smt-solver/experiments/obj/picus_noir_ff_unique/bugs",
+  "solve_config": "/workspace/smt-solver/experiments/obj/picus_noir_ff_unique/solve_config.json",
+  "run_snapshot": "/workspace/smt-solver/experiments/obj/run_config_20260430-130249_picus_noir_ff_unique.env",
+  "seed_targets": [
+    "/workspace/smt-solver/benchmarks/finite-field/unique-poseiodn-alpha-5-sparse"
+  ]
+}

@@ -13,7 +13,7 @@
   "instances": [
     {
       "name": "sat_zokrates",
-      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/generated_suite",
+      "benchmarks_dir": "benchmarks/prod/sat",
       "dsl": "zokrates",
       "oracle": "smt",
       "solver": "cvc5",
@@ -22,7 +22,7 @@
     },
     {
       "name": "sat_zokrates_circ",
-      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/generated_suite",
+      "benchmarks_dir": "benchmarks/prod/sat",
       "dsl": "zokrates",
       "oracle": "smt",
       "solver": "cvc5",
@@ -33,7 +33,7 @@
     },
     {
       "name": "picus_zokrates",
-      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/generated_suite",
+      "benchmarks_dir": "benchmarks/prod/unique",
       "dsl": "zokrates",
       "oracle": "picus",
       "hints": false,
@@ -41,13 +41,35 @@
     },
     {
       "name": "picus_zokrates_circ",
-      "benchmarks_dir": "benchmarks/SMT-benchmarks/finite-field/generated_suite",
+      "benchmarks_dir": "benchmarks/prod/unique",
       "dsl": "zokrates",
       "oracle": "picus",
       "hints": false,
       "compiler": "zokrates",
       "with_circ": true,
       "max_not_chain_count": 0
+    },
+    {
+      "name": "unsat_zokrates",
+      "benchmarks_dir": "benchmarks/prod/unsat",
+      "dsl": "zokrates",
+      "oracle": "smt",
+      "solver": "cvc5",
+      "hints": true,
+      "compiler": "zokrates",
+      "yinyang_oracle": "unsat"
+    },
+    {
+      "name": "unsat_zokrates_circ",
+      "benchmarks_dir": "benchmarks/prod/unsat",
+      "dsl": "zokrates",
+      "oracle": "smt",
+      "solver": "cvc5",
+      "hints": true,
+      "compiler": "zokrates",
+      "with_circ": true,
+      "max_not_chain_count": 0,
+      "yinyang_oracle": "unsat"
     }
   ]
 }
