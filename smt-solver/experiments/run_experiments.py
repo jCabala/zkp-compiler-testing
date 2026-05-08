@@ -11,7 +11,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -33,10 +33,12 @@ YINYANG_OK_CODES = {YINYANG_OK_NOBUGS, YINYANG_OK_BUGS}
 DEFAULT_FUSION_CONFIGS = {
 	"smt": ROOT_DIR / "experiments" / "legacy" / "sat_fusion" / "sat_fusion_config.txt",
 	"picus": ROOT_DIR / "experiments" / "legacy" / "picus_fusion" / "picus_fusion_config.txt",
+	"direct": ROOT_DIR / "experiments" / "legacy" / "sat_fusion" / "sat_fusion_config.txt",
 }
 DEFAULT_YINYANG_SEEDS = {
 	"smt": 7586,
 	"picus": 5959,
+	"direct": 7586,
 }
 _WARM_SAT = """(set-logic QF_BV)
 (declare-fun x () Bool)
@@ -193,7 +195,14 @@ def _solver_backend(instance: dict[str, Any]) -> str:
 		return str(instance.get("solver", "z3"))
 	if oracle == "picus":
 		return "picus"
+	if oracle == "direct":
+		return str(instance.get("solver", "cvc5"))
 	raise ValueError(f"Unknown oracle backend: {oracle}")
+
+
+def _build_direct_solver_command(instance: dict[str, Any]) -> str:
+	cmd = [str(instance.get("solver", "cvc5"))] + list(instance.get("solver_args", []))
+	return shlex.join(cmd)
 
 
 def _fusion_config_path(instance: dict[str, Any], defaults: dict[str, Any]) -> Path:
@@ -376,7 +385,10 @@ def _warmup_instance(instance: dict[str, Any], defaults: dict[str, Any], warmup_
 					log_f.write("\n")
 
 
-def _run_yinyang_instance(instance: dict[str, Any], defaults: dict[str, Any]) -> dict[str, Any]:
+def _prepare_yinyang_instance(
+	instance: dict[str, Any], defaults: dict[str, Any]
+) -> tuple[dict[str, Any], list[str], dict[str, str] | None, Any, list[Any]]:
+	"""Set up dirs/config/warmup and return (layout, cmd, env, snapshot, seed_targets)."""
 	layout = _instance_layout(instance, defaults)
 	layout["obj_root"].mkdir(parents=True, exist_ok=True)
 	layout["instance_root"].mkdir(parents=True, exist_ok=True)
@@ -384,14 +396,18 @@ def _run_yinyang_instance(instance: dict[str, Any], defaults: dict[str, Any]) ->
 	layout["scratch_dir"].mkdir(parents=True, exist_ok=True)
 	layout["bug_dir"].mkdir(parents=True, exist_ok=True)
 
-	_write_solve_config(instance, defaults, layout["solve_config"])
 	seed_targets = _instance_seed_targets(instance, defaults)
-	_warmup_instance(instance, defaults, layout["warmup_log"])
+	if instance["oracle"] == "direct":
+		solver_cmd_str = _build_direct_solver_command(instance)
+	else:
+		_write_solve_config(instance, defaults, layout["solve_config"])
+		_warmup_instance(instance, defaults, layout["warmup_log"])
+		solver_cmd_str = _build_solver_command(layout["solve_config"])
 
 	yinyang_cmd = [
 		sys.executable,
 		str(YINYANG_ROOT / "yinyang_cli.py"),
-		_build_solver_command(layout["solve_config"]),
+		solver_cmd_str,
 		"--oracle",
 		_yinyang_oracle(instance, defaults),
 		"--timeout",
@@ -417,22 +433,22 @@ def _run_yinyang_instance(instance: dict[str, Any], defaults: dict[str, Any]) ->
 
 	snapshot = _write_run_snapshot(instance, defaults, layout, seed_targets, yinyang_cmd)
 	env = _yinyang_env(instance, defaults)
+	return layout, yinyang_cmd, env, snapshot, seed_targets
 
-	start = time.time()
-	with layout["out_file"].open("w") as out_f:
-		proc = _run_live(
-			yinyang_cmd,
-			env=env,
-			stdout=out_f,
-			stderr=subprocess.STDOUT,
-		)
-	elapsed = time.time() - start
 
+def _collect_yinyang_result(
+	instance: dict[str, Any],
+	layout: dict[str, Any],
+	snapshot: Any,
+	seed_targets: list[Any],
+	returncode: int,
+	elapsed: float,
+) -> dict[str, Any]:
 	status = "ok"
-	if proc.returncode == YINYANG_OK_BUGS:
+	if returncode == YINYANG_OK_BUGS:
 		status = "bugs_found"
-	elif proc.returncode not in YINYANG_OK_CODES:
-		status = f"error ({proc.returncode})"
+	elif returncode not in YINYANG_OK_CODES:
+		status = f"error ({returncode})"
 
 	return {
 		"name": instance["name"],
@@ -441,7 +457,7 @@ def _run_yinyang_instance(instance: dict[str, Any], defaults: dict[str, Any]) ->
 		"benchmarks_dir": instance.get("benchmarks_dir"),
 		"benchmarks_dirs": instance.get("benchmarks_dirs"),
 		"status": status,
-		"returncode": proc.returncode,
+		"returncode": returncode,
 		"elapsed_sec": round(elapsed, 3),
 		"out_file": str(layout["out_file"]),
 		"warmup_log": str(layout["warmup_log"]),
@@ -452,6 +468,15 @@ def _run_yinyang_instance(instance: dict[str, Any], defaults: dict[str, Any]) ->
 		"run_snapshot": str(snapshot),
 		"seed_targets": [str(path) for path in seed_targets],
 	}
+
+
+def _run_yinyang_instance(instance: dict[str, Any], defaults: dict[str, Any]) -> dict[str, Any]:
+	layout, yinyang_cmd, env, snapshot, seed_targets = _prepare_yinyang_instance(instance, defaults)
+	start = time.time()
+	with layout["out_file"].open("w") as out_f:
+		proc = _run_live(yinyang_cmd, env=env, stdout=out_f, stderr=subprocess.STDOUT)
+	elapsed = time.time() - start
+	return _collect_yinyang_result(instance, layout, snapshot, seed_targets, proc.returncode, elapsed)
 
 
 def _summarize(instance_result: dict[str, Any]) -> dict[str, Any]:
@@ -564,14 +589,38 @@ def main() -> int:
 		return overall_status
 
 	overall_status = 0
+	# Prepare all instances (dirs, config, warmup) before spawning
+	prepared = []
 	for inst in instances:
-		print(f"== Running: {inst['name']} ==")
-		res = _run_yinyang_instance(inst, defaults)
-		overall_status = _merge_exit_status(overall_status, res["returncode"])
-		out_file = output_dir / f"{inst['name']}.json"
-		out_file.write_text(json.dumps(res, indent=2))
-		summaries.append(_summarize(res))
-		print(f"  -> {out_file}")
+		print(f"== Preparing: {inst['name']} ==")
+		prepared.append((inst, *_prepare_yinyang_instance(inst, defaults)))
+
+	# Spawn all concurrently
+	running: list[tuple[dict[str, Any], dict[str, Any], Any, list[Any], subprocess.Popen[Any], IO[Any], float]] = []
+	for inst, layout, cmd, env, snapshot, seed_targets in prepared:
+		print(f"== Spawning: {inst['name']} ==")
+		out_f = layout["out_file"].open("w")
+		proc = subprocess.Popen(cmd, cwd=str(ROOT_DIR), env=env, stdout=out_f, stderr=subprocess.STDOUT)
+		running.append((inst, layout, snapshot, seed_targets, proc, out_f, time.time()))
+
+	# Wait for all, killing on interrupt
+	try:
+		for inst, layout, snapshot, seed_targets, proc, out_f, start in running:
+			proc.wait()
+			out_f.close()
+			elapsed = time.time() - start
+			res = _collect_yinyang_result(inst, layout, snapshot, seed_targets, proc.returncode, elapsed)
+			overall_status = _merge_exit_status(overall_status, res["returncode"])
+			out_file = output_dir / f"{inst['name']}.json"
+			out_file.write_text(json.dumps(res, indent=2))
+			summaries.append(_summarize(res))
+			print(f"  -> {out_file}")
+	except KeyboardInterrupt:
+		print("\nInterrupted — killing all running instances...")
+		for _, _, _, _, proc, out_f, _ in running:
+			proc.kill()
+			out_f.close()
+		raise
 
 	summary_file = output_dir / "summary.json"
 	summary_file.write_text(json.dumps(summaries, indent=2))
