@@ -1,0 +1,36 @@
+{
+  "defaults": {
+    "tmp_dir": "experiments/obj",
+    "max_files": null,
+    "timeout_sec": 600,
+    "dsl": "smt2",
+    "oracle": "direct",
+    "solver": "cvc5"
+  },
+  "instances": [
+    {
+      "name": "sat_cvc5_gb",
+      "benchmarks_dir": "benchmarks/prod/sat",
+      "solver_args": ["--ff-solver=gb"],
+      "yinyang_oracle": "sat"
+    },
+    {
+      "name": "sat_cvc5_split",
+      "benchmarks_dir": "benchmarks/prod/sat",
+      "solver_args": ["--ff-solver=split"],
+      "yinyang_oracle": "sat"
+    },
+    {
+      "name": "unsat_cvc5_gb",
+      "benchmarks_dir": "benchmarks/prod/unsat",
+      "solver_args": ["--ff-solver=gb"],
+      "yinyang_oracle": "unsat"
+    },
+    {
+      "name": "unsat_cvc5_split",
+      "benchmarks_dir": "benchmarks/prod/unsat",
+      "solver_args": ["--ff-solver=split"],
+      "yinyang_oracle": "unsat"
+    }
+  ]
+}
