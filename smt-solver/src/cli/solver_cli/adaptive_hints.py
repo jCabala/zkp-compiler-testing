@@ -27,6 +27,7 @@ from pathlib import Path
 
 # Initial values
 HINT_MODELS = 5
+MAX_HINT_MODELS = 20
 HINT_PROBABILITY = 1.0
 INITIAL_UPDATE_EVERY = 1
 MAX_UPDATE_EVERY = 32
@@ -126,7 +127,7 @@ def _update_parameters(state: AdaptiveHintsState, solving_timeout: int | None) -
                 if hint_probability > MIN_PROBABILITY:
                     hint_probability = max(MIN_PROBABILITY, hint_probability - state.prob_step)
                 else:
-                    hint_models += 1
+                    hint_models = min(hint_models + 1, MAX_HINT_MODELS)
 
     # Advance schedule
     new_update_every = min(state.update_every * 2, MAX_UPDATE_EVERY)

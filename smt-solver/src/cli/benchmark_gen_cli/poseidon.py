@@ -144,9 +144,13 @@ def _generate_smt2(
 
         mds_names = [f"mds_r{r}_s{i}" for i in range(t)]
         let_layers.append([
-            (mds_names[i], "(ff.add " + " ".join(
-                f"(ff.mul {_ff_lit(M[i][j])} {sb_names[j]})" for j in range(t)
-            ) + ")")
+            (mds_names[i], (
+                " ".join(f"(ff.mul {_ff_lit(M[i][j])} {sb_names[j]})" for j in range(t))
+                if t == 1 else
+                "(ff.add " + " ".join(
+                    f"(ff.mul {_ff_lit(M[i][j])} {sb_names[j]})" for j in range(t)
+                ) + ")"
+            ))
             for i in range(t)
         ])
 
