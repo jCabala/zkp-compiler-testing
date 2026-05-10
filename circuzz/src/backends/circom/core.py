@@ -11,6 +11,7 @@ from backends.circom.picus import (
     ir_to_circom_code,
     run_picus_check,
 )
+from circuzz.ir.weak_sat import count_connected_assertions
 from experiment.data import DataEntry, TestResult
 
 from circuzz.common.metamorphism import MetamorphicCircuitPair
@@ -116,6 +117,10 @@ def run_circom_metamorphic_tests(
             return run_circom_metamorphic_tests_with_picus_oracle(
                 seed, working_dir, report_dir, config, online_tuning
             )
+        case OracleType.PICUS_SAMPLE:
+            return run_circom_picus_sample(
+                seed, working_dir, report_dir, config, online_tuning
+            )
         case OracleType.SMT_PIPELINE:
             return run_circom_smt_pipeline_tests(
                 seed, working_dir, report_dir, config, online_tuning
@@ -197,6 +202,9 @@ def run_circom_metamorphic_tests_with_picus_oracle(
 
     test_time = time.time() - start_time
 
+    c1_ws_connected, c1_ws_disconnected = count_connected_assertions(ir)
+    c2_ws_connected, c2_ws_disconnected = count_connected_assertions(ir_tf)
+
     return TestResult(
         [
             DataEntry(
@@ -224,12 +232,83 @@ def run_circom_metamorphic_tests_with_picus_oracle(
                 c2_assumptions=len(ir_tf.assumptions()),
                 c2_input_signals=len(ir_tf.inputs),
                 c2_output_signals=len(ir_tf.outputs),
-                # Picus-specific
                 picus_program_generation_reruns=num_tries,
                 picus_transformed_constraint_level=picus_result.constraint_level,
+                c1_weak_sat_connected=c1_ws_connected,
+                c1_weak_sat_disconnected=c1_ws_disconnected,
+                c2_weak_sat_connected=c2_ws_connected,
+                c2_weak_sat_disconnected=c2_ws_disconnected,
             )
         ]
     )
+
+
+def run_circom_picus_sample(
+    seed: float,
+    working_dir: Path,
+    report_dir: Path,
+    config: Config,
+    online_tuning: OnlineTuning,
+) -> TestResult:
+    """Generate a single circuit and check its constrainedness with Picus.
+    No metamorphic transformation is applied."""
+    start_time = time.time()
+    logger.info(f"circom picus sample, seed: {seed}, working-dir: {working_dir}")
+
+    rng = Random(seed)
+    ir_gen_seed = rng.randint(1000000000, 9999999999)
+    curve = random_circom_curve(rng)
+    prime = curve_to_prime(curve)
+    emit_config = EmitConfig(
+        constrain_equality_assertions=config.circom.constrain_equality_assertions,
+        constrain_sharp_inequality_assertions=config.circom.constrain_sharp_inequality_assertions,
+    )
+
+    ir_generation_start = time.time()
+    ir = generate_random_circuit(prime, False, config.ir, ir_gen_seed)
+    circom_code = ir_to_circom_code(ir, emit_config=emit_config)
+    ir_generation_time = time.time() - ir_generation_start
+
+    logger.info("Sampled Circom Code:")
+    logger.info(circom_code)
+
+    picus_result = run_picus_check(circom_code)
+    test_time = time.time() - start_time
+
+    c1_ws_connected, c1_ws_disconnected = count_connected_assertions(ir)
+
+    return TestResult([
+        DataEntry(
+            tool="circom",
+            test_time=test_time,
+            seed=seed,
+            curve=curve.value,
+            oracle="picus_sample",
+            iteration=0,
+            error=None,
+            ir_generation_seed=ir_gen_seed,
+            ir_generation_time=ir_generation_time,
+            ir_rewrite_seed=0,
+            ir_rewrite_time=0.0,
+            ir_rewrite_rules=[],
+            c1_node_size=ir.node_size(),
+            c1_assignments=len(ir.assignments()),
+            c1_assertions=len(ir.assertions()),
+            c1_assumptions=len(ir.assumptions()),
+            c1_input_signals=len(ir.inputs),
+            c1_output_signals=len(ir.outputs),
+            c2_node_size=0,
+            c2_assignments=0,
+            c2_assertions=0,
+            c2_assumptions=0,
+            c2_input_signals=0,
+            c2_output_signals=0,
+            picus_program_generation_reruns=0,
+            picus_transformed_constraint_level=picus_result.constraint_level,
+            c1_weak_sat_connected=c1_ws_connected,
+            c1_weak_sat_disconnected=c1_ws_disconnected,
+        )
+    ])
 
 
 def run_circom_metamorphic_tests_with_circuzz_oracle(
@@ -292,6 +371,8 @@ def run_circom_metamorphic_tests_with_circuzz_oracle(
     data_entries: list[DataEntry] = []
     c1_name = ir.name
     c2_name = ir_tf.name
+    c1_ws_connected, c1_ws_disconnected = count_connected_assertions(ir)
+    c2_ws_connected, c2_ws_disconnected = count_connected_assertions(ir_tf)
 
     for idx, iteration in enumerate(circom_result.iterations):
         data_entry = DataEntry(
@@ -404,6 +485,10 @@ def run_circom_metamorphic_tests_with_circuzz_oracle(
             circom_c2_verification_time=iteration.verification_time.get(c2_name, None),
             circom_c1_ignored_error=iteration.ignored_error.get(c1_name, None),
             circom_c2_ignored_error=iteration.ignored_error.get(c2_name, None),
+            c1_weak_sat_connected=c1_ws_connected,
+            c1_weak_sat_disconnected=c1_ws_disconnected,
+            c2_weak_sat_connected=c2_ws_connected,
+            c2_weak_sat_disconnected=c2_ws_disconnected,
         )
 
         data_entries.append(data_entry)
