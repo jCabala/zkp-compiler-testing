@@ -47,6 +47,15 @@ class DataEntry():
     picus_transformed_constraint_level: ConstraintLevel | None = None
 
     #
+    # Weak SAT structural analysis
+    #
+
+    c1_weak_sat_connected    : int | None = None
+    c1_weak_sat_disconnected : int | None = None
+    c2_weak_sat_connected    : int | None = None
+    c2_weak_sat_disconnected : int | None = None
+
+    #
     # Circom
     #
 
@@ -406,6 +415,12 @@ class DataEntry():
             , self._custom_to_str(self.cycle)
             , self._custom_to_str(self.explore_time)
             , self._custom_to_str(self.is_fixed)
+            , self._custom_to_str(self.picus_program_generation_reruns)
+            , self._custom_to_str(self.picus_transformed_constraint_level)
+            , self._custom_to_str(self.c1_weak_sat_connected)
+            , self._custom_to_str(self.c1_weak_sat_disconnected)
+            , self._custom_to_str(self.c2_weak_sat_connected)
+            , self._custom_to_str(self.c2_weak_sat_disconnected)
             ])
 
     @classmethod
@@ -577,6 +592,12 @@ class DataEntry():
         , "cycle"
         , "explore_time"
         , "is_fixed"
+        , "picus_program_generation_reruns"
+        , "picus_transformed_constraint_level"
+        , "c1_weak_sat_connected"
+        , "c1_weak_sat_disconnected"
+        , "c2_weak_sat_connected"
+        , "c2_weak_sat_disconnected"
         ])
 
     def _custom_to_str(self, value: bool | int | float | str | None) -> str:
@@ -799,7 +820,9 @@ class DataEntry():
         noir_c2_ignored_error, \
         cycle, \
         explore_time, \
-        is_fixed = value.split(",")
+        is_fixed, \
+        picus_program_generation_reruns, \
+        picus_transformed_constraint_level = value.split(",")
 
         return DataEntry \
             ( tool = tool
@@ -950,6 +973,8 @@ class DataEntry():
             , cycle = cls.parse_int_or_none(cycle)
             , explore_time = cls.parse_float_or_none(explore_time)
             , is_fixed = cls.parse_bool_or_none(is_fixed)
+            , picus_program_generation_reruns = cls.parse_int_or_none(picus_program_generation_reruns)
+            , picus_transformed_constraint_level = cls.parse_str_or_none(picus_transformed_constraint_level)
             )
 
 @dataclass

@@ -1,0 +1,11 @@
+Weak-SAT Connectivity Report
+Generated: Fri May  8 20:08:44 CEST 2026
+Seed: 2003
+Duration: 0h30m0s
+
+Columns: SAT circuits | Total assertions | Connected | Disconnected | % Disconnected
+
+Backend             SAT circuits    Total assertions           Connected        Disconnected      % Disconnected
+----------------------------------------------------------------------------------------------------------------
+circom                       189                 145                  79                  66               45.5%
+gnark                        368                 281                 160                 121               43.1%

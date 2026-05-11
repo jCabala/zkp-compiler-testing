@@ -9,7 +9,7 @@
 ; Output fixed to precomputed value — unique solution exists by bijectivity
 (assert (let ((arc_r0_s0 (ff.add x0 (as ff14142923529657246575943310119227396223571076467309260475099288760425812920695 F))))
 (let ((sb_r0_s0 (ff.mul (ff.mul (ff.mul (ff.mul arc_r0_s0 arc_r0_s0) arc_r0_s0) arc_r0_s0) arc_r0_s0)))
-(let ((mds_r0_s0 (ff.add (ff.mul (as ff1 F) sb_r0_s0))))
+(let ((mds_r0_s0 (ff.mul (as ff1 F) sb_r0_s0)))
 (and (= mds_r0_s0 (as ff6496150427066321893088247337363614723415379861990347411620964494589370687981 F)))))))
 
 (check-sat)

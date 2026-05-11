@@ -559,7 +559,7 @@ def main() -> int:
 	output_dir = _resolve_path(args.output_dir)
 	cfg = json.loads(config_path.read_text())
 	defaults = cfg.get("defaults", {})
-	instances = cfg.get("instances", [])
+	instances = [{**defaults, **inst} for inst in cfg.get("instances", [])]
 	if args.instance_name is not None:
 		instances = [inst for inst in instances if inst["name"] == args.instance_name]
 	if not instances:

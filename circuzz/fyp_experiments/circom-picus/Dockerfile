@@ -5,6 +5,7 @@ FROM circuzz/circom-base AS circombuild
 ARG CIRCOM_COMMIT=HEAD
 
 # build and install circom from the cloned repo provided by `circom-base`
+RUN rustup toolchain install stable && rustup default stable
 RUN cd /circuzz/circom && \
 	git fetch --all --tags && \
 	git reset --hard ${CIRCOM_COMMIT} && \

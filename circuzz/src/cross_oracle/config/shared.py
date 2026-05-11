@@ -5,6 +5,7 @@ from enum import StrEnum
 class OracleType(StrEnum):
     CIRCUZZ = "circuzz"
     PICUS = "picus"
+    PICUS_SAMPLE = "picus_sample"
     SMT_PIPELINE = "smt_pipeline"
 
     @classmethod
@@ -14,6 +15,8 @@ class OracleType(StrEnum):
                 return OracleType.CIRCUZZ
             case "picus":
                 return OracleType.PICUS
+            case "picus_sample":
+                return OracleType.PICUS_SAMPLE
             case "smt_pipeline":
                 return OracleType.SMT_PIPELINE
             case _:

@@ -1,0 +1,71 @@
+{
+  "experiment": {
+    "enable_exit_on_failure": false,
+    "enable_working_dir_cleanup": true,
+
+    "prove_and_verify_tuning_strategy": "time",
+    "prove_and_verify_tuning_percentage": 0.5
+  },
+
+  "circom": {
+    "oracle_type": "circuzz",
+    "boundary_input_probability": 0.1,
+    "test_iterations": 2,
+
+    "likelihood_cpp_witness_generation": 0.2,
+    "likelihood_snark_witness_check": 0,
+
+    "constraint_assignment_probability": 0.7,
+    "unwrap_assertion_probability": 0.7
+  },
+
+  "ir": {
+    "operators": {
+      "relations": ["==", "!="],
+      "boolean_unary_operators": ["!"],
+      "boolean_binary_operators": ["&&", "||", "^^"],
+      "arithmetic_unary_operators": ["-"],
+      "arithmetic_binary_operators": ["+", "-", "*", "**", "/"]
+    },
+
+    "generation": {
+      "generator": "arithmetic",
+
+      "constant_probability_weight": 1,
+      "variable_probability_weight": 1,
+      "unary_probability_weight": 1,
+      "binary_probability_weight": 1,
+      "relation_probability_weight": 1,
+      "ternary_probability_weight": 1,
+
+      "max_expression_depth": 4,
+      "min_number_of_assertions": 0,
+      "max_number_of_assertions": 4,
+      "min_number_of_input_variables": 0,
+      "max_number_of_input_variables": 4,
+      "min_number_of_output_variables": 1,
+      "max_number_of_output_variables": 2,
+
+      "max_exponent_value": 4,
+      "boundary_value_probability": 0.25
+    },
+
+    "rewrite": {
+      "weakening_probability": 0,
+      "min_rewrites": 1,
+      "max_rewrites": 8,
+      "rules": {
+        "equivalence": [
+          { "name": "comm-add", "match": "(?a + ?b)", "rewrite": "(?b + ?a)" },
+          { "name": "comm-mul", "match": "(?a * ?b)", "rewrite": "(?b * ?a)" },
+          { "name": "zero-add-des", "match": "(?a + 0)", "rewrite": "?a" },
+          { "name": "one-mul-des", "match": "(?a * 1)", "rewrite": "?a" },
+          { "name": "inv-add-des", "match": "(?a - ?a)", "rewrite": "0" },
+          { "name": "zero-add-con", "match": "?a:int", "rewrite": "(?a + 0)" },
+          { "name": "one-mul-con", "match": "?a:int", "rewrite": "(?a * 1)" }
+        ],
+        "weakening": []
+      }
+    }
+  }
+}

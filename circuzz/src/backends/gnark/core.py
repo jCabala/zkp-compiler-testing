@@ -20,6 +20,7 @@ from .helper import run_metamorphic_tests
 from .utils import GnarkCurve
 from .utils import curve_to_prime
 from .picus import ConstraintLevel, generate_picus_constrained_gnark_code, ir_to_gnark_code, run_picus_check
+from circuzz.ir.weak_sat import count_connected_assertions
 
 logger = get_color_logger()
 
@@ -50,6 +51,8 @@ def run_gnark_metamorphic_tests \
             return run_gnark_metamorphic_tests_with_circuzz_oracle(seed, working_dir, report_dir, config, online_tuning)
         case OracleType.PICUS:
             return run_gnark_metamorphic_tests_with_picus_oracle(seed, working_dir, report_dir, config, online_tuning)
+        case OracleType.PICUS_SAMPLE:
+            return run_gnark_picus_sample(seed, working_dir, report_dir, config, online_tuning)
         case OracleType.SMT_PIPELINE:
             return run_gnark_smt_pipeline_tests(seed, working_dir, report_dir, config, online_tuning)
         case _:
@@ -130,6 +133,9 @@ def run_gnark_metamorphic_tests_with_picus_oracle \
 
         test_time = time.time() - start_time
 
+        c1_ws_connected, c1_ws_disconnected = count_connected_assertions(ir)
+        c2_ws_connected, c2_ws_disconnected = count_connected_assertions(ir_tf)
+
         return TestResult([
              DataEntry \
                 ( tool = "gnark"
@@ -159,8 +165,78 @@ def run_gnark_metamorphic_tests_with_picus_oracle \
                 # PICUS specific data
                 , picus_program_generation_reruns = num_tries
                 , picus_transformed_constraint_level = picus_result.constraint_level
+                , c1_weak_sat_connected = c1_ws_connected
+                , c1_weak_sat_disconnected = c1_ws_disconnected
+                , c2_weak_sat_connected = c2_ws_connected
+                , c2_weak_sat_disconnected = c2_ws_disconnected
              )
         ])
+
+def run_gnark_picus_sample \
+    ( seed: int | float
+    , working_dir: Path
+    , report_dir: Path
+    , config: Config
+    , online_tuning: OnlineTuning
+    ) -> TestResult:
+    """Generate a single circuit and check its constrainedness with Picus.
+    No metamorphic transformation is applied."""
+    start_time = time.time()
+    logger.info(f"gnark picus sample, seed: {seed}, working-dir: {working_dir}")
+
+    PICUS_TIMEOUT = 60
+
+    rng = Random(seed)
+    ir_gen_seed = rng.randint(1000000000, 9999999999)
+    curve = rng.choice(list(GnarkCurve))
+    prime = curve_to_prime(curve)
+
+    ir_generation_start = time.time()
+    ir = generate_random_circuit(prime, False, config.ir, ir_gen_seed)
+    gnark_code = ir_to_gnark_code(ir)
+    ir_generation_time = time.time() - ir_generation_start
+
+    logger.info("Sampled Gnark Code:")
+    logger.info(gnark_code)
+
+    picus_result = run_picus_check(gnark_code, PICUS_TIMEOUT)
+    test_time = time.time() - start_time
+
+    c1_ws_connected, c1_ws_disconnected = count_connected_assertions(ir)
+
+    return TestResult([
+        DataEntry(
+            tool="gnark",
+            test_time=test_time,
+            seed=seed,
+            curve=curve.value,
+            oracle="picus_sample",
+            iteration=0,
+            error=None,
+            ir_generation_seed=ir_gen_seed,
+            ir_generation_time=ir_generation_time,
+            ir_rewrite_seed=0,
+            ir_rewrite_time=0.0,
+            ir_rewrite_rules=[],
+            c1_node_size=ir.node_size(),
+            c1_assignments=len(ir.assignments()),
+            c1_assertions=len(ir.assertions()),
+            c1_assumptions=len(ir.assumptions()),
+            c1_input_signals=len(ir.inputs),
+            c1_output_signals=len(ir.outputs),
+            c2_node_size=0,
+            c2_assignments=0,
+            c2_assertions=0,
+            c2_assumptions=0,
+            c2_input_signals=0,
+            c2_output_signals=0,
+            picus_program_generation_reruns=0,
+            picus_transformed_constraint_level=picus_result.constraint_level,
+            c1_weak_sat_connected=c1_ws_connected,
+            c1_weak_sat_disconnected=c1_ws_disconnected,
+        )
+    ])
+
 
 def run_gnark_metamorphic_tests_with_circuzz_oracle \
     ( seed: int | float
@@ -210,26 +286,32 @@ def run_gnark_metamorphic_tests_with_circuzz_oracle \
         pair_and_curves.append((metamorphic_pair, curve))
 
         # add to entries
+        c1_ws_connected, c1_ws_disconnected = count_connected_assertions(ir)
+        c2_ws_connected, c2_ws_disconnected = count_connected_assertions(ir_tf)
         circuit_entry = \
-            { "c1_node_size"       : ir.node_size()
-            , "c1_assignments"     : len(ir.assignments())
-            , "c1_assertions"      : len(ir.assertions())
-            , "c1_assumptions"     : len(ir.assumptions())
-            , "c1_input_signals"   : len(ir.inputs)
-            , "c1_output_signals"  : len(ir.outputs)
-            , "c2_node_size"       : ir_tf.node_size()
-            , "c2_assignments"     : len(ir_tf.assignments())
-            , "c2_assertions"      : len(ir_tf.assertions())
-            , "c2_assumptions"     : len(ir_tf.assumptions())
-            , "c2_input_signals"   : len(ir_tf.inputs)
-            , "c2_output_signals"  : len(ir_tf.outputs)
-            , "ir_generation_seed" : circuit_seed
-            , "ir_generation_time" : ir_generation_time
-            , "ir_rewrite_seed"    : ir_tf_seed
-            , "ir_rewrite_time"    : ir_rewrite_time
-            , "ir_rewrite_rules"   : [POI.rule.name for POI in POIs]
-            , "curve"              : curve.value
-            , "oracle"             : kind.value
+            { "c1_node_size"            : ir.node_size()
+            , "c1_assignments"          : len(ir.assignments())
+            , "c1_assertions"           : len(ir.assertions())
+            , "c1_assumptions"          : len(ir.assumptions())
+            , "c1_input_signals"        : len(ir.inputs)
+            , "c1_output_signals"       : len(ir.outputs)
+            , "c2_node_size"            : ir_tf.node_size()
+            , "c2_assignments"          : len(ir_tf.assignments())
+            , "c2_assertions"           : len(ir_tf.assertions())
+            , "c2_assumptions"          : len(ir_tf.assumptions())
+            , "c2_input_signals"        : len(ir_tf.inputs)
+            , "c2_output_signals"       : len(ir_tf.outputs)
+            , "ir_generation_seed"      : circuit_seed
+            , "ir_generation_time"      : ir_generation_time
+            , "ir_rewrite_seed"         : ir_tf_seed
+            , "ir_rewrite_time"         : ir_rewrite_time
+            , "ir_rewrite_rules"        : [POI.rule.name for POI in POIs]
+            , "curve"                   : curve.value
+            , "oracle"                  : kind.value
+            , "c1_weak_sat_connected"   : c1_ws_connected
+            , "c1_weak_sat_disconnected": c1_ws_disconnected
+            , "c2_weak_sat_connected"   : c2_ws_connected
+            , "c2_weak_sat_disconnected": c2_ws_disconnected
             }
         circuit_lookup[ir.name] = circuit_entry
 
@@ -321,6 +403,10 @@ def run_gnark_metamorphic_tests_with_circuzz_oracle \
                 , gnark_go_test_time = iteration.go_test_time
                 , gnark_go_timeout = iteration.go_timeout
                 , gnark_go_ignored_compiler_error = iteration.go_ignored_compiler_error
+                , c1_weak_sat_connected = ir_info["c1_weak_sat_connected"]
+                , c1_weak_sat_disconnected = ir_info["c1_weak_sat_disconnected"]
+                , c2_weak_sat_connected = ir_info["c2_weak_sat_connected"]
+                , c2_weak_sat_disconnected = ir_info["c2_weak_sat_disconnected"]
                 )
 
             data_entries.append(data_entry)
