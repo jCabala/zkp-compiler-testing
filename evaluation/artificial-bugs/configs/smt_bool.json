@@ -1,0 +1,32 @@
+{
+  "defaults": {
+    "tmp_dir": "experiments/obj",
+    "timeout_sec": 600,
+    "solver_timeout_sec": 120,
+    "with_logs": false,
+    "dsl": "circom",
+    "compiler": "/workspace/smt-solver/third_party/artificial-bugs/circom/target/release/circom"
+  },
+  "instances": [
+    {
+      "name": "artbugs_bool_sat",
+      "benchmarks_dir": "benchmarks/core/sat",
+      "oracle": "smt",
+      "solver": "cvc5",
+      "yinyang_oracle": "sat"
+    },
+    {
+      "name": "artbugs_bool_unsat",
+      "benchmarks_dir": "benchmarks/core/unsat",
+      "oracle": "smt",
+      "solver": "cvc5",
+      "yinyang_oracle": "unsat"
+    },
+    {
+      "name": "artbugs_bool_picus",
+      "benchmarks_dir": "benchmarks/core/unique",
+      "oracle": "picus",
+      "yinyang_oracle": "sat"
+    }
+  ]
+}

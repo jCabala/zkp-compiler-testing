@@ -1,0 +1,24 @@
+Config: hints=True  dsl=circom  solver=cvc5  timeout=120s
+Source: obj/run-1778933734-hints=on-dsl=circom-solver=cvc5/results.json
+
+    Vars     N    Mean sat (s)     Min (s)     Max (s)    Timeout/Unk%
+  --------------------------------------------------------------------
+       1     5           4.469       3.988       5.001            0.0%
+       2     5           4.501       4.194       4.715            0.0%
+       3     5           5.351       3.006       6.347            0.0%
+       4     5          10.371       4.875      26.143            0.0%
+       5     5          37.807       5.483      71.094           20.0%
+       6     5         101.340      96.748     105.137           40.0%
+       7     5               —           —           —          100.0%
+
+Config: hints=False  dsl=circom  solver=cvc5  timeout=120s
+Source: obj/run-1778933734-hints=off-dsl=circom-solver=cvc5/results.json
+
+    Vars     N    Mean sat (s)     Min (s)     Max (s)    Timeout/Unk%
+  --------------------------------------------------------------------
+       1     5           2.575       2.372       3.033            0.0%
+       2     5           2.711       2.288       3.240            0.0%
+       3     5           5.442       3.441       9.449            0.0%
+       4     5          24.262      11.786      46.905            0.0%
+       5     5          78.606       5.785     116.438           40.0%
+       6     5               —           —           —          100.0%

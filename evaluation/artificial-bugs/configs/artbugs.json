@@ -1,0 +1,8 @@
+{
+  "always-empty-r1cs": false,
+  "remove-random-variable": { "n": 0 },
+  "remove-random-constraint": { "n": 0 },
+  "add-random-constraint": { "n": 0 },
+  "change-random-number": { "n": 0 },
+  "bias-constant-on-nonlinear": { "n": 2 }
+}

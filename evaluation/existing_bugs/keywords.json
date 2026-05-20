@@ -1,0 +1,52 @@
+{
+  "constraint_correctness": [
+    "underconstrained",
+    "under-constrained",
+    "missing constraint",
+    "incorrect constraint",
+    "not properly constrained",
+    "not constrained",
+    "forgot to constrain",
+    "unconstrained value"
+  ],
+  "witness_consistency": [
+    "invalid witness",
+    "wrong witness",
+    "forge proof",
+    "forge a proof",
+    "forge any",
+    "prover can cheat"
+  ],
+  "soundness": [
+    "unsound",
+    "soundness violation",
+    "soundness bug",
+    "completeness bug",
+    "verifier accepts",
+    "false proof",
+    "invalid proof generation",
+    "creates invalid proof",
+    "malicious prover"
+  ],
+  "frontend_semantics": [
+    "booleanity",
+    "missing range check",
+    "no range check",
+    "signal not constrained",
+    "incorrect assert"
+  ],
+  "field_arithmetic": [
+    "field overflow",
+    "arithmetic overflow",
+    "non-canonical",
+    "wrong field",
+    "field mismatch"
+  ],
+  "compiler_transformations": [
+    "ACIR bug",
+    "optimization unsound",
+    "optimization bug",
+    "inlining bug",
+    "wrong optimization"
+  ]
+}

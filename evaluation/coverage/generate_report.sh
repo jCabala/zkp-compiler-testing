@@ -18,7 +18,7 @@ if [[ -z "$EXPERIMENT" ]]; then
 fi
 
 case "$EXPERIMENT" in
-  smt-solver|sat_fusion_circom|picus_fusion_circom|test-suite|circuzz-arithmetic|circuzz-fully-constraint) ;;
+  smt-solver|sat_fusion_circom|picus_fusion_circom|test-suite|circuzz-arithmetic|circuzz-fully-constraint|bool-vs-ff-*) ;;
   *) usage ;;
 esac
 
@@ -78,7 +78,7 @@ echo "[coverage] llvm-cov:      $LLVM_COV" >&2
 PROFRAW_COUNT=$(find "$PROFRAW_DIR" -name '*.profraw' | wc -l)
 echo "[coverage] Found $PROFRAW_COUNT .profraw files" >&2
 
-if [[ "$EXPERIMENT" == "smt-solver" || "$EXPERIMENT" == *_fusion_circom || "$EXPERIMENT" == circuzz-* ]]; then
+if [[ "$EXPERIMENT" == "smt-solver" || "$EXPERIMENT" == *_fusion_circom || "$EXPERIMENT" == circuzz-* || "$EXPERIMENT" == bool-vs-ff-* ]]; then
   MERGED_PROFDATA="$REPORT_DIR/circom.profdata"
   IGNORE_FILENAME_REGEX='^/rustc/'
 
