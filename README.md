@@ -1,9 +1,13 @@
-# FYP Main Repository
+# FYP — Fuzzing ZKP Compilers
 
-This is the main repository for my FYP project. The project is about fuzzing ZKP compilers using various novel oracles and generators. Most of the efforts are trying to map SMT solver testing techniques into testing ZKP compiles.
-The repository consists of 2 main subprojects: `circuzz` & `smt-solver`. Each defines various oracles and sets of experiments.
+This repository contains the full codebase for an FYP at Imperial College London on fuzzing of zero-knowledge proof (ZKP) compilers.
 
-### Experiment READMEs
+## Repository layout
 
-- [Circuzz FYP Experiments](circuzz/fyp_experiments/README.md)
-- [SMT Solver Experiments](smt-solver/experiments/README.md)
+| Folder | Description |
+|---|---|
+| [`circuzz/`](circuzz/README.md) | Fork of the Circuzz metamorphic testing framework, extended with new backends, oracles, and generators. |
+| [`smt-solver/`](smt-solver/README.md) | SMT-based oracle and CLI for compiling ZK DSL programs to SMT2, solving them, and driving YinYang fusion experiments. |
+| [`evaluation/`](evaluation/) | Evaluation data, analysis notebooks, and results used in the final report (coverage, benchmark comparisons, bug reports). |
+| [`vm_setup/`](vm_setup/README.md) | Scripts for provisioning the DoC VM environment (Podman installation, etc.). |
+| [`report/`](report/README.md) | Final FYP report. |

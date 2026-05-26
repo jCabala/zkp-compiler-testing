@@ -1,0 +1,41 @@
+Differential coverage report
+Tools: bool-vs-ff-bool, bool-vs-ff-ff
+Generated: 2026-05-18T15:08:28.044914+00:00
+Excluded folders from totals: none
+
+Summary
+  Folders seen: 12
+  Files seen: 121
+  Files with differences: 5
+  Covered lines by any tool: 9292/29076 (31.96%)
+  Covered lines by all tools: 9185/29076 (31.59%)
+
+Per tool
+  bool-vs-ff-bool: covered=9277/29076 (31.91%), unique_vs_others=92
+  bool-vs-ff-ff: covered=9200/29076 (31.64%), unique_vs_others=15
+
+Coverage signatures
+  shared by all tools: 9185
+  bool-vs-ff-bool only: 92
+  bool-vs-ff-ff only: 15
+
+Per folder
+  circom_algebra: files=5, diff_files=3, diff=56, any=845/1792 (47.15%), all=789/1792 (44.03%)
+  constraint_list: files=8, diff_files=1, diff=45, any=706/875 (80.69%), all=661/875 (75.54%)
+  constraint_writers: files=5, diff_files=1, diff=6, any=257/427 (60.19%), all=251/427 (58.78%)
+  constraint_generation: files=12, diff_files=0, diff=0, any=2236/5818 (38.43%), all=2236/5818 (38.43%)
+  type_analysis: files=15, diff_files=0, diff=0, any=1623/3908 (41.53%), all=1623/3908 (41.53%)
+  program_structure: files=20, diff_files=0, diff=0, any=1428/2901 (49.22%), all=1428/2901 (49.22%)
+  compiler: files=33, diff_files=0, diff=0, any=711/7946 (8.95%), all=711/7946 (8.95%)
+  circom: files=6, diff_files=0, diff=0, any=536/704 (76.14%), all=536/704 (76.14%)
+  parser: files=4, diff_files=0, diff=0, any=530/1042 (50.86%), all=530/1042 (50.86%)
+  dag: files=7, diff_files=0, diff=0, any=402/774 (51.94%), all=402/774 (51.94%)
+  constant_tracking: files=1, diff_files=0, diff=0, any=18/22 (81.82%), all=18/22 (81.82%)
+  code_producers: files=5, diff_files=0, diff=0, any=0/2867 (0.00%), all=0/2867 (0.00%)
+
+Top differing files
+  constraint_list/src/constraint_simplification.rs: diff=45, any=502/569 (88.22%), all=457/569 (80.32%)
+  circom_algebra/src/algebra.rs: diff=39, any=594/1046 (56.79%), all=555/1046 (53.06%)
+  circom_algebra/src/simplification_utils.rs: diff=11, any=153/506 (30.24%), all=142/506 (28.06%)
+  circom_algebra/src/constraint_storage/mod.rs: diff=6, any=33/37 (89.19%), all=27/37 (72.97%)
+  constraint_writers/src/log_writer.rs: diff=6, any=31/34 (91.18%), all=25/34 (73.53%)

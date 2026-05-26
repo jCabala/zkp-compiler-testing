@@ -1,0 +1,21 @@
+
+═════════════════════════════════════════════════════════════════════════════
+  run-1778761457-circuzz-picus-n-2
+═════════════════════════════════════════════════════════════════════════════
+Instance    Bug found Bug iter    Time to bug (s)Total iters   Total time (s)
+─────────────────────────────────────────────────────────────────────────────
+instance-0  no        n/a         Never         6             325.1       
+instance-1  no        n/a         Never         15            307.0       
+instance-2  no        n/a         Never         0             467.7       
+instance-3  no        n/a         Never         15            308.5       
+instance-4  no        n/a         Never         16            301.5       
+─────────────────────────────────────────────────────────────────────────────
+
+  Aggregate
+  Instances run:               5
+  Bugs found:                  0 / 5
+  Total programs tested:       52
+  Bugs / program:              0.0000  (0/52)
+  Bugs / second:               0.0000  (over 1709.7s total)
+═════════════════════════════════════════════════════════════════════════════
+

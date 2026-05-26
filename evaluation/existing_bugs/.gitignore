@@ -1,0 +1,6 @@
+noir/
+circom/
+gnark/
+zokrates/
+results/
+.env

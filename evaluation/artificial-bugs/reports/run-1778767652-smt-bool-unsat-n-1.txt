@@ -1,0 +1,21 @@
+
+═════════════════════════════════════════════════════════════════════════════
+  run-1778767652-smt-bool-unsat-n-1
+═════════════════════════════════════════════════════════════════════════════
+Instance    Bug found Bug iter    Time to bug (s)Total iters   Total time (s)
+─────────────────────────────────────────────────────────────────────────────
+instance-0  no        n/a         Never         12            537.0       
+instance-1  no        n/a         Never         11            512.0       
+instance-2  no        n/a         Never         12            567.2       
+instance-3  no        n/a         Never          7            521.7       
+instance-4  no        n/a         Never         16            507.1      
+─────────────────────────────────────────────────────────────────────────────
+
+  Aggregate
+  Instances run:               5
+  Bugs found:                  0 / 5
+  Total programs tested:       68
+  Bugs / program:              0.0000  (0/12)
+  Bugs / second:               0.0000  (over 537.0s total)
+═════════════════════════════════════════════════════════════════════════════
+

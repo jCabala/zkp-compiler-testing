@@ -228,6 +228,10 @@ def _yinyang_env(instance: dict[str, Any], defaults: dict[str, Any]) -> dict[str
 	existing = env.get("PYTHONPATH")
 	env["PYTHONPATH"] = str(YINYANG_ROOT) if not existing else f"{YINYANG_ROOT}:{existing}"
 
+	artbugs_config = instance.get("artbugs_config", defaults.get("artbugs_config"))
+	if artbugs_config:
+		env["CIRCOM_ARTIFICIAL_BUGS_CONFIG"] = str(_path_from_root(artbugs_config))
+
 	rewrite_policy = instance.get("fusion_rewrite_policy", defaults.get("fusion_rewrite_policy"))
 	side_policy = instance.get("fusion_side_policy", defaults.get("fusion_side_policy"))
 	if instance["oracle"] == "picus":
@@ -551,6 +555,8 @@ def main() -> int:
 		default=ROOT_DIR / "experiments" / "configs" / "bool_exp_config.json",
 	)
 	parser.add_argument("--output-dir", type=Path, default=RESULTS_DIR)
+	parser.add_argument("--artifacts-dir", type=Path, default=None, help="Override artifacts_dir (yinyang logs, scratch, bugs) from config.")
+	parser.add_argument("--yinyang-seed", type=int, default=None, help="Override yinyang seed from config.")
 	parser.add_argument("--instance-name", type=str, default=None, help="Run only the named instance from the config.")
 	parser.add_argument("--local", action="store_true", help="Run directly in the current environment instead of launching podman containers.")
 	args = parser.parse_args()
@@ -559,6 +565,10 @@ def main() -> int:
 	output_dir = _resolve_path(args.output_dir)
 	cfg = json.loads(config_path.read_text())
 	defaults = cfg.get("defaults", {})
+	if args.artifacts_dir:
+		defaults["artifacts_dir"] = str(_resolve_path(args.artifacts_dir))
+	if args.yinyang_seed is not None:
+		defaults["yinyang_seed"] = args.yinyang_seed
 	instances = [{**defaults, **inst} for inst in cfg.get("instances", [])]
 	if args.instance_name is not None:
 		instances = [inst for inst in instances if inst["name"] == args.instance_name]

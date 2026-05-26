@@ -1,5 +1,5 @@
 # FYP
-This repository is a part of a Master's project at Imperial College London. The project concerns testing zk compilers. More info about specific changes and experiments can be found [here](./fyp_experiments/README.md) 
+More info about specific changes and experiments created during the FYP can be found [here](./fyp_experiments/README.md) 
 
 
 # Circuzz - Original README
