@@ -11,3 +11,5 @@ This repository contains the full codebase for an FYP at Imperial College London
 | [`evaluation/`](evaluation/) | Evaluation data, analysis notebooks, and results used in the final report (coverage, benchmark comparisons, bug reports). |
 | [`vm_setup/`](vm_setup/README.md) | Scripts for provisioning the DoC VM environment (Podman installation, etc.). |
 | [`report/`](report/README.md) | Final FYP report. |
+
+The next stage of this work — a dedicated Noir compiler fuzzer with an SMT-based program generator — lives in a separate repository: [jCabala/noir-comp-fuzz](https://github.com/jCabala/noir-comp-fuzz).
