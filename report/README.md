@@ -1,3 +1,3 @@
 # Report
 
-This directory will contain the final FYP report.
+This directory will contains the final report and presentation slides.
